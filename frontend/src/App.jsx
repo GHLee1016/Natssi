@@ -4,6 +4,7 @@ import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
 import MyDay from './pages/MyDay.jsx'
 import Welcome from './pages/Welcome.jsx'
+import Splash from './pages/Splash.jsx'
 import Change from './pages/Change.jsx'
 import Capture from './pages/Capture.jsx'
 import Routine from './pages/Routine.jsx'
@@ -37,6 +38,7 @@ export default function App() {
   const [tab, setTab] = useState('diary')
   const [page, setPage] = useState(null)          // null | 'auth' | 'legal' | 'account'
   const [anchor, setAnchor] = useState(null)
+  const [homeN, setHomeN] = useState(0)             // 로고를 누를 때마다 올려서 다이어리를 새로 그린다(열린 달력 닫기)
   const [guide, setGuide] = useState(false)         // 사용법 시트
   const [epoch, setEpoch] = useState(0)           // 로그인·로그아웃하면 화면 데이터를 새로 불러옴
   const meta = useLoad(() => api.meta(), [epoch])
@@ -44,7 +46,7 @@ export default function App() {
   const day = date || meta.data?.today
   const viewer = meta.data?.viewer
   const refreshAll = () => setEpoch((n) => n + 1)
-  const goHome = () => { setPage(null); setTab('diary'); setDate(null); window.scrollTo(0, 0) }   // 로고·이름을 누르면 오늘의 다이어리로
+  const goHome = () => { setPage(null); setTab('diary'); setDate(null); setHomeN((n) => n + 1); window.scrollTo(0, 0) }   // 로고·이름을 누르면 오늘의 다이어리로
   const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
@@ -60,6 +62,8 @@ export default function App() {
   useEffect(() => {
     if (meta.error && session.get()) { session.clear(); refreshAll() }
   }, [meta.error])
+
+  if (meta.loading && !meta.data) return <Splash />       // 앱 정보를 처음 받아오는 동안만
 
   return (
     <div className="shell">
@@ -100,7 +104,7 @@ export default function App() {
         {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
         {meta.data && !page && (
           <div key={epoch}>
-            {tab === 'diary' && (viewer ? <MyDay go={setTab} /> : <Diary date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
+            {tab === 'diary' && (viewer ? <MyDay go={setTab} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
             {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
             {tab === 'capture' && <Capture maxMb={meta.data.max_upload_mb} onLegal={goLegal} />}
             {tab === 'routine' && (viewer ? <Locked title="루틴" need={7} /> : <Routine />)}

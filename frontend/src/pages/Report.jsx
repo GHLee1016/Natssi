@@ -1,7 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { useLoad, Status } from '../useLoad.jsx'
+import { useLoad, useSlow, Status } from '../useLoad.jsx'
 import StartCard from './StartCard.jsx'
+
+// 리포트가 바로 나오면 이 표시는 보이지 않고, 0.4초 넘게 걸릴 때만 나타난다(AI가 문장을 쓰는 동안).
+function Writing() {
+  const [long, setLong] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setLong(true), 6000); return () => clearTimeout(t) }, [])
+  return (
+    <div className="chat">
+      <div className="bubble ai" role="status" aria-live="polite">
+        기록을 바탕으로 리포트를 쓰는 중이에요<span className="typing" aria-hidden="true"><i /><i /><i /></span>
+        {long && <p className="muted small">AI가 문장을 쓰는 중이라 조금 더 걸려요.</p>}
+      </div>
+    </div>
+  )
+}
 
 // 근거 라벨: 누르면 근거가 된 첫 기록의 날짜로 이동한다(날짜를 모르면 글자로만 보여준다).
 function Cite({ item, dateOf, open }) {
@@ -14,6 +28,7 @@ function Cite({ item, dateOf, open }) {
 
 export default function Report({ onOpenDay, canStart, onStart }) {
   const q = useLoad(() => api.report(), [])
+  const writing = useSlow(q.loading, 400)
   const tl = useLoad(() => api.timeline(), [])
   const dateOf = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r.date]))
   const [thread, setThread] = useState([])
@@ -33,7 +48,8 @@ export default function Report({ onOpenDay, canStart, onStart }) {
         <div><p className="eyebrow">기록을 근거로 설명해요</p><h1>리포트</h1></div>
         {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `근거 대조 실패 ${r.problems.length}건` : '모든 문장 근거 대조 통과'}</span>}
       </header>
-      <Status {...q} />
+      {!q.loading && <Status {...q} />}
+      {q.loading && writing && <Writing />}
       {r && (
         <div className="chat">
           <div className="bubble ai">

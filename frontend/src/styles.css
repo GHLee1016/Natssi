@@ -209,3 +209,10 @@ button.cite{font:inherit;font-weight:600;color:var(--accent);padding:0;text-deco
 .brand-m{display:flex;align-items:center;gap:6px;font-size:19px;font-weight:700;margin-bottom:8px;min-height:44px}.brand-m img{width:30px;height:30px}
 button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 @media (min-width:900px){.brand-m{display:none}}
+.splash{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--bg);text-align:center;padding:24px}
+.splash img{width:72px;height:72px;margin-bottom:6px;animation:pulse 1.6s ease-in-out infinite}.splash b{font-size:22px}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.8}}
+.typing{display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle}.typing i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.splash img{animation:none}.typing i{animation:none;opacity:.6}}
