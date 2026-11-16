@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api.js'
+import { api, shrinkImage } from '../api.js'
 
-export default function Capture() {
+export default function Capture({ maxMb = 4, onLegal }) {
   const video = useRef(null)
   const stream = useRef(null)
   const [cam, setCam] = useState('idle')   // idle | on | blocked
@@ -26,7 +26,11 @@ export default function Capture() {
 
   const send = async (blob) => {
     setBusy(true); setError(null); setResult(null)
-    try { setResult(await api.capture(blob)) } catch (e) { setError(e.message) } finally { setBusy(false) }
+    try {
+      const small = await shrinkImage(blob)
+      if (small.size > maxMb * 1024 * 1024) throw new Error(`사진이 너무 커요 (${maxMb}MB 이하)`)
+      setResult(await api.capture(small))
+    } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
   const shoot = () => {
     const v = video.current, c = document.createElement('canvas')
@@ -70,7 +74,7 @@ export default function Capture() {
               <p className="muted small">{result.note}</p>
             </div>
           )}
-          <p className="notice">지금은 밝기와 해상도만 확인해요. 고개 각도·표정 검사와 붉은기 측정은 준비 중이에요. 찍은 사진은 검사에만 쓰고 저장하지 않아요.</p>
+          <p className="notice">지금은 밝기와 해상도만 확인해요. 고개 각도·표정 검사와 붉은기 측정은 준비 중이에요. 찍은 사진은 검사에만 쓰고 저장하지 않아요. <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button></p>
         </div>
       </div>
     </section>

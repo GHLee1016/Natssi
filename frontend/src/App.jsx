@@ -1,11 +1,14 @@
-import { useState } from 'react'
-import { api } from './api.js'
+import { useEffect, useState } from 'react'
+import { api, session } from './api.js'
 import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
 import Change from './pages/Change.jsx'
 import Capture from './pages/Capture.jsx'
 import Routine from './pages/Routine.jsx'
 import Report from './pages/Report.jsx'
+import Auth from './pages/Auth.jsx'
+import Legal from './pages/Legal.jsx'
+import Account from './pages/Account.jsx'
 
 const TABS = [
   { id: 'diary', label: '다이어리', icon: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4zm3 5h7M8 13h7' },
@@ -17,9 +20,26 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState('diary')
-  const meta = useLoad(() => api.meta(), [])
+  const [page, setPage] = useState(null)          // null | 'auth' | 'legal' | 'account'
+  const [anchor, setAnchor] = useState(null)
+  const [epoch, setEpoch] = useState(0)           // 로그인·로그아웃하면 화면 데이터를 새로 불러옴
+  const meta = useLoad(() => api.meta(), [epoch])
   const [date, setDate] = useState(null)
   const day = date || meta.data?.today
+  const viewer = meta.data?.viewer
+  const refreshAll = () => setEpoch((n) => n + 1)
+  const goLegal = (a) => { setAnchor(a); setPage('legal') }
+  const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
+
+  useEffect(() => {
+    const h = () => { setPage(null); refreshAll() }
+    window.addEventListener('natssi:logout', h)
+    return () => window.removeEventListener('natssi:logout', h)
+  }, [])
+  // 오래된 로그인 정보 때문에 처음부터 막히면 정리하고 데모로 돌아감
+  useEffect(() => {
+    if (meta.error && session.get()) { session.clear(); refreshAll() }
+  }, [meta.error])
 
   return (
     <div className="shell">
@@ -28,32 +48,47 @@ export default function App() {
         <nav aria-label="주 메뉴">
           {TABS.map((t) => (
             <button key={t.id} className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined}
-              onClick={() => setTab(t.id)}>
+              onClick={() => { setPage(null); setTab(t.id) }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg>{t.label}
             </button>
           ))}
         </nav>
-        <p className="side-foot">매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
+        <div className="side-foot">
+          <p>매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
+          <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
+        </div>
       </aside>
 
       <main className="main">
         {meta.data && (
-          <div className="demo-bar">
-            {meta.data.persona.name} 님 · {meta.data.persona.note}
+          <div className="topline">
+            <div className="demo-bar">
+              {viewer ? `${viewer.email} · 예시 기록(가상 데이터)에 내 증상 체크인이 반영돼요` : `${meta.data.persona.name} 님 · ${meta.data.persona.note} · 읽기 전용`}
+            </div>
+            {meta.data.auth && (viewer
+              ? <button className="link" onClick={() => setPage('account')}>내 계정</button>
+              : <button className="link strong" onClick={() => setPage('auth')}>로그인 · 가입</button>)}
           </div>
         )}
         <Status {...meta} />
-        {meta.data && tab === 'diary' && <Diary date={day} setDate={setDate} meta={meta.data} go={setTab} />}
-        {meta.data && tab === 'change' && <Change meta={meta.data} />}
-        {meta.data && tab === 'capture' && <Capture />}
-        {meta.data && tab === 'routine' && <Routine />}
-        {meta.data && tab === 'report' && <Report />}
+        {meta.data && page === 'auth' && <Auth back={() => setPage(null)} onLegal={goLegal} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
+        {meta.data && page === 'legal' && <Legal anchor={anchor} version={meta.data.consent_version} back={() => setPage(viewer ? 'account' : 'auth')} />}
+        {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
+        {meta.data && !page && (
+          <div key={epoch}>
+            {tab === 'diary' && <Diary date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />}
+            {tab === 'change' && <Change meta={meta.data} />}
+            {tab === 'capture' && <Capture maxMb={meta.data.max_upload_mb} onLegal={goLegal} />}
+            {tab === 'routine' && <Routine />}
+            {tab === 'report' && <Report />}
+          </div>
+        )}
       </main>
 
       <nav className="tabbar" aria-label="주 메뉴">
         {TABS.map((t) => (
           <button key={t.id} className={(tab === t.id ? 'on ' : '') + (t.id === 'capture' ? 'fab' : '')}
-            aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+            aria-current={tab === t.id ? 'page' : undefined} onClick={() => { setPage(null); setTab(t.id) }}>
             <span className="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg></span>
             {t.label}
           </button>

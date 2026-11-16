@@ -4,7 +4,7 @@ import { useLoad, Status } from '../useLoad.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
-export default function Diary({ date, setDate, meta, go }) {
+export default function Diary({ date, setDate, meta, go, askLogin }) {
   const q = useLoad(() => api.day(date), [date])
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -12,7 +12,9 @@ export default function Diary({ date, setDate, meta, go }) {
   const [saveError, setSaveError] = useState(null)
   const d = q.data
 
-  const openEdit = () => { setDraft({ ...d.record.symptoms }); setSaveError(null); setEditing(true) }
+  const openEdit = () => {
+    if (!meta.viewer) { askLogin(); return }
+    setDraft({ ...d.record.symptoms }); setSaveError(null); setEditing(true) }
   const save = async () => {
     setSaving(true); setSaveError(null)
     try { q.setData(await api.checkin(date, draft)); setEditing(false) }
@@ -80,7 +82,7 @@ export default function Diary({ date, setDate, meta, go }) {
                 <i className="thumb plain" />
                 <div><b>증상 체크인</b>
                   <p className="muted small">{SYMPTOMS.map((s) => `${s} ${d.record.symptoms[s]}`).join(' · ')}</p></div>
-                <button className="link" onClick={openEdit}>수정하기</button>
+                <button className="link" onClick={openEdit}>{meta.viewer ? '수정하기' : '로그인하고 기록'}</button>
               </div>
               <div className="row">
                 <i className="thumb plain" />

@@ -1,19 +1,72 @@
 const BASE = import.meta.env.VITE_API_BASE || ''
+const KEY = 'natssi.session'
 
-async function req(path, opts) {
+// 로그인 정보는 이 브라우저에만 보관합니다(저장소를 못 쓰는 환경이면 메모리만 사용).
+let memory = null
+export const session = {
+  get() {
+    if (memory) return memory
+    try { memory = JSON.parse(localStorage.getItem(KEY)) } catch { /* 무시 */ }
+    return memory
+  },
+  set(s) { memory = s; try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* 무시 */ } },
+  clear() { memory = null; try { localStorage.removeItem(KEY) } catch { /* 무시 */ } },
+}
+
+async function raw(path, opts = {}, token) {
+  const headers = { ...(opts.headers || {}) }
+  if (token) headers.Authorization = `Bearer ${token}`
   let res
   try {
-    res = await fetch(BASE + path, opts)
+    res = await fetch(BASE + path, { ...opts, headers })
   } catch {
     throw new Error('서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.')
   }
-  if (!res.ok) {
-    let msg = '요청을 처리하지 못했어요.'
-    try { const j = await res.json(); if (typeof j.detail === 'string') msg = j.detail } catch {}
-    throw new Error(msg)
+  return res
+}
+
+async function fail(res) {
+  let msg = '요청을 처리하지 못했어요.'
+  try {
+    const j = await res.json()
+    if (typeof j.detail === 'string') msg = j.detail
+    else if (res.status === 422) msg = '입력한 내용을 확인해 주세요.'
+  } catch { /* 무시 */ }
+  const e = new Error(msg)
+  e.status = res.status
+  return e
+}
+
+let refreshing = null
+async function refresh() {
+  const s = session.get()
+  if (!s?.refresh_token) return null
+  refreshing = refreshing || (async () => {
+    const res = await raw('/api/auth/refresh', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: s.refresh_token }),
+    })
+    if (!res.ok) { session.clear(); window.dispatchEvent(new Event('natssi:logout')); return null }
+    const next = await res.json()
+    session.set(next)
+    return next
+  })().finally(() => { refreshing = null })
+  return refreshing
+}
+
+async function req(path, opts) {
+  let s = session.get()
+  if (s && s.expires_at && s.expires_at * 1000 - Date.now() < 60000) s = (await refresh()) || null
+  let res = await raw(path, opts, s?.access_token)
+  if (res.status === 401 && s) {                 // 토큰이 만료됐으면 한 번만 갱신해서 다시 시도
+    const next = await refresh()
+    if (next) res = await raw(path, opts, next.access_token)
   }
+  if (!res.ok) throw await fail(res)
   return res.json()
 }
+
+const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 export const api = {
   meta: () => req('/api/meta'),
@@ -23,10 +76,31 @@ export const api = {
   compare: (a, b) => req(`/api/compare?a=${a}&b=${b}`),
   report: () => req('/api/report'),
   answer: (id) => req(`/api/report/answer/${id}`),
-  checkin: (d, body) => req(`/api/day/${d}/checkin`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  }),
+  checkin: (d, body) => req(`/api/day/${d}/checkin`, json('POST', body)),
   capture: (blob) => { const f = new FormData(); f.append('photo', blob, 'selfie.jpg'); return req('/api/capture', { method: 'POST', body: f }) },
+  signup: async (body) => { const r = await req('/api/auth/signup', json('POST', body)); if (r.access_token) session.set(r); return r },
+  login: async (body) => { const r = await req('/api/auth/login', json('POST', body)); session.set(r); return r },
+  logout: () => session.clear(),
+  exportMine: () => req('/api/account/export'),
+  resetMine: () => req('/api/reset', { method: 'POST' }),
+  deleteAccount: async () => { const r = await req('/api/account', { method: 'DELETE' }); session.clear(); return r },
+}
+
+// 사진을 올리기 전에 줄입니다(서버 한도 안에 들어오고, 불필요하게 큰 원본이 오가지 않게).
+export async function shrinkImage(file, maxSide = 1600) {
+  if (!file.type?.startsWith('image/')) return file
+  try {
+    const bmp = await createImageBitmap(file)
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale)
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+    bmp.close?.()
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.9))
+    return blob || file
+  } catch {
+    return file
+  }
 }
 
 export const fmt = {

@@ -1,14 +1,15 @@
-"""증상 체크인 저장소.
+"""사용자별 증상 체크인 저장소.
 
 SUPABASE_URL 과 SUPABASE_SERVICE_KEY 환경변수가 있으면 Supabase(Postgres)에 저장하고,
 없으면 서버 메모리에 저장합니다(서버가 다시 켜지면 사라짐).
 Vercel 같은 서버리스 환경에서는 메모리가 유지되지 않으므로 Supabase 설정이 필요합니다.
 """
 import os
+import uuid
 import httpx
 
 TABLE = "checkins"
-_memory: dict[str, dict] = {}
+_memory: dict[str, dict[str, dict]] = {}   # {user_id: {day: symptoms}}
 _client: httpx.Client | None = None      # 테스트에서 바꿔 끼울 수 있음
 
 
@@ -32,35 +33,41 @@ def _headers(key, extra=None):
     return {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", **(extra or {})}
 
 
-def load_all() -> dict[str, dict]:
+def _uid(uid: str) -> str:
+    return str(uuid.UUID(uid)) if _cfg() else uid        # 저장소 필터에 들어가는 값이라 형식을 검증
+
+
+def load_all(uid: str) -> dict[str, dict]:
     cfg = _cfg()
     if not cfg:
-        return dict(_memory)
+        return dict(_memory.get(uid, {}))
     url, key = cfg
-    r = _http().get(f"{url}/rest/v1/{TABLE}", params={"select": "day,symptoms"}, headers=_headers(key))
+    r = _http().get(f"{url}/rest/v1/{TABLE}", params={"select": "day,symptoms", "user_id": f"eq.{_uid(uid)}"},
+                    headers=_headers(key))
     r.raise_for_status()
     return {row["day"]: row["symptoms"] for row in r.json()}
 
 
-def save(day: str, symptoms: dict) -> None:
+def save(uid: str, day: str, symptoms: dict) -> None:
     cfg = _cfg()
     if not cfg:
-        _memory[day] = symptoms
+        _memory.setdefault(uid, {})[day] = symptoms
         return
     url, key = cfg
-    r = _http().post(f"{url}/rest/v1/{TABLE}", params={"on_conflict": "day"},
+    r = _http().post(f"{url}/rest/v1/{TABLE}", params={"on_conflict": "user_id,day"},
                      headers=_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
-                     json={"day": day, "symptoms": symptoms})
+                     json={"user_id": _uid(uid), "day": day, "symptoms": symptoms})
     r.raise_for_status()
 
 
-def clear() -> None:
+def clear(uid: str) -> None:
+    """해당 사용자의 체크인만 지웁니다."""
     cfg = _cfg()
-    _memory.clear()
+    _memory.pop(uid, None)
     if not cfg:
         return
     url, key = cfg
-    r = _http().delete(f"{url}/rest/v1/{TABLE}", params={"day": "gte.1900-01-01"}, headers=_headers(key))
+    r = _http().delete(f"{url}/rest/v1/{TABLE}", params={"user_id": f"eq.{_uid(uid)}"}, headers=_headers(key))
     r.raise_for_status()
 
 

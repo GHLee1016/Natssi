@@ -60,26 +60,38 @@ def test_no_key_means_no_call(monkeypatch):
     assert report.build_report_llm(rows, demo_data.VERSIONS)["source"] == "template"
 
 
-def test_supabase_store_roundtrip(monkeypatch):
+UID_A = "11111111-1111-4111-8111-111111111111"
+UID_B = "22222222-2222-4222-8222-222222222222"
+
+
+def test_supabase_store_roundtrip_is_per_user(monkeypatch):
     db = {}
 
     def handler(request):
         assert request.headers["apikey"] == "svc"
         if request.method == "POST":
-            row = json.loads(request.content); db[row["day"]] = row["symptoms"]
+            row = json.loads(request.content); db[(row["user_id"], row["day"])] = row["symptoms"]
+            assert "on_conflict=user_id%2Cday" in str(request.url) or "on_conflict=user_id,day" in str(request.url)
             return httpx.Response(201)
+        uid = request.url.params["user_id"].removeprefix("eq.")
         if request.method == "DELETE":
-            db.clear(); return httpx.Response(204)
-        return httpx.Response(200, json=[{"day": k, "symptoms": v} for k, v in db.items()])
+            for k in [k for k in db if k[0] == uid]:
+                del db[k]
+            return httpx.Response(204)
+        return httpx.Response(200, json=[{"day": k[1], "symptoms": v} for k, v in db.items() if k[0] == uid])
 
     monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "svc")
     store._client = httpx.Client(transport=httpx.MockTransport(handler))
     try:
         assert store.backend_name() == "supabase"
-        store.save("2026-11-16", {"따가움": 2})
-        assert store.load_all() == {"2026-11-16": {"따가움": 2}}
-        store.clear()
-        assert store.load_all() == {}
+        store.save(UID_A, "2026-11-16", {"따가움": 2})
+        store.save(UID_B, "2026-11-16", {"따가움": 0})
+        assert store.load_all(UID_A) == {"2026-11-16": {"따가움": 2}}
+        assert store.load_all(UID_B) == {"2026-11-16": {"따가움": 0}}
+        store.clear(UID_A)                                  # A만 지워지고 B는 남아야 함
+        assert store.load_all(UID_A) == {} and store.load_all(UID_B) != {}
+        with pytest.raises(ValueError):
+            store.load_all("x' or 1=1 --")                  # 형식이 틀린 id는 거부
     finally:
         store._client = None

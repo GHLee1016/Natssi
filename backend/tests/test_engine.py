@@ -1,6 +1,6 @@
 from datetime import date
 from fastapi.testclient import TestClient
-from app import demo_data, judge, report
+from app import config, demo_data, judge, report
 from app.main import app
 
 rows = judge.judge_all(demo_data.build_records())
@@ -46,13 +46,15 @@ def test_verify_catches_wrong_number():
     assert len(report.verify(bad, rows)) == 2
 
 
-def test_api_smoke():
+def test_api_smoke(monkeypatch):
     assert client.get("/api/meta").status_code == 200
     assert client.get("/api/day/2026-11-09").json()["record"]["verdict"]["level"] == judge.SIGNAL
     assert client.get("/api/day/2025-01-01").status_code == 404
     c = client.get("/api/compare", params={"a": "2026-11-02", "b": "2026-11-09"}).json()
     assert c["beyond_error"] is True
     assert client.get("/api/report").json()["problems"] == []
+    assert client.post("/api/day/2026-11-16/checkin", json={"따가움": 2}).status_code == 401   # 로그인 없이는 저장 불가
+    monkeypatch.setattr(config, "OPEN_MODE", True)                                            # 이하 로컬 개발 모드
     assert client.post("/api/day/2026-11-16/checkin", json={"따가움": 5}).status_code == 422
     r = client.post("/api/day/2026-11-16/checkin", json={"따가움": 2}).json()
     assert r["record"]["verdict"]["level"] == judge.WATCH

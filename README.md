@@ -93,3 +93,16 @@ frontend/src/
 
 - 얼굴 사진 3장(`frontend/public/faces`)은 AI로 생성한 이미지입니다. 화면에 표시를 유지하세요.
 - 데이터는 모두 가상입니다. MDC95 1.8도 예시 값입니다.
+
+
+## 로그인·보안 (v0.2)
+
+- **로그인**: Supabase Auth 이메일+비밀번호. 브라우저는 이 서버(`/api/auth/*`)를 거치므로 화면 코드에 Supabase 키가 들어가지 않습니다.
+- **로그인 전**: 김서연 가상 데이터를 읽기 전용으로 봅니다(저장·초기화·탈퇴 API는 401).
+- **로그인 후**: 예시 기록 위에 **내 증상 체크인**만 덮어 보입니다. 데이터는 `user_id`로 분리되고 RLS 정책이 걸려 있습니다.
+- **내 데이터**: `/api/account/export`(내려받기), `DELETE /api/account`(체크인+계정 삭제).
+- **동의**: 가입 때 이용약관·개인정보·얼굴 사진 처리 안내에 모두 동의해야 하며, 약관 버전과 시각이 사용자 메타데이터에 기록됩니다. 문구는 `frontend/src/pages/Legal.jsx` — **초안이므로 법률 검토 후 [대괄호]를 채우세요.**
+- **제한**: 호출 횟수(`config.LIMITS`, 인스턴스별 최선 노력 방식), 업로드 4MB·JPG/PNG/WEBP·픽셀 수 제한, 큰 사진은 브라우저에서 먼저 축소.
+- **환경변수**(Vercel): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_MODELS`. 로컬 개발은 `NATSSI_OPEN_MODE=1`.
+- **Supabase 설정**: `supabase/schema.sql`(v2)을 실행하고, Authentication → Providers에서 Email을 켭니다. 시연용으로 메일 인증을 끄려면 Authentication → Sign In / Providers → Email의 "Confirm email"을 끄세요.
+- 실제 호출 상한은 OpenRouter 키의 크레딧 한도로도 함께 거세요.
