@@ -53,9 +53,21 @@ def test_api_smoke(monkeypatch):
     c = client.get("/api/compare", params={"a": "2026-11-02", "b": "2026-11-09"}).json()
     assert c["beyond_error"] is True
     assert client.get("/api/report").json()["problems"] == []
-    assert client.post("/api/day/2026-11-16/checkin", json={"따가움": 2}).status_code == 401   # 로그인 없이는 저장 불가
+    assert client.post("/api/me/checkin", json={"따가움": 2}).status_code == 401   # 로그인 없이는 저장 불가
     monkeypatch.setattr(config, "OPEN_MODE", True)                                            # 이하 로컬 개발 모드
-    assert client.post("/api/day/2026-11-16/checkin", json={"따가움": 5}).status_code == 422
-    r = client.post("/api/day/2026-11-16/checkin", json={"따가움": 2}).json()
-    assert r["record"]["verdict"]["level"] == judge.WATCH
+    assert client.post("/api/me/checkin", json={"따가움": 5}).status_code == 422
+    r = client.post("/api/me/checkin", json={"따가움": 2}).json()
+    assert r["today_checkin"]["따가움"] == 2 and r["days_recorded"] == 1 and r["needed"] == 7
     client.post("/api/reset")
+
+
+def test_demo_story_follows_today(monkeypatch):
+    from datetime import date
+    from app import config
+    monkeypatch.setattr(config, "DEMO_SHIFT_DAYS", None)
+    for today, shift in ((date(2026, 11, 16), 0), (date(2026, 11, 27), 11), (date(2026, 11, 10), 0)):   # 기준일 이전은 밀지 않음
+        monkeypatch.setattr(config, "today_kst", lambda t=today: t)
+        recs = demo_data.build_records(offset=config.demo_shift())
+        assert config.demo_shift() == shift
+        assert len(recs) == 28 and (recs[-1]["version"], recs[-1]["day_in_version"]) == (3, 7)
+        assert recs[-1]["date"] == config.demo_today().isoformat()

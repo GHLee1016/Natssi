@@ -2,6 +2,8 @@
 import random
 from datetime import date, timedelta
 
+from . import config
+
 PERSONA = {
     "name": "김서연", "age": 28, "type": "홈더마 사용자 (중관여)",
     "note": "가상 페르소나 · 가상 데이터",
@@ -33,30 +35,38 @@ _V2_SHIFT = [0.3, 0.6, 1.2, 2.6, 3.4, 3.9, 3.4]
 _V2_STING = [0, 0, 1, 2, 2, 2, 1]
 _V3_SHIFT = [2.4, 1.5, 0.8, 0.3, 0.0, 0.1, -0.1]
 _V3_STING = [1, 0, 0, 0, 0, 0, 0]
-_SKIPPED = {date(2026, 10, 25), date(2026, 10, 30)}   # 조명이 달라 측정 보류된 날
+_SKIPPED = {date(2026, 10, 25), date(2026, 10, 30)}   # 조명이 달라 측정 보류된 날 (기준일 기준)
 
 
-def version_of(d: date) -> int:
+def versions(shift: int = 0) -> list:
+    """기준 날짜(VERSIONS)를 shift일 민 루틴 버전 목록. 이름·항목은 그대로, 시작일만 움직인다."""
+    return [{**v, "start": v["start"] + timedelta(days=shift)} for v in VERSIONS]
+
+
+def version_of(d: date, vs: list | None = None) -> int:
     vid = 1
-    for v in VERSIONS:
+    for v in vs or VERSIONS:
         if d >= v["start"]:
             vid = v["id"]
     return vid
 
 
-def build_records(end: date = date(2026, 11, 16)):
+def build_records(end: date | None = None, offset: int = 0):
+    vs = versions(offset)
+    end = end or config.DEMO_BASE + timedelta(days=offset)
+    skipped = {d + timedelta(days=offset) for d in _SKIPPED}
     rng = random.Random(20261116)
-    recs, d, i = [], VERSIONS[0]["start"], 1
+    recs, d, i = [], vs[0]["start"], 1
     while d <= end:
-        vid = version_of(d)
-        day_in_v = (d - VERSIONS[vid - 1]["start"]).days
+        vid = version_of(d, vs)
+        day_in_v = (d - vs[vid - 1]["start"]).days
         noise = rng.gauss(0, 0.45)
         shift, sting = 0.0, 0
         if vid == 2:
             shift, sting = _V2_SHIFT[day_in_v], _V2_STING[day_in_v]
         elif vid == 3:
             shift, sting = _V3_SHIFT[day_in_v], _V3_STING[day_in_v]
-        quality_ok = d not in _SKIPPED
+        quality_ok = d not in skipped
         recs.append({
             "id": i, "date": d.isoformat(), "version": vid, "day_in_version": day_in_v + 1,
             "quality_ok": quality_ok,

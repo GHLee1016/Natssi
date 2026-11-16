@@ -1,26 +1,16 @@
 import { useState } from 'react'
 import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
+import { WEATHER, WeatherIcon } from '../weather.jsx'
+import Calendar from './Calendar.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
 export default function Diary({ date, setDate, meta, go, askLogin }) {
   const q = useLoad(() => api.day(date), [date])
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState(null)
+  const [calOpen, setCalOpen] = useState(false)
   const d = q.data
 
-  const openEdit = () => {
-    if (!meta.viewer) { askLogin(); return }
-    setDraft({ ...d.record.symptoms }); setSaveError(null); setEditing(true) }
-  const save = async () => {
-    setSaving(true); setSaveError(null)
-    try { q.setData(await api.checkin(date, draft)); setEditing(false) }
-    catch (e) { setSaveError(e.message) }
-    finally { setSaving(false) }
-  }
   const moveWeek = (n) => {
     const next = fmt.shift(date, n * 7)
     setDate(next < meta.first ? meta.first : next > meta.today ? meta.today : next)
@@ -33,8 +23,12 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
           <p className="eyebrow">{date === meta.today ? '오늘' : '지난 기록'}</p>
           <h1>{fmt.full(date)}</h1>
         </div>
-        {date !== meta.today && <button className="btn ghost" onClick={() => setDate(meta.today)}>오늘로 가기</button>}
+        <div className="head-actions">
+          {date !== meta.today && <button className="btn ghost" onClick={() => setDate(meta.today)}>오늘로 가기</button>}
+          <button className="btn ghost" onClick={() => setCalOpen((o) => !o)} aria-expanded={calOpen}>{calOpen ? '달력 닫기' : '달력'}</button>
+        </div>
       </header>
+      {calOpen && <Calendar date={date} first={meta.first} today={meta.today} onPick={(iso) => { setDate(iso); setCalOpen(false) }} />}
       <Status {...q} />
       {d && (
         <>
@@ -47,10 +41,10 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
             <button className="week-nav" onClick={() => moveWeek(-1)} disabled={d.week[0].date <= meta.first} aria-label="이전 주 보기">‹</button>
             {d.week.map((w) => (
               <button key={w.date} disabled={!w.has_record} className={'wd' + (w.date === date ? ' on' : '')}
-                onClick={() => setDate(w.date)} aria-label={fmt.full(w.date) + (w.level ? ` ${w.level}` : ' 기록 없음')}>
+                onClick={() => setDate(w.date)} aria-label={fmt.full(w.date) + (w.level ? ` ${WEATHER[w.level].name}` : ' 기록 없음')}>
                 <span>{'일월화수목금토'[new Date(w.date + 'T00:00:00').getDay()]}</span>
                 <b>{+w.date.slice(8)}</b>
-                <i className={w.level ? 'dot ' + LEVEL_CLASS[w.level] : 'dot none'} />
+                {w.level ? <WeatherIcon level={w.level} size={16} /> : <i className="dot none" />}
               </button>
             ))}
             <button className="week-nav" onClick={() => moveWeek(1)} disabled={d.week[6].date >= meta.today} aria-label="다음 주 보기">›</button>
@@ -59,7 +53,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
           <div className="grid2">
             <div className={'card verdict ' + LEVEL_CLASS[d.record.verdict.level]}>
               <p className="small">{date === meta.today ? '오늘의 얼굴 날씨' : '이날의 얼굴 날씨'}</p>
-              <h2>{d.record.verdict.level}</h2>
+              <h2><WeatherIcon level={d.record.verdict.level} size={30} />{WEATHER[d.record.verdict.level].name}</h2>
               <p>{d.record.verdict.message}</p>
               {d.record.verdict.reasons.length > 0 && (
                 <ul>{d.record.verdict.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
@@ -82,7 +76,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
                 <i className="thumb plain" />
                 <div><b>증상 체크인</b>
                   <p className="muted small">{SYMPTOMS.map((s) => `${s} ${d.record.symptoms[s]}`).join(' · ')}</p></div>
-                <button className="link" onClick={openEdit}>{meta.viewer ? '수정하기' : '로그인하고 기록'}</button>
+                <button className="link" onClick={askLogin}>로그인하고 기록</button>
               </div>
               <div className="row">
                 <i className="thumb plain" />
@@ -92,25 +86,6 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
             </div>
           </div>
 
-          {editing && (
-            <div className="card edit">
-              <h3>증상 체크인 <span className="muted small">0 없음 ~ 3 심함</span></h3>
-              {SYMPTOMS.map((s) => (
-                <div className="scale" key={s} role="group" aria-label={s}>
-                  <span>{s}</span>
-                  {[0, 1, 2, 3].map((n) => (
-                    <button key={n} className={draft[s] === n ? 'on' : ''} aria-pressed={draft[s] === n}
-                      onClick={() => setDraft({ ...draft, [s]: n })}>{n}</button>
-                  ))}
-                </div>
-              ))}
-              {saveError && <p className="err" role="alert">{saveError}</p>}
-              <div className="actions">
-                <button className="btn ghost" onClick={() => setEditing(false)}>취소</button>
-                <button className="btn" onClick={save} disabled={saving}>{saving ? '저장하는 중…' : '체크인 저장'}</button>
-              </div>
-            </div>
-          )}
         </>
       )}
     </section>

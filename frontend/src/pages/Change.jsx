@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
+import { WEATHER } from '../weather.jsx'
 
 const W = 520, H = 290, PAD = { l: 30, r: 10, t: 28, b: 30 }
 const BAND = ['#f6f3f0', '#fff1e9', '#eef5f9']
@@ -107,9 +108,9 @@ export default function Change() {
             {picked ? (
               <div className={'picked ' + LEVEL_CLASS[picked.verdict.level]}>
                 <b>{fmt.full(picked.date)} · 기록 {picked.id}</b>
-                <span>{picked.verdict.level} · 붉은기 {picked.redness > 0 ? '+' : ''}{picked.redness} · 따가움 {picked.symptoms['따가움']}</span>
+                <span>{WEATHER[picked.verdict.level].name} · 붉은기 {picked.redness > 0 ? '+' : ''}{picked.redness} · 따가움 {picked.symptoms['따가움']}</span>
               </div>
-            ) : <p className="muted small hint">주황 점은 '신호 있음'으로 판정된 날이에요.</p>}
+            ) : <p className="muted small hint">주황 점은 '흐림'으로 판정된 날이에요.</p>}
           </div>
           <div className="card">
             <h3>루틴 변경 기록</h3>

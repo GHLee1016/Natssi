@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, session } from './api.js'
 import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
+import MyDay from './pages/MyDay.jsx'
 import Change from './pages/Change.jsx'
 import Capture from './pages/Capture.jsx'
 import Routine from './pages/Routine.jsx'
@@ -17,6 +18,16 @@ const TABS = [
   { id: 'routine', label: '루틴', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
   { id: 'report', label: '리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
 ]
+
+// 로그인한 사용자에게는 판정·리포트를 아직 열지 않는다(내 기록이 7일 이상 쌓인 뒤). 김서연 데모에서만 보여준다.
+function Locked({ title, need }) {
+  return (
+    <section>
+      <header className="page-head"><div><p className="eyebrow">내 기록이 쌓이면 열려요</p><h1>{title}</h1></div></header>
+      <div className="card"><p>내 기록이 {need}일 이상 쌓이면 이 화면이 열려요. 지금은 로그아웃하면 볼 수 있는 김서연 가상 데모에서 미리 볼 수 있어요.</p></div>
+    </section>
+  )
+}
 
 export default function App() {
   const [tab, setTab] = useState('diary')
@@ -63,7 +74,7 @@ export default function App() {
         {meta.data && (
           <div className="topline">
             <div className="demo-bar">
-              {viewer ? `${viewer.email} · 예시 기록(가상 데이터)에 내 증상 체크인이 반영돼요` : `${meta.data.persona.name} 님 · ${meta.data.persona.note} · 읽기 전용`}
+              {viewer ? `${viewer.email} · 내 기록 · 김서연 데모는 로그아웃하면 볼 수 있어요` : `${meta.data.persona.name} 님 · ${meta.data.persona.note} · 읽기 전용`}
             </div>
             {meta.data.auth && (viewer
               ? <button className="link" onClick={() => setPage('account')}>내 계정</button>
@@ -76,11 +87,11 @@ export default function App() {
         {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
         {meta.data && !page && (
           <div key={epoch}>
-            {tab === 'diary' && <Diary date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />}
-            {tab === 'change' && <Change meta={meta.data} />}
+            {tab === 'diary' && (viewer ? <MyDay go={setTab} /> : <Diary date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
+            {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change meta={meta.data} />)}
             {tab === 'capture' && <Capture maxMb={meta.data.max_upload_mb} onLegal={goLegal} />}
-            {tab === 'routine' && <Routine />}
-            {tab === 'report' && <Report />}
+            {tab === 'routine' && (viewer ? <Locked title="루틴" need={7} /> : <Routine />)}
+            {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report />)}
           </div>
         )}
       </main>

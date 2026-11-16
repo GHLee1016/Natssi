@@ -90,7 +90,7 @@ def test_demo_is_read_only(env):
     _, c = env
     assert c.get("/api/timeline").status_code == 200
     assert c.get("/api/meta").json()["viewer"] is None
-    assert c.post("/api/day/2026-11-16/checkin", json={"따가움": 1}).status_code == 401
+    assert c.post("/api/me/checkin", json={"따가움": 1}).status_code == 401
     assert c.post("/api/reset").status_code == 401
     assert c.get("/api/account/export").status_code == 401
     assert c.delete("/api/account").status_code == 401
@@ -124,11 +124,12 @@ def test_login_errors_are_friendly(env):
 def test_users_cannot_see_each_others_checkins(env):
     fake, c = env
     a, b = join(c, "a@test.kr"), join(c, "b@test.kr")
-    r = c.post("/api/day/2026-11-16/checkin", json={"따가움": 3}, headers=a)
-    assert r.status_code == 200 and r.json()["record"]["symptoms"]["따가움"] == 3
-    assert c.get("/api/day/2026-11-16", headers=a).json()["record"]["symptoms"]["따가움"] == 3
-    assert c.get("/api/day/2026-11-16", headers=b).json()["record"]["symptoms"]["따가움"] != 3
-    assert c.get("/api/day/2026-11-16").json()["record"]["symptoms"]["따가움"] != 3     # 데모도 안 섞임
+    r = c.post("/api/me/checkin", json={"따가움": 3}, headers=a)
+    assert r.status_code == 200 and r.json()["today_checkin"]["따가움"] == 3 and r.json()["days_recorded"] == 1
+    assert c.get("/api/me", headers=a).json()["today_checkin"]["따가움"] == 3
+    assert c.get("/api/me", headers=b).json()["today_checkin"] is None                    # B는 A의 기록이 안 보임
+    assert c.get("/api/day/2026-11-16").json()["record"]["symptoms"]["따가움"] != 3     # 김서연 데모에도 안 섞임
+    assert c.get("/api/me").status_code == 401
     assert len(c.get("/api/account/export", headers=b).json()["checkins"]) == 0
     c.post("/api/reset", headers=b)                                                      # B의 초기화는 A에 영향 없음
     assert len(c.get("/api/account/export", headers=a).json()["checkins"]) == 1
@@ -137,22 +138,24 @@ def test_users_cannot_see_each_others_checkins(env):
 def test_bad_token_is_rejected(env):
     _, c = env
     assert c.get("/api/timeline", headers={"Authorization": "Bearer nope"}).status_code == 401
-    assert c.post("/api/day/2026-11-16/checkin", json={"따가움": 1}, headers={"Authorization": "Bearer nope"}).status_code == 401
+    assert c.post("/api/me/checkin", json={"따가움": 1}, headers={"Authorization": "Bearer nope"}).status_code == 401
     assert c.get("/api/timeline", headers={"Authorization": "Basic abc"}).status_code == 401
 
 
 def test_checkin_input_is_validated(env):
     _, c = env
     a = join(c, "a@test.kr")
-    assert c.post("/api/day/2026-11-16/checkin", json={"따가움": 9}, headers=a).status_code == 422
-    assert c.post("/api/day/2030-01-01/checkin", json={"따가움": 1}, headers=a).status_code == 404
+    assert c.post("/api/me/checkin", json={"따가움": 9}, headers=a).status_code == 422
+    c.post("/api/me/checkin", json={"따가움": 1}, headers=a)
+    r = c.post("/api/me/checkin", json={"따가움": 2}, headers=a).json()                 # 같은 날 다시 저장하면 덮어씀
+    assert r["days_recorded"] == 1 and r["today_checkin"]["따가움"] == 2 and r["needed"] == 7
 
 
 def test_delete_account_removes_data_and_user(env):
     fake, c = env
     a = join(c, "a@test.kr"); b = join(c, "b@test.kr")
-    c.post("/api/day/2026-11-16/checkin", json={"따가움": 2}, headers=a)
-    c.post("/api/day/2026-11-16/checkin", json={"따가움": 1}, headers=b)
+    c.post("/api/me/checkin", json={"따가움": 2}, headers=a)
+    c.post("/api/me/checkin", json={"따가움": 1}, headers=b)
     assert c.delete("/api/account", headers=a).status_code == 200
     assert len(fake.deleted) == 1 and "a@test.kr" not in fake.users and "b@test.kr" in fake.users
     assert all(k[0] != fake.deleted[0] for k in fake.rows) and len(fake.rows) == 1       # B의 행은 남음
@@ -222,4 +225,4 @@ def test_auth_off_means_demo_only(monkeypatch):
     monkeypatch.setattr(config, "OPEN_MODE", False)
     c = TestClient(app)
     assert c.post("/api/auth/login", json={"email": "a@test.kr", "password": "abcd1234"}).status_code == 503
-    assert c.post("/api/day/2026-11-16/checkin", json={"따가움": 1}).status_code == 401
+    assert c.post("/api/me/checkin", json={"따가움": 1}).status_code == 401

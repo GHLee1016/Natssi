@@ -56,23 +56,13 @@ def limit(bucket: str, request: Request, v=None):
     ratelimit.hit(bucket, v["id"] if v else ratelimit.client_ip(request))
 
 
-def records(v):
-    """예시 기록 위에, 로그인한 사용자 본인의 증상 체크인만 덮어씌워 돌려줍니다."""
-    recs = demo_data.build_records(config.DEMO_TODAY)
-    if v is None:
-        return recs
-    try:
-        saved = store.load_all(v["id"])
-    except Exception as e:
-        raise HTTPException(503, f"저장소에 연결하지 못했어요. ({store.why(e)})")
-    for r in recs:
-        if r["date"] in saved:
-            r["symptoms"] = {**r["symptoms"], **saved[r["date"]]}
-    return recs
+def records(v=None):
+    """김서연 예시 기록. 로그인한 사용자의 기록은 섞지 않는다(내 기록은 /api/me)."""
+    return demo_data.build_records(offset=config.demo_shift())
 
 
-def judged(v):
-    return judge.judge_all(records(v))
+def judged(v=None):
+    return judge.judge_all(records())
 
 
 def routine_payload(v):
@@ -83,8 +73,8 @@ def routine_payload(v):
 
 @app.get("/api/meta")
 def meta(v=Depends(viewer)):
-    return {"persona": demo_data.PERSONA, "today": config.DEMO_TODAY.isoformat(),
-            "first": demo_data.VERSIONS[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
+    return {"persona": demo_data.PERSONA, "today": config.demo_today().isoformat(),
+            "first": demo_data.versions(config.demo_shift())[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
             "mdc95_is_example": True, "storage": store.backend_name(), "llm": llm.enabled(),
             "auth": auth.enabled() or config.OPEN_MODE, "consent_version": config.CONSENT_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
@@ -187,7 +177,7 @@ def _day(d, v):
     rec = next((r for r in rows if r["date"] == d.isoformat()), None)
     if rec is None:
         raise HTTPException(404, "이 날짜에는 기록이 없어요")
-    ver = demo_data.VERSIONS[rec["version"] - 1]
+    ver = demo_data.versions(config.demo_shift())[rec["version"] - 1]
     week_start = d - timedelta(days=(d.weekday() + 1) % 7)
     week = []
     for i in range(7):
@@ -201,14 +191,15 @@ def _day(d, v):
 @app.get("/api/timeline")
 def timeline(v=Depends(viewer)):
     rows = judged(v)
-    return {"records": rows, "versions": [routine_payload(x) for x in demo_data.VERSIONS],
+    return {"records": rows, "versions": [routine_payload(x) for x in demo_data.versions(config.demo_shift())],
             "mdc95": config.MDC95_A_STAR}
 
 
 @app.get("/api/routine")
 def routine():
-    cur = demo_data.VERSIONS[demo_data.version_of(config.DEMO_TODAY) - 1]
-    return {"current": routine_payload(cur), "versions": [routine_payload(x) for x in demo_data.VERSIONS]}
+    vs = demo_data.versions(config.demo_shift())
+    cur = vs[demo_data.version_of(config.demo_today(), vs) - 1]
+    return {"current": routine_payload(cur), "versions": [routine_payload(x) for x in vs]}
 
 
 @app.get("/api/compare")
@@ -250,16 +241,39 @@ class Checkin(BaseModel):
     당김: int = Field(0, ge=0, le=3)
 
 
-@app.post("/api/day/{d}/checkin")
-def checkin(d: date, body: Checkin, request: Request, v=Depends(need_user)):
-    limit("write", request, v)
-    if not (demo_data.VERSIONS[0]["start"] <= d <= config.DEMO_TODAY):
-        raise HTTPException(404, "이 날짜에는 기록이 없어요")
+BASELINE_DAYS = config.MIN_BASELINE_RECORDS
+
+
+def _mine(uid):
     try:
-        store.save(v["id"], d.isoformat(), body.model_dump())
+        return store.load_all(uid)
+    except Exception as e:
+        raise HTTPException(503, f"저장소에 연결하지 못했어요. ({store.why(e)})")
+
+
+def _me_payload(uid):
+    saved = _mine(uid)
+    today = config.today_kst().isoformat()
+    recent = [{"date": d, "symptoms": saved[d]} for d in sorted(saved, reverse=True)[:7]]
+    return {"today": today, "today_checkin": saved.get(today), "days_recorded": len(saved),
+            "needed": BASELINE_DAYS, "recent": recent}
+
+
+@app.get("/api/me")
+def me(v=Depends(need_user)):
+    """로그인한 사용자 본인의 기록. 오늘 체크인, 쌓인 일수(평소 범위까지 N/7), 최근 기록."""
+    return _me_payload(v["id"])
+
+
+@app.post("/api/me/checkin")
+def checkin(body: Checkin, request: Request, v=Depends(need_user)):
+    """오늘(한국 시간) 증상 체크인을 저장한다. 같은 날 다시 보내면 덮어쓴다."""
+    limit("write", request, v)
+    try:
+        store.save(v["id"], config.today_kst().isoformat(), body.model_dump())
     except Exception as e:
         raise HTTPException(503, f"체크인을 저장하지 못했어요. ({store.why(e)})")
-    return _day(d, v)
+    return _me_payload(v["id"])
 
 
 @app.post("/api/capture")
