@@ -89,6 +89,8 @@ def guard(sentences, facts) -> list[str]:
     if not isinstance(sentences, list) or not 1 <= len(sentences) <= 5:
         return ["문장 수가 맞지 않아요"]
     valid_ids = {i for f in facts for i in f["signal_ids"] + f["calm_ids"]}
+    signal_all = {i for f in facts for i in f["signal_ids"]}
+    calm_all = {i for f in facts for i in f["calm_ids"]}
     nums = allowed_numbers(facts)
     for s in sentences:
         text, cites = s.get("text"), s.get("cites")
@@ -99,6 +101,9 @@ def guard(sentences, facts) -> list[str]:
             problems.append(f"근거 번호가 없어요: {text}")
         elif not set(cites) <= valid_ids:
             problems.append(f"없는 근거 번호: {text}")
+        elif set(cites) & signal_all and set(cites) & calm_all:
+            # 신호 기록과 평온 기록을 한 문장이 함께 인용하면 주장과 근거가 어긋난다
+            problems.append(f"신호·평온 기록을 함께 인용: {text}")
         for w in BANNED:
             if w in text:
                 problems.append(f"금지어 '{w}': {text}")
