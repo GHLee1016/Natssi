@@ -46,7 +46,7 @@ export default function Report() {
             {r.source === 'llm'
               ? `판정 기록을 바탕으로 AI가 문장을 썼어요 (${r.model}). 판정 자체는 AI가 하지 않아요.`
               : r.llm_error
-                ? 'AI 문장이 검사를 통과하지 못해, 정해진 틀의 문장으로 보여 드려요.'
+                ? `AI 문장을 쓰지 못해, 정해진 틀의 문장으로 보여 드려요. (${r.llm_error}${r.llm_problems?.length ? ' · ' + r.llm_problems.join(' / ') : ''})`
                 : '판정 기록만으로 만든 문장이에요.'}
           </p>
         </div>

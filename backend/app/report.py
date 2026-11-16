@@ -73,7 +73,7 @@ def build_report_llm(judged, versions):
         return base
     res = llm.write_report(build_facts(judged, versions))
     if "sentences" not in res:
-        return {**base, "llm_error": res.get("error")}
+        return {**base, "llm_error": res.get("error"), "llm_problems": (res.get("problems") or [])[:3]}
     if verify(res["sentences"], judged):
         return {**base, "llm_error": "LLM 문장이 기록 대조를 통과하지 못했어요"}
     return {"sentences": [_label(s) for s in res["sentences"]], "disclaimer": DISCLAIMER,

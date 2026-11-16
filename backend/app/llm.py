@@ -119,7 +119,8 @@ def write_report(facts):
         content = data["choices"][0]["message"]["content"]
         sentences = _extract_json(content)["sentences"]
     except Exception as e:                      # 한도 초과, 시간 초과, 형식 오류 등
-        return {"error": f"LLM 호출 실패: {type(e).__name__}"}
+        code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+        return {"error": f"LLM 호출 실패: {type(e).__name__}" + (f" (HTTP {code})" if code else "")}
     problems = guard(sentences, facts)
     if problems:
         return {"error": "LLM 문장이 검사를 통과하지 못했어요", "problems": problems}

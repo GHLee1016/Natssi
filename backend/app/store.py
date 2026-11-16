@@ -62,3 +62,21 @@ def clear() -> None:
     url, key = cfg
     r = _http().delete(f"{url}/rest/v1/{TABLE}", params={"day": "gte.1900-01-01"}, headers=_headers(key))
     r.raise_for_status()
+
+
+def why(exc: Exception) -> str:
+    """오류 원인을 비밀값 없이 짧게 알려 줍니다(키·URL은 넣지 않음)."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        hint = {401: "키가 올바르지 않아요(service_role/secret 키인지 확인)",
+                403: "키 권한이 없어요(anon 키가 아닌 service_role/secret 키를 쓰세요)",
+                404: "checkins 테이블이 없어요(supabase/schema.sql 실행 필요)"}.get(code, "")
+        try:
+            body = exc.response.json()
+            msg = body.get("message") or body.get("hint") or ""
+        except Exception:
+            msg = ""
+        return f"Supabase {code} {hint} {msg}".strip()
+    if isinstance(exc, httpx.HTTPError):
+        return f"Supabase에 닿지 못했어요({type(exc).__name__}) — SUPABASE_URL을 확인하세요"
+    return type(exc).__name__

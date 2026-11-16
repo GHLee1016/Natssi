@@ -16,8 +16,8 @@ def records():
     recs = demo_data.build_records(config.DEMO_TODAY)
     try:
         saved = store.load_all()
-    except Exception:
-        raise HTTPException(503, "저장소에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+    except Exception as e:
+        raise HTTPException(503, f"저장소에 연결하지 못했어요. ({store.why(e)})")
     for r in recs:
         if r["date"] in saved:
             r["symptoms"] = {**r["symptoms"], **saved[r["date"]]}
@@ -115,8 +115,8 @@ def checkin(d: date, body: Checkin):
         raise HTTPException(404, "이 날짜에는 기록이 없어요")
     try:
         store.save(d.isoformat(), body.model_dump())
-    except Exception:
-        raise HTTPException(503, "체크인을 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+    except Exception as e:
+        raise HTTPException(503, f"체크인을 저장하지 못했어요. ({store.why(e)})")
     return day(d)
 
 
