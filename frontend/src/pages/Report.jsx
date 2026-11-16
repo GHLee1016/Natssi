@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api.js'
+import { api, reportStore } from '../api.js'
 import { useLoad, useSlow, Status } from '../useLoad.jsx'
 import StartCard from './StartCard.jsx'
 
@@ -39,12 +39,13 @@ function Cite({ item, dateOf, open }) {
     : <span className="cite">[{item.cite_label}]</span>
 }
 
-export default function Report({ onOpenDay, canStart, onStart }) {
-  const q = useLoad(() => api.report(), [])
+export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
+  const q = useLoad(() => reportStore.load(cacheKey, api.report), [cacheKey], reportStore.data(cacheKey))
   const writing = useSlow(q.loading, 400)
   const tl = useLoad(() => api.timeline(), [])
   const dateOf = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r.date]))
-  const [thread, setThread] = useState([])
+  const [thread, setThreadState] = useState(() => reportStore.thread(cacheKey))
+  const setThread = (fn) => setThreadState((prev) => { const next = fn(prev); reportStore.setThread(cacheKey, next); return next })
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const ask = async (item) => {

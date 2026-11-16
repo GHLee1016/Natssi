@@ -1,3 +1,5 @@
+import { reportStore } from './reportStore.js'
+
 const BASE = import.meta.env.VITE_API_BASE || ''
 const KEY = 'natssi.session'
 
@@ -9,8 +11,8 @@ export const session = {
     try { memory = JSON.parse(localStorage.getItem(KEY)) } catch { /* 무시 */ }
     return memory
   },
-  set(s) { memory = s; try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* 무시 */ } },
-  clear() { memory = null; try { localStorage.removeItem(KEY) } catch { /* 무시 */ } },
+  set(s) { reportStore.clear(); memory = s; try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* 무시 */ } },
+  clear() { reportStore.clear(); memory = null; try { localStorage.removeItem(KEY) } catch { /* 무시 */ } },
 }
 
 async function raw(path, opts = {}, token) {
@@ -77,7 +79,7 @@ export const api = {
   report: () => req('/api/report'),
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
-  checkin: (body) => req('/api/me/checkin', json('POST', body)),
+  checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
   capture: (blob) => { const f = new FormData(); f.append('photo', blob, 'selfie.jpg'); return req('/api/capture', { method: 'POST', body: f }) },
   signup: async (body) => { const r = await req('/api/auth/signup', json('POST', body)); if (r.access_token) session.set(r); return r },
   login: async (body) => { const r = await req('/api/auth/login', json('POST', body)); session.set(r); return r },
@@ -85,8 +87,8 @@ export const api = {
   resetPassword: (body) => req('/api/auth/reset', json('POST', body)),
   logout: () => session.clear(),
   exportMine: () => req('/api/account/export'),
-  resetMine: () => req('/api/reset', { method: 'POST' }),
-  deleteAccount: async () => { const r = await req('/api/account', { method: 'DELETE' }); session.clear(); return r },
+  resetMine: async () => { const r = await req('/api/reset', { method: 'POST' }); reportStore.clear(); return r },
+  deleteAccount: async () => { const r = await req('/api/account', { method: 'DELETE' }); session.clear(); return r },   // clear()가 리포트도 비운다
 }
 
 // 사진을 올리기 전에 줄입니다(서버 한도 안에 들어오고, 불필요하게 큰 원본이 오가지 않게).
@@ -113,3 +115,5 @@ export const fmt = {
 }
 
 export const LEVEL_CLASS = { '신호 없음': 'ok', '관찰 중': 'watch', '신호 있음': 'signal', '구분 불가': 'unknown' }
+
+export { reportStore }

@@ -123,7 +123,7 @@ export default function App() {
             {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
             {tab === 'capture' && <Capture maxMb={meta.data.max_upload_mb} onLegal={goLegal} />}
             {tab === 'routine' && (viewer ? <Locked title="루틴" need={7} /> : <Routine />)}
-            {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} />)}
+            {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
           </div>
         )}
       </main>

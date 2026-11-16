@@ -12,8 +12,8 @@ export function useSlow(on, ms = 300) {
 }
 
 // 불러오기 상태(로딩·오류·재시도)를 한곳에서 처리
-export function useLoad(fn, deps) {
-  const [state, setState] = useState({ data: null, error: null, loading: true })
+export function useLoad(fn, deps, initial = null) {
+  const [state, setState] = useState(initial ? { data: initial, error: null, loading: false } : { data: null, error: null, loading: true })
   const run = useCallback(() => {
     let alive = true
     setState((s) => ({ ...s, loading: true, error: null }))
