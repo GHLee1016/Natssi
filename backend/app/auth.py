@@ -51,6 +51,7 @@ MESSAGES = {
     "over_request_rate_limit": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요.",
     "validation_failed": "입력한 내용을 확인해 주세요.",
     "signup_disabled": "지금은 가입을 받지 않아요.",
+    "same_password": "이전과 다른 비밀번호를 써 주세요.",
 }
 
 
@@ -108,6 +109,25 @@ def login(email: str, password: str) -> dict:
     return {"status": "ok", **_session(r.json())}
 
 
+def recover(email: str) -> None:
+    """비밀번호 재설정 메일. 메일 안의 링크는 Supabase의 Site URL(대시보드 설정)로 돌아온다."""
+    _, anon, _ = _env()
+    r = _call("POST", "/auth/v1/recover", key=anon, json={"email": email})
+    if r.status_code >= 400:
+        raise _fail(r)
+
+
+def reset_password(token: str, password: str) -> dict:
+    _, anon, _ = _env()
+    r = _call("PUT", "/auth/v1/user", key=anon, token=token, json={"password": password})
+    if r.status_code in (401, 403):
+        raise AuthError(401, "재설정 링크가 만료됐어요. 메일을 다시 받아 주세요.")
+    if r.status_code >= 400:
+        raise _fail(r)
+    _cache.clear()
+    return {"status": "ok"}
+
+
 def refresh(refresh_token: str) -> dict:
     _, anon, _ = _env()
     r = _call("POST", "/auth/v1/token", key=anon, params={"grant_type": "refresh_token"},
@@ -128,7 +148,7 @@ def user_from_token(token: str) -> dict:
     if r.status_code in (401, 403):
         raise AuthError(401, "로그인이 필요해요.")
     if r.status_code >= 400:
-        raise AuthError(503, "로그인 서버에 연결하지 못했어요.")
+        raise AuthError(503, "로그인 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
     u = r.json()
     try:
         uid = str(uuid.UUID(u["id"]))                        # 형식 검증(저장소 필터에 들어가는 값)

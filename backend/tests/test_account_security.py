@@ -18,6 +18,7 @@ class FakeSupabase:
         self.tokens = {}       # token -> id
         self.rows = {}         # (user_id, day) -> symptoms
         self.deleted = []
+        self.recovered = []    # 재설정 메일을 요청한 이메일
 
     def handler(self, request: httpx.Request):
         path, body = request.url.path, (json.loads(request.content) if request.content else {})
@@ -41,7 +42,15 @@ class FakeSupabase:
             if not uid:
                 return httpx.Response(401, json={})
             email, u = next((e, u) for e, u in self.users.items() if u["id"] == uid)
+            if request.method == "PUT":                              # 비밀번호 바꾸기
+                if u["password"] == body["password"]:
+                    return httpx.Response(422, json={"error_code": "same_password"})
+                u["password"] = body["password"]
+                return httpx.Response(200, json={"id": uid, "email": email})
             return httpx.Response(200, json={"id": uid, "email": email, "user_metadata": u["meta"]})
+        if path == "/auth/v1/recover":
+            self.recovered.append(body["email"])
+            return httpx.Response(200, json={})
         if path.startswith("/auth/v1/admin/users/"):
             assert request.headers["apikey"] == "svc"          # 삭제는 service 키로만
             uid = path.rsplit("/", 1)[1]
@@ -226,3 +235,42 @@ def test_auth_off_means_demo_only(monkeypatch):
     c = TestClient(app)
     assert c.post("/api/auth/login", json={"email": "a@test.kr", "password": "abcd1234"}).status_code == 503
     assert c.post("/api/me/checkin", json={"따가움": 1}).status_code == 401
+
+
+def test_password_recovery_flow(env, monkeypatch):
+    fake, c = env
+    monkeypatch.setitem(config.LIMITS, "auth", (50, 60))          # 이 테스트는 인증 호출이 많아 제한을 넉넉히
+    tok = c.post("/api/auth/signup", json={"email": "a@test.kr", "password": "abcd1234", **SIGNUP}).json()["access_token"]
+    # 메일 요청은 가입 여부와 상관없이 같은 답(가입된 이메일을 알아낼 수 없게)
+    assert c.post("/api/auth/recover", json={"email": "a@test.kr"}).json() == {"status": "sent"}
+    assert c.post("/api/auth/recover", json={"email": "nobody@test.kr"}).json() == {"status": "sent"}
+    assert c.post("/api/auth/recover", json={"email": "not-an-email"}).status_code == 422
+    # 새 비밀번호: 약한 것·같은 것·만료된 링크는 쉬운 문구로 거절
+    assert c.post("/api/auth/reset", json={"access_token": tok, "password": "12345678"}).status_code == 400
+    r = c.post("/api/auth/reset", json={"access_token": tok, "password": "abcd1234"})
+    assert r.status_code == 400 and r.json()["detail"] == "이전과 다른 비밀번호를 써 주세요."
+    r = c.post("/api/auth/reset", json={"access_token": "expired-token-xx", "password": "newpass99"})
+    assert r.status_code == 401 and "다시 받아" in r.json()["detail"]
+    assert c.post("/api/auth/reset", json={"access_token": tok, "password": "newpass99"}).json()["status"] == "ok"
+    assert c.post("/api/auth/login", json={"email": "a@test.kr", "password": "abcd1234"}).status_code == 400
+    assert c.post("/api/auth/login", json={"email": "a@test.kr", "password": "newpass99"}).status_code == 200
+
+
+def test_login_short_password_gets_friendly_error(env):
+    _, c = env
+    join(c, "a@test.kr")
+    r = c.post("/api/auth/login", json={"email": "a@test.kr", "password": "abc"})
+    assert r.status_code == 400 and r.json()["detail"] == "이메일 또는 비밀번호가 맞지 않아요."
+
+
+def test_store_errors_do_not_leak_details(env, monkeypatch):
+    _, c = env
+    a = join(c, "a@test.kr")
+
+    def boom(uid):
+        raise httpx.ConnectError("secret-host.supabase.co refused")
+    monkeypatch.setattr(store, "load_all", boom)
+    r = c.get("/api/me", headers=a)
+    d = r.json()["detail"]
+    assert r.status_code == 503 and "오류 번호" in d and "다시 시도" in d
+    assert not any(w in d for w in ("Supabase", "secret-host", "ConnectError", "SUPABASE_URL"))

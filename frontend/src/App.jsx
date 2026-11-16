@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, session } from './api.js'
 import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
@@ -31,12 +31,17 @@ function Locked({ title, need }) {
   )
 }
 
+// 비밀번호 재설정 메일의 링크는 #access_token=…&type=recovery 로 돌아온다(만료되면 #error_code=…).
+const linkParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ''))
+const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴', report: '리포트' }
 const GUIDE_KEY = 'natssi_guide'
 const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return true } }
 
 export default function App() {
   const [tab, setTab] = useState('diary')
-  const [page, setPage] = useState(null)          // null | 'auth' | 'legal' | 'account'
+  const [resetToken, setResetToken] = useState(() => { const h = linkParams(); return h.get('type') === 'recovery' ? h.get('access_token') : null })
+  const [linkExpired] = useState(() => !!linkParams().get('error_code'))
+  const [page, setPage] = useState(() => (resetToken || linkExpired ? 'auth' : null))          // null | 'auth' | 'legal' | 'account'
   const [anchor, setAnchor] = useState(null)
   const [homeN, setHomeN] = useState(0)             // 로고를 누를 때마다 올려서 다이어리를 새로 그린다(열린 달력 닫기)
   const [guide, setGuide] = useState(false)         // 사용법 시트
@@ -48,6 +53,15 @@ export default function App() {
   const refreshAll = () => setEpoch((n) => n + 1)
   const goHome = () => { setPage(null); setTab('diary'); setDate(null); setHomeN((n) => n + 1); window.scrollTo(0, 0) }   // 로고·이름을 누르면 오늘의 다이어리로
   const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
+  useEffect(() => { if (window.location.hash && (resetToken || linkExpired)) window.history.replaceState(null, '', window.location.pathname + window.location.search) }, [])   // 토큰이 주소창에 남지 않게
+  const firstNav = useRef(true)
+  useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
+    const name = page === 'auth' ? '로그인 · 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : TAB_TITLES[tab]
+    document.title = `${name} · 낯씨`
+    if (firstNav.current) { firstNav.current = false; return }
+    const h = document.querySelector('.main h1')
+    if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }) }
+  }, [tab, page])
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
   const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
@@ -58,7 +72,7 @@ export default function App() {
     return () => window.removeEventListener('natssi:logout', h)
   }, [])
   // 오래된 로그인 정보 때문에 처음부터 막히면 정리하고 데모로 돌아감
-  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen()) setGuide(true) }, [meta.data])
+  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired) setGuide(true) }, [meta.data])
   useEffect(() => {
     if (meta.error && session.get()) { session.clear(); refreshAll() }
   }, [meta.error])
@@ -66,6 +80,7 @@ export default function App() {
   if (meta.loading && !meta.data) return <Splash />       // 앱 정보를 처음 받아오는 동안만
 
   return (
+    <>
     <div className="shell">
       <aside className="side">
         <button className="brand" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
@@ -99,7 +114,7 @@ export default function App() {
           </div>
         )}
         <Status {...meta} />
-        {meta.data && page === 'auth' && <Auth back={() => setPage(null)} onLegal={goLegal} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
+        {meta.data && page === 'auth' && <Auth back={() => setPage(null)} onLegal={goLegal} resetToken={resetToken} linkExpired={linkExpired} onResetDone={() => setResetToken(null)} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
         {meta.data && page === 'legal' && <Legal anchor={anchor} version={meta.data.consent_version} back={() => setPage(viewer ? 'account' : 'auth')} />}
         {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
         {meta.data && !page && (
@@ -113,8 +128,6 @@ export default function App() {
         )}
       </main>
 
-      {guide && <Welcome onClose={closeGuide} onStart={canStart ? () => { closeGuide(); setPage('auth') } : null} />}
-
       <nav className="tabbar" aria-label="주 메뉴">
         {TABS.map((t) => (
           <button key={t.id} className={(tab === t.id ? 'on ' : '') + (t.id === 'capture' ? 'fab' : '')}
@@ -125,5 +138,7 @@ export default function App() {
         ))}
       </nav>
     </div>
+    {guide && <Welcome onClose={closeGuide} onStart={canStart ? () => { closeGuide(); setPage('auth') } : null} />}
+    </>
   )
 }

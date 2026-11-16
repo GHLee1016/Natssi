@@ -26,7 +26,7 @@ async function raw(path, opts = {}, token) {
 }
 
 async function fail(res) {
-  let msg = '요청을 처리하지 못했어요.'
+  let msg = '요청을 처리하지 못했어요. 잠시 뒤 다시 시도해 주세요.'
   try {
     const j = await res.json()
     if (typeof j.detail === 'string') msg = j.detail
@@ -81,6 +81,8 @@ export const api = {
   capture: (blob) => { const f = new FormData(); f.append('photo', blob, 'selfie.jpg'); return req('/api/capture', { method: 'POST', body: f }) },
   signup: async (body) => { const r = await req('/api/auth/signup', json('POST', body)); if (r.access_token) session.set(r); return r },
   login: async (body) => { const r = await req('/api/auth/login', json('POST', body)); session.set(r); return r },
+  recover: (body) => req('/api/auth/recover', json('POST', body)),
+  resetPassword: (body) => req('/api/auth/reset', json('POST', body)),
   logout: () => session.clear(),
   exportMine: () => req('/api/account/export'),
   resetMine: () => req('/api/reset', { method: 'POST' }),

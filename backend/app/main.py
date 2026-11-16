@@ -1,4 +1,6 @@
+import logging
 import os
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
@@ -9,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from . import auth, config, demo_data, judge, llm, quality, ratelimit, report, store
 
+log = logging.getLogger("natssi")
 app = FastAPI(title="낯씨 API", version="0.2.0")
 # 같은 주소에서 화면과 API를 함께 서비스하므로 다른 출처의 접근은 허용하지 않습니다.
 # 로컬에서 프런트(5173)를 따로 띄울 때만 CORS_ORIGINS 환경변수에 주소를 넣으세요.
@@ -65,6 +68,15 @@ def judged(v=None):
     return judge.judge_all(records())
 
 
+def _store_fail(what: str, e: Exception) -> HTTPException:
+    """저장소 오류. 화면에는 쉬운 문구와 오류 번호만 보이고, 원인은 서버 로그에 남긴다.
+    (로컬 개발 모드에서만 원인을 같이 보여 준다.)"""
+    ref = secrets.token_hex(3)
+    log.warning("저장소 오류 %s: %s", ref, store.why(e))
+    extra = f" [{store.why(e)}]" if config.OPEN_MODE else ""
+    return HTTPException(503, f"{what} 잠시 뒤 다시 시도해 주세요. (오류 번호 {ref}){extra}")
+
+
 def routine_payload(v):
     return {"id": v["id"], "start": v["start"].isoformat(), "label": v["label"], "change": v["change"],
             "reason": v["reason"],
@@ -87,6 +99,20 @@ class Credentials(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
 
 
+class LoginBody(BaseModel):
+    email: str = Field(..., min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class RecoverBody(BaseModel):
+    email: str = Field(..., min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class ResetBody(BaseModel):
+    access_token: str = Field(..., min_length=10, max_length=4000)
+    password: str = Field(..., min_length=8, max_length=128)
+
+
 class SignupBody(Credentials):
     consent_terms: bool = False
     consent_privacy: bool = False
@@ -96,6 +122,11 @@ class SignupBody(Credentials):
 
 class RefreshBody(BaseModel):
     refresh_token: str = Field(..., min_length=10, max_length=2000)
+
+
+def _check_password(pw: str):
+    if pw.isdigit() or pw.isalpha():
+        raise HTTPException(400, "비밀번호에 글자와 숫자를 함께 써 주세요.")
 
 
 def _auth_on():
@@ -109,8 +140,7 @@ def signup(body: SignupBody, request: Request):
     limit("auth", request)
     if not (body.consent_terms and body.consent_privacy and body.consent_photo and body.consent_health):
         raise HTTPException(400, "필수 항목에 모두 동의해야 가입할 수 있어요.")
-    if body.password.isdigit() or body.password.isalpha():
-        raise HTTPException(400, "비밀번호에 글자와 숫자를 함께 써 주세요.")
+    _check_password(body.password)
     try:
         return auth.signup(body.email.strip().lower(), body.password)
     except auth.AuthError as e:
@@ -118,11 +148,35 @@ def signup(body: SignupBody, request: Request):
 
 
 @app.post("/api/auth/login")
-def login(body: Credentials, request: Request):
+def login(body: LoginBody, request: Request):
     _auth_on()
     limit("auth", request)
     try:
         return auth.login(body.email.strip().lower(), body.password)
+    except auth.AuthError as e:
+        raise HTTPException(e.status, e.message)
+
+
+@app.post("/api/auth/recover")
+def recover(body: RecoverBody, request: Request):
+    """비밀번호 재설정 메일 요청. 가입 여부와 상관없이 같은 답을 준다(가입된 이메일을 알아내지 못하게)."""
+    _auth_on()
+    limit("auth", request)
+    try:
+        auth.recover(body.email.strip().lower())
+    except auth.AuthError as e:
+        raise HTTPException(e.status, e.message)
+    return {"status": "sent"}
+
+
+@app.post("/api/auth/reset")
+def reset_password(body: ResetBody, request: Request):
+    """메일 링크로 받은 임시 토큰으로 새 비밀번호를 정한다."""
+    _auth_on()
+    limit("auth", request)
+    _check_password(body.password)
+    try:
+        return auth.reset_password(body.access_token, body.password)
     except auth.AuthError as e:
         raise HTTPException(e.status, e.message)
 
@@ -144,7 +198,7 @@ def export_account(request: Request, v=Depends(need_user)):
     try:
         saved = store.load_all(v["id"])
     except Exception as e:
-        raise HTTPException(503, f"저장소에 연결하지 못했어요. ({store.why(e)})")
+        raise _store_fail("저장소에 연결하지 못했어요.", e)
     return {"email": v["email"], "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "consent": v.get("consent"),
             "checkins": [{"day": d, "symptoms": s} for d, s in sorted(saved.items())],
@@ -162,7 +216,7 @@ def delete_account(request: Request, v=Depends(need_user)):
     except auth.AuthError as e:
         raise HTTPException(e.status, e.message)
     except Exception as e:
-        raise HTTPException(503, f"삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요. ({store.why(e)})")
+        raise _store_fail("삭제하지 못했어요.", e)
     return {"ok": True}
 
 
@@ -248,7 +302,7 @@ def _mine(uid):
     try:
         return store.load_all(uid)
     except Exception as e:
-        raise HTTPException(503, f"저장소에 연결하지 못했어요. ({store.why(e)})")
+        raise _store_fail("저장소에 연결하지 못했어요.", e)
 
 
 def _me_payload(uid):
@@ -272,7 +326,7 @@ def checkin(body: Checkin, request: Request, v=Depends(need_user)):
     try:
         store.save(v["id"], config.today_kst().isoformat(), body.model_dump())
     except Exception as e:
-        raise HTTPException(503, f"체크인을 저장하지 못했어요. ({store.why(e)})")
+        raise _store_fail("체크인을 저장하지 못했어요.", e)
     return _me_payload(v["id"])
 
 
@@ -297,8 +351,8 @@ def reset(request: Request, v=Depends(need_user)):
     limit("write", request, v)
     try:
         store.clear(v["id"])
-    except Exception:
-        raise HTTPException(503, "저장소를 비우지 못했어요.")
+    except Exception as e:
+        raise _store_fail("체크인을 지우지 못했어요.", e)
     return {"ok": True}
 
 
