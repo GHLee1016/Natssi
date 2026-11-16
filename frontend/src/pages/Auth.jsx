@@ -5,11 +5,11 @@ export default function Auth({ onDone, onLegal, back }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [c, setC] = useState({ terms: false, privacy: false, photo: false })
+  const [c, setC] = useState({ terms: false, privacy: false, photo: false, health: false })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [mailSent, setMailSent] = useState(false)
-  const all = c.terms && c.privacy && c.photo
+  const all = c.terms && c.privacy && c.photo && c.health
   const signup = mode === 'signup'
 
   const submit = async (e) => {
@@ -19,7 +19,7 @@ export default function Auth({ onDone, onLegal, back }) {
     setBusy(true)
     try {
       if (signup) {
-        const r = await api.signup({ email, password, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo })
+        const r = await api.signup({ email, password, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health })
         if (r.status === 'confirm_email') { setMailSent(true); return }
       } else {
         await api.login({ email, password })
@@ -59,8 +59,8 @@ export default function Auth({ onDone, onLegal, back }) {
           <fieldset className="consents">
             <legend>약관 동의</legend>
             <label className="check all"><input type="checkbox" checked={all}
-              onChange={(e) => setC({ terms: e.target.checked, privacy: e.target.checked, photo: e.target.checked })} />전체 동의</label>
-            {[['terms', '[필수] 이용약관', 'terms'], ['privacy', '[필수] 개인정보 수집·이용', 'privacy'], ['photo', '[필수] 얼굴 사진 처리 안내', 'photo']].map(([k, label, anchor]) => (
+              onChange={(e) => setC({ terms: e.target.checked, privacy: e.target.checked, photo: e.target.checked, health: e.target.checked })} />전체 동의</label>
+            {[['terms', '[필수] 이용약관', 'terms'], ['privacy', '[필수] 개인정보 수집·이용', 'privacy'], ['photo', '[필수] 얼굴 사진 처리 안내', 'photo'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용', 'health']].map(([k, label, anchor]) => (
               <div className="check-row" key={k}>
                 <label className="check"><input type="checkbox" checked={c[k]} onChange={(e) => setC({ ...c, [k]: e.target.checked })} />{label}</label>
                 <button type="button" className="link" onClick={() => onLegal(anchor)}>보기</button>

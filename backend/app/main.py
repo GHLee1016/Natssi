@@ -101,6 +101,7 @@ class SignupBody(Credentials):
     consent_terms: bool = False
     consent_privacy: bool = False
     consent_photo: bool = False
+    consent_health: bool = False   # 증상 점수 = 건강 정보(민감정보): 개인정보보호법 제23조 별도 동의
 
 
 class RefreshBody(BaseModel):
@@ -116,7 +117,7 @@ def _auth_on():
 def signup(body: SignupBody, request: Request):
     _auth_on()
     limit("auth", request)
-    if not (body.consent_terms and body.consent_privacy and body.consent_photo):
+    if not (body.consent_terms and body.consent_privacy and body.consent_photo and body.consent_health):
         raise HTTPException(400, "필수 항목에 모두 동의해야 가입할 수 있어요.")
     if body.password.isdigit() or body.password.isalpha():
         raise HTTPException(400, "비밀번호에 글자와 숫자를 함께 써 주세요.")

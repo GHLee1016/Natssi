@@ -87,7 +87,7 @@ def _call(method, path, *, key, json=None, params=None, token=None):
 def signup(email: str, password: str) -> dict:
     """가입. 동의 기록은 사용자 메타데이터에 남깁니다(서버가 시각을 찍음)."""
     _, anon, _ = _env()
-    consent = {"version": config.CONSENT_VERSION, "terms": True, "privacy": True, "photo": True,
+    consent = {"version": config.CONSENT_VERSION, "terms": True, "privacy": True, "photo": True, "health": True,
                "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     r = _call("POST", "/auth/v1/signup", key=anon, json={"email": email, "password": password,
                                                           "data": {"consent": consent}})

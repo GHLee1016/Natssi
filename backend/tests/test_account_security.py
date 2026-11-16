@@ -77,7 +77,7 @@ def env(monkeypatch):
     auth._client = store._client = None
 
 
-SIGNUP = {"consent_terms": True, "consent_privacy": True, "consent_photo": True}
+SIGNUP = {"consent_terms": True, "consent_privacy": True, "consent_photo": True, "consent_health": True}
 
 
 def join(c, email, pw="abcd1234"):

@@ -11,7 +11,7 @@ import os
 
 # ── 계정·보안 ───────────────────────────────────────────────
 OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1"   # 로컬 개발용: 로그인 없이 쓰기 허용(운영에서는 켜지 마세요)
-CONSENT_VERSION = "2026-11-16"                          # 처리방침을 바꾸면 이 값도 바꿉니다
+CONSENT_VERSION = "2026-11-17"                          # 처리방침을 바꾸면 이 값도 바꿉니다
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024                      # Vercel 함수 요청 한도(4.5MB) 아래
 MAX_IMAGE_PIXELS = 40_000_000                           # 압축 폭탄 방지
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
