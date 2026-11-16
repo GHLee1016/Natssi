@@ -41,6 +41,7 @@ def test_good_reply_is_used():
     {"sentences": [{"text": "붉은기가 평소 범위를 넘었어요.", "cites": []}]},              # 근거 없음
     {"sentences": [{"text": "같은 기간 따가움 1점이 기록됐어요.", "cites": [18, 19]}]},    # 기록과 다른 점수
     {"sentences": [{"text": "붉은기가 아직 평소 범위 밖이었어요.", "cites": [22, 23]}]},    # 신호(22)+평온(23) 혼합 인용
+    {"sentences": [{"text": "그 뒤 붉은기가 평소 범위로 돌아왔어요.", "cites": [15, 16, 17]}]},  # 신호(18~21)보다 앞선 기록으로 회복 주장
 ])
 def test_bad_reply_falls_back_to_template(bad):
     llm._client = fake(json.dumps(bad, ensure_ascii=False))
