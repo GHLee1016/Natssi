@@ -32,7 +32,8 @@ SYSTEM = """너는 피부 기록 앱 '낯씨'의 리포트 문장을 쓰는 역�
 3. 질환명, 진단, 치료, 효능, 제품 추천을 쓰지 않는다.
 4. 문장은 2~4개. 각 문장은 80자 이내.
 5. 각 문장에는 근거가 된 기록 번호를 cites 배열로 붙인다. 번호는 facts의 signal_ids, calm_ids 안에 있는 것만 쓴다.
-6. 출력은 아래 JSON 하나뿐이다. 다른 글은 쓰지 않는다.
+6. 문장 본문에는 기록 번호를 쓰지 않는다. 번호는 cites 배열에만 넣는다. 괄호로 번호를 나열하지 않는다.
+7. 출력은 아래 JSON 하나뿐이다. 다른 글은 쓰지 않는다.
 {"sentences":[{"text":"...","cites":[1,2]}]}"""
 
 
@@ -58,6 +59,14 @@ def _extract_json(text: str):
     if start < 0 or end < 0:
         raise ValueError("JSON이 없어요")
     return json.loads(text[start:end + 1])
+
+
+_ID_LIST = re.compile(r"\s*[\(\[]\s*(?:\d+\s*[,~\-]\s*)*\d+\s*[\)\]]")
+
+
+def clean_text(text: str) -> str:
+    """본문에 섞여 들어온 '(9,10,12)' 같은 기록 번호 나열을 지웁니다(번호는 cites에만 둡니다)."""
+    return _ID_LIST.sub("", text).strip()
 
 
 def allowed_numbers(facts) -> set[str]:
@@ -127,6 +136,10 @@ def write_report(facts):
     except Exception as e:                      # 한도 초과, 시간 초과, 형식 오류 등
         code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
         return {"error": f"LLM 호출 실패: {type(e).__name__}" + (f" (HTTP {code})" if code else f": {str(e)[:80]}")}
+    if isinstance(sentences, list):
+        for sent in sentences:
+            if isinstance(sent, dict) and isinstance(sent.get("text"), str):
+                sent["text"] = clean_text(sent["text"])
     problems = guard(sentences, facts)
     if problems:
         return {"error": "LLM 문장이 검사를 통과하지 못했어요", "problems": problems}
