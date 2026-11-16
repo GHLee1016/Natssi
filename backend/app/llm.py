@@ -108,7 +108,7 @@ def write_report(facts):
         return _cache[digest]
     ms = models()
     body = {
-        "model": ms[0], "models": ms[:3], "temperature": 0.2, "max_tokens": 700,
+        "model": ms[0], "models": ms[:3], "temperature": 0.2, "max_tokens": 2000,
         "messages": [{"role": "system", "content": SYSTEM},
                      {"role": "user", "content": "facts:\n" + json.dumps(payload_facts, ensure_ascii=False)}],
     }
@@ -116,11 +116,17 @@ def write_report(facts):
         r = _http().post(URL, json=body, headers={"Authorization": f"Bearer {key}", "X-Title": "natssi"})
         r.raise_for_status()
         data = r.json()
-        content = data["choices"][0]["message"]["content"]
-        sentences = _extract_json(content)["sentences"]
+        choice = data["choices"][0]
+        content = choice["message"].get("content")
+        if not isinstance(content, str) or not content.strip():
+            # 추론형 모델이 토큰을 생각에 다 쓰면 본문이 비어 옵니다
+            why = choice.get("finish_reason") or "empty"
+            return {"error": f"LLM 응답 본문이 비어 있어요 ({data.get('model', ms[0])}, {why})"}
+        parsed = _extract_json(content)
+        sentences = parsed["sentences"] if isinstance(parsed, dict) else parsed
     except Exception as e:                      # 한도 초과, 시간 초과, 형식 오류 등
         code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
-        return {"error": f"LLM 호출 실패: {type(e).__name__}" + (f" (HTTP {code})" if code else "")}
+        return {"error": f"LLM 호출 실패: {type(e).__name__}" + (f" (HTTP {code})" if code else f": {str(e)[:80]}")}
     problems = guard(sentences, facts)
     if problems:
         return {"error": "LLM 문장이 검사를 통과하지 못했어요", "problems": problems}
