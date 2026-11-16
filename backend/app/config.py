@@ -29,6 +29,8 @@ def demo_today() -> date:
 import os
 
 # ── 계정·보안 ───────────────────────────────────────────────
+# 비밀번호 찾기는 Supabase 커스텀 SMTP를 설정한 뒤에만 켠다(기본 메일 서비스는 팀 구성원에게만 보낸다).
+RECOVERY_ENABLED = os.environ.get("NATSSI_RECOVERY") == "1"
 OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1"   # 로컬 개발용: 로그인 없이 쓰기 허용(운영에서는 켜지 마세요)
 CONSENT_VERSION = "2026-11-18"                          # 처리방침을 바꾸면 이 값도 바꿉니다
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024                      # Vercel 함수 요청 한도(4.5MB) 아래

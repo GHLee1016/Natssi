@@ -88,7 +88,7 @@ def meta(v=Depends(viewer)):
     return {"persona": demo_data.PERSONA, "today": config.demo_today().isoformat(),
             "first": demo_data.versions(config.demo_shift())[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
             "mdc95_is_example": True, "storage": store.backend_name(), "llm": llm.enabled(),
-            "auth": auth.enabled() or config.OPEN_MODE, "consent_version": config.CONSENT_VERSION,
+            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "consent_version": config.CONSENT_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"]} if v else None}
 
@@ -161,6 +161,8 @@ def login(body: LoginBody, request: Request):
 def recover(body: RecoverBody, request: Request):
     """비밀번호 재설정 메일 요청. 가입 여부와 상관없이 같은 답을 준다(가입된 이메일을 알아내지 못하게)."""
     _auth_on()
+    if not config.RECOVERY_ENABLED:
+        raise HTTPException(503, "지금은 비밀번호 찾기를 쓸 수 없어요.")
     limit("auth", request)
     try:
         auth.recover(body.email.strip().lower())

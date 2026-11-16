@@ -49,6 +49,10 @@ class FakeSupabase:
                 return httpx.Response(200, json={"id": uid, "email": email})
             return httpx.Response(200, json={"id": uid, "email": email, "user_metadata": u["meta"]})
         if path == "/auth/v1/recover":
+            if body["email"] == "outsider@test.kr":                   # 기본 메일 서비스: 팀 구성원이 아닌 주소
+                return httpx.Response(400, json={"error_code": "email_address_not_authorized", "msg": "Email address not authorized"})
+            if body["email"] == "boom@test.kr":                       # 목록에 없는 오류
+                return httpx.Response(500, json={"error_code": "unexpected_failure", "msg": "Error sending recovery email"})
             self.recovered.append(body["email"])
             return httpx.Response(200, json={})
         if path.startswith("/auth/v1/admin/users/"):
@@ -79,6 +83,7 @@ def env(monkeypatch):
         monkeypatch.setenv(k, v)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.setattr(config, "OPEN_MODE", False)
+    monkeypatch.setattr(config, "RECOVERY_ENABLED", True)
     client = httpx.Client(transport=httpx.MockTransport(fake.handler))
     auth._client = store._client = client
     auth._cache.clear(); ratelimit.reset(); llm._cache.clear()
@@ -274,3 +279,26 @@ def test_store_errors_do_not_leak_details(env, monkeypatch):
     d = r.json()["detail"]
     assert r.status_code == 503 and "오류 번호" in d and "다시 시도" in d
     assert not any(w in d for w in ("Supabase", "secret-host", "ConnectError", "SUPABASE_URL"))
+
+
+def test_unknown_auth_errors_get_a_ref_and_are_logged(env, monkeypatch, caplog):
+    _, c = env
+    monkeypatch.setitem(config.LIMITS, "auth", (50, 60))
+    r = c.post("/api/auth/recover", json={"email": "outsider@test.kr"})        # 알려진 오류: 쉬운 문구
+    assert r.status_code == 400 and "메일을 보낼 수 없어요" in r.json()["detail"]
+    with caplog.at_level("WARNING", logger="natssi"):
+        r = c.post("/api/auth/recover", json={"email": "boom@test.kr"})        # 모르는 오류: 번호만 보이고 원인은 로그에
+    d = r.json()["detail"]
+    assert r.status_code == 503 and "오류 번호" in d and "unexpected_failure" not in d and "Supabase" not in d
+    ref = d.split("오류 번호 ")[1].rstrip(")")
+    assert any(ref in m and "unexpected_failure" in m for m in caplog.messages)
+
+
+def test_recovery_can_be_turned_off(env, monkeypatch):
+    fake, c = env
+    assert c.get("/api/meta").json()["recovery"] is True
+    monkeypatch.setattr(config, "RECOVERY_ENABLED", False)
+    assert c.get("/api/meta").json()["recovery"] is False
+    r = c.post("/api/auth/recover", json={"email": "a@test.kr"})
+    assert r.status_code == 503 and "비밀번호 찾기" in r.json()["detail"]
+    assert fake.recovered == []                                  # Supabase에는 요청이 가지 않는다

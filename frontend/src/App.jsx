@@ -114,7 +114,7 @@ export default function App() {
           </div>
         )}
         <Status {...meta} />
-        {meta.data && page === 'auth' && <Auth back={() => setPage(null)} onLegal={goLegal} resetToken={resetToken} linkExpired={linkExpired} onResetDone={() => setResetToken(null)} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
+        {meta.data && page === 'auth' && <Auth back={() => setPage(null)} onLegal={goLegal} resetToken={resetToken} linkExpired={linkExpired} recovery={!!meta.data.recovery} onResetDone={() => setResetToken(null)} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
         {meta.data && page === 'legal' && <Legal anchor={anchor} version={meta.data.consent_version} back={() => setPage(viewer ? 'account' : 'auth')} />}
         {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
         {meta.data && !page && (

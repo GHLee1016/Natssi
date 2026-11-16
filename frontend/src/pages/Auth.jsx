@@ -26,8 +26,8 @@ function Field({ id, label, error, helper, children }) {
   )
 }
 
-export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, onResetDone }) {
-  const [mode, setMode] = useState(resetToken ? 'reset' : linkExpired ? 'forgot' : 'login')   // login | signup | forgot | reset
+export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, onResetDone, recovery }) {
+  const [mode, setMode] = useState(resetToken ? 'reset' : linkExpired && recovery ? 'forgot' : 'login')   // login | signup | forgot | reset
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -142,7 +142,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
             </div>
           </Field>
         )}
-        {mode === 'login' && (
+        {mode === 'login' && recovery && (
           <button type="button" className="link forgot" onClick={() => switchMode('forgot')}>비밀번호를 잊으셨나요?</button>
         )}
 
