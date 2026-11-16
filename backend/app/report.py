@@ -12,7 +12,14 @@ DISCLAIMER = "진단이 아니에요. 증상이 계속되면 사용을 멈추고
 
 
 def _span(ids):
-    return f"{ids[0]}~{ids[-1]}" if len(ids) > 1 else f"{ids[0]}"
+    """[9,10,12,13] -> '9~10, 12~13' (빠진 번호를 연속 범위로 보이지 않게 구간별로 접는다)"""
+    runs = []
+    for i in sorted(set(ids)):
+        if runs and i == runs[-1][1] + 1:
+            runs[-1][1] = i
+        else:
+            runs.append([i, i])
+    return ", ".join(str(a) if a == b else f"{a}~{b}" for a, b in runs)
 
 
 def build_facts(judged, versions):
