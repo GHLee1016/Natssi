@@ -30,7 +30,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="grid2">
       <div className="card">
-        <h3>내 데이터</h3>
+        <h2 className="h3">내 데이터</h2>
         <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인과 동의 기록을 파일로 받아요.</p></div>
           <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
         <div className="row"><div><b>체크인 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 체크인만 지워요.</p></div>
@@ -39,7 +39,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       </div>
 
       <div className="card danger">
-        <h3>탈퇴</h3>
+        <h2 className="h3">탈퇴</h2>
         <p className="muted small">계정과 내 체크인이 모두 지워지고 되돌릴 수 없어요.</p>
         {!confirmDelete ? (
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>

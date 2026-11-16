@@ -17,6 +17,19 @@ function Writing() {
   )
 }
 
+// 개발·문의용 기술 정보는 접어 두고 복사할 수 있게 한다(사용자에게는 쉬운 문구만 먼저 보인다).
+function TechDetails({ text }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true) } catch { /* 복사가 막힌 브라우저 */ } }
+  return (
+    <details className="tech">
+      <summary>자세히 보기</summary>
+      <p className="small">{text}</p>
+      <button className="link" onClick={copy}>{copied ? '복사했어요' : '오류 정보 복사'}</button>
+    </details>
+  )
+}
+
 // 근거 라벨: 누르면 근거가 된 첫 기록의 날짜로 이동한다(날짜를 모르면 글자로만 보여준다).
 function Cite({ item, dateOf, open }) {
   if (!item.cite_label) return null
@@ -71,13 +84,14 @@ export default function Report({ onOpenDay, canStart, onStart }) {
           {error && <p className="err" role="alert">{error}</p>}
           {canStart && <StartCard onStart={onStart} />}
           <p className="disclaimer">ⓘ {r.disclaimer}</p>
-          <p className="muted small">
-            {r.source === 'llm'
-              ? `판정 기록을 바탕으로 AI가 문장을 썼어요 (${r.model}). 판정 자체는 AI가 하지 않아요.`
-              : r.llm_error
-                ? `AI 문장을 쓰지 못해, 정해진 틀의 문장으로 보여 드려요. (${r.llm_error}${r.llm_problems?.length ? ' · ' + r.llm_problems.join(' / ') : ''})`
-                : '판정 기록만으로 만든 문장이에요.'}
-          </p>
+          {r.source === 'llm'
+            ? <p className="muted small">{`판정 기록을 바탕으로 AI가 문장을 썼어요 (${r.model}). 판정 자체는 AI가 하지 않아요.`}</p>
+            : r.llm_error
+              ? <>
+                  <p className="muted small">AI 문장을 쓰지 못해, 정해진 틀의 문장으로 보여 드려요. 판정 내용은 같아요.</p>
+                  <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? ' · ' + r.llm_problems.join(' / ') : ''}`} />
+                </>
+              : <p className="muted small">판정 기록만으로 만든 문장이에요.</p>}
         </div>
       )}
     </section>

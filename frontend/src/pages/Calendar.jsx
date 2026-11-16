@@ -19,7 +19,7 @@ export default function Calendar({ date, first, today, onPick }) {
     <div className="card cal">
       <div className="cal-head">
         <button onClick={() => move(-1)} disabled={ym <= first.slice(0, 7)} aria-label="이전 달">‹</button>
-        <b>{y}년 {m}월</b>
+        <b aria-live="polite" aria-atomic="true">{y}년 {m}월</b>
         <button onClick={() => move(1)} disabled={ym >= today.slice(0, 7)} aria-label="다음 달">›</button>
       </div>
       <Status {...q} />
@@ -32,7 +32,8 @@ export default function Calendar({ date, first, today, onPick }) {
               const iso = `${ym}-${pad(i + 1)}`, lv = level[iso]
               return (
                 <button key={iso} disabled={!lv} className={'cd' + (iso === date ? ' on' : '') + (iso === today ? ' today' : '')}
-                  onClick={() => onPick(iso)} aria-label={`${fmt.full(iso)} ${lv ? WEATHER[lv].name : '기록 없음'}`}>
+                  onClick={() => onPick(iso)} aria-pressed={iso === date}
+                  aria-label={`${fmt.full(iso)}${iso === today ? ' 오늘' : ''} ${lv ? WEATHER[lv].name : '기록 없음'}`}>
                   <span>{i + 1}</span>{lv && <WeatherIcon level={lv} size={18} />}
                 </button>
               )

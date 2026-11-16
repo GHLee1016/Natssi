@@ -43,7 +43,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
           <div className="week">
             <button className="week-nav" onClick={() => moveWeek(-1)} disabled={d.week[0].date <= meta.first} aria-label="이전 주 보기">‹</button>
             {d.week.map((w) => (
-              <button key={w.date} disabled={!w.has_record} className={'wd' + (w.date === date ? ' on' : '')}
+              <button key={w.date} disabled={!w.has_record} className={'wd' + (w.date === date ? ' on' : '')} aria-current={w.date === date ? 'date' : undefined}
                 onClick={() => setDate(w.date)} aria-label={fmt.full(w.date) + (w.level ? ` ${WEATHER[w.level].name}` : ' 기록 없음')}>
                 <span>{'일월화수목금토'[new Date(w.date + 'T00:00:00').getDay()]}</span>
                 <b>{+w.date.slice(8)}</b>

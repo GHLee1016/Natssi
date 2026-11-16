@@ -62,7 +62,7 @@ export default function Capture({ maxMb = 4, onLegal }) {
           </div>
           {!result && (
             <div className="card prep">
-              <h3>찍기 전에 확인해요</h3>
+              <h2 className="h3">찍기 전에 확인해요</h2>
               <ul>
                 <li><b>같은 자리</b>창가나 욕실처럼 매번 같은 곳에서 찍어요.</li>
                 <li><b>같은 조명</b>밝고 그림자가 지지 않게 해 주세요.</li>
@@ -74,7 +74,7 @@ export default function Capture({ maxMb = 4, onLegal }) {
           {error && <p className="err" role="alert">{error}</p>}
           {result && (
             <div className="card">
-              <h3>{result.passed ? '품질 검사 통과' : '다시 찍어 주세요'}</h3>
+              <h2 className="h3">{result.passed ? '품질 검사 통과' : '다시 찍어 주세요'}</h2>
               <p className="muted small">{result.message}</p>
               {result.checks.map((c) => (
                 <div className="row" key={c.name}>

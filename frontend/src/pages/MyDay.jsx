@@ -13,11 +13,12 @@ export default function MyDay({ go }) {
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [note, setNote] = useState('')               // 스크린리더에 읽어 주는 저장 결과
   const d = q.data
 
   const save = async () => {
     setSaving(true); setError(null)
-    try { q.setData(await api.checkin(draft)); setDraft(null) }
+    try { q.setData(await api.checkin(draft)); setDraft(null); setNote('오늘 체크인을 저장했어요.') }
     catch (e) { setError(e.message) }
     finally { setSaving(false) }
   }
@@ -28,12 +29,13 @@ export default function MyDay({ go }) {
       <header className="page-head">
         <div><h1>{d ? fmt.full(d.today) : '내 기록'}</h1></div>
       </header>
+      <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
       {d && (
         <div className="grid2">
           <div>
             <div className="card">
-              <h3>내 평소 범위</h3>
+              <h2 className="h3">내 평소 범위</h2>
               <div className="dots" role="img" aria-label={`${filled}일 기록 / 필요 ${d.needed}일`}>
                 {Array.from({ length: d.needed }, (_, i) => <i key={i} className={i < filled ? 'on' : ''} />)}
               </div>
@@ -42,7 +44,7 @@ export default function MyDay({ go }) {
             </div>
 
             <div className="card">
-              <h3>오늘의 증상 체크인 {draft && <span className="muted small">0 없음 ~ 3 심함</span>}</h3>
+              <h2 className="h3">오늘의 증상 체크인 {draft && <span className="muted small">0 없음 ~ 3 심함</span>}</h2>
               {draft ? (
                 <>
                   {SYMPTOMS.map((s) => (
@@ -84,7 +86,7 @@ export default function MyDay({ go }) {
 
           <div>
             <div className="card">
-              <h3>최근 기록</h3>
+              <h2 className="h3">최근 기록</h2>
               {d.recent.length === 0 && <p className="muted small">아직 기록이 없어요. 오늘 첫 체크인을 남겨 보세요.</p>}
               {d.recent.map((r) => (
                 <div className="ev" key={r.date}>

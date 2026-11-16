@@ -16,7 +16,7 @@ function Chart({ records, versions, onPick, picked }) {
   const idx = (r) => records.indexOf(r)
   const half = (W - PAD.l - PAD.r) / (records.length - 1) / 2
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="볼 붉은기 변화 그래프">
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="group" aria-label="볼 붉은기 변화 그래프. 점을 누르면 그날 기록이 보여요.">
       {versions.map((v, i) => {
         const first = records.findIndex((r) => r.version === v.id)
         const last = records.length - 1 - [...records].reverse().findIndex((r) => r.version === v.id)
@@ -40,10 +40,13 @@ function Chart({ records, versions, onPick, picked }) {
       <polyline fill="none" stroke="#1f2a37" strokeWidth="2.200" strokeLinejoin="round"
         points={pts.map((r) => `${x(idx(r))},${y(r.redness)}`).join(' ')} />
       {pts.map((r) => (
-        <circle key={r.id} cx={x(idx(r))} cy={y(r.redness)} r={picked?.id === r.id ? 7 : r.verdict.level === '신호 있음' ? 5 : 3.200}
-          className={'pt ' + LEVEL_CLASS[r.verdict.level]} tabIndex="0" role="button"
-          aria-label={`${fmt.md(r.date)} 붉은기 ${r.redness} ${r.verdict.level}`}
-          onClick={() => onPick(r)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onPick(r)} />
+        <g key={r.id}>
+          <circle cx={x(idx(r))} cy={y(r.redness)} r="10" fill="transparent" className="hit" tabIndex="0" role="button"
+            aria-label={`${fmt.md(r.date)} 붉은기 ${r.redness} ${WEATHER[r.verdict.level].name}`} aria-pressed={picked?.id === r.id}
+            onClick={() => onPick(r)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onPick(r))} />
+          <circle cx={x(idx(r))} cy={y(r.redness)} r={picked?.id === r.id ? 7 : r.verdict.level === '신호 있음' ? 5 : 3.200}
+            className={'pt ' + LEVEL_CLASS[r.verdict.level]} pointerEvents="none" />
+        </g>
       ))}
       {[0, Math.floor(records.length / 2), records.length - 1].map((i) => (
         <text key={i} x={x(i)} y={H - 8} className="axis" textAnchor={i === 0 ? 'start' : i === records.length - 1 ? 'end' : 'middle'}>{fmt.md(records[i].date)}</text>
@@ -62,7 +65,7 @@ function Compare({ records }) {
   const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} · 버전 {r.version}</option>
   return (
     <div className="card">
-      <h3>두 날의 사진 겹쳐 비교</h3>
+      <h2 className="h3">두 날의 사진 겹쳐 비교</h2>
       <div className="pickers">
         <label>앞 날짜<select value={a} onChange={(e) => setA(e.target.value)}>{dated.map(opt)}</select></label>
         <label>뒤 날짜<select value={b} onChange={(e) => setB(e.target.value)}>{dated.map(opt)}</select></label>
@@ -94,6 +97,12 @@ function Compare({ records }) {
 export default function Change({ onOpenDay }) {
   const q = useLoad(() => api.timeline(), [])
   const [picked, setPicked] = useState(null)
+  const dated = useMemo(() => q.data?.records.filter((r) => r.redness !== null) ?? [], [q.data])
+  const step = (dir) => {
+    if (!dated.length) return
+    const i = picked ? dated.findIndex((r) => r.id === picked.id) : -1
+    setPicked(i < 0 ? dated[dated.length - 1] : dated[Math.max(0, Math.min(dated.length - 1, i + dir))])
+  }
   const changes = useMemo(() => q.data?.versions.filter((v) => v.change) ?? [], [q.data])
   const cloudy = useMemo(() => q.data?.records.filter((r) => r.verdict.level === '신호 있음') ?? [], [q.data])
   return (
@@ -103,9 +112,14 @@ export default function Change({ onOpenDay }) {
       {q.data && (
         <div className="grid2 wide-left">
           <div className="card">
-            <h3>볼 붉은기의 흐름</h3>
+            <h2 className="h3">볼 붉은기의 흐름</h2>
             <p className="muted small">점수가 아니라 내 평소 범위와 비교해요. 점을 누르면 그날 기록이 보여요.</p>
             <Chart records={q.data.records} versions={q.data.versions} onPick={setPicked} picked={picked} />
+            <div className="stepper">
+              <button className="btn ghost" onClick={() => step(-1)} disabled={picked && picked.id === dated[0]?.id}>‹ 이전 날</button>
+              <span className="muted small" aria-live="polite">{picked ? fmt.md(picked.date) : '날짜 고르기'}</span>
+              <button className="btn ghost" onClick={() => step(1)} disabled={picked && picked.id === dated[dated.length - 1]?.id}>다음 날 ›</button>
+            </div>
             <div className="chart-legend" aria-label="그래프 범례">
               <span><i className="sw band" />내 평소 범위</span>
               {Object.values(WEATHER).map((w) => <span key={w.name}><i className={'sw dotsw ' + w.cls} />{w.name}</span>)}
@@ -127,7 +141,7 @@ export default function Change({ onOpenDay }) {
             )}
           </div>
           <div className="card">
-            <h3>루틴 변경 기록</h3>
+            <h2 className="h3">루틴 변경 기록</h2>
             {changes.length === 0 && <p className="muted">아직 루틴을 바꾼 적이 없어요.</p>}
             {changes.map((v) => (
               <div className="ev" key={v.id}>

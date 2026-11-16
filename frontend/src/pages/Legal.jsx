@@ -18,7 +18,7 @@ export default function Legal({ anchor, back, version }) {
       <nav className="toc card" aria-label="목차">
         <h3>목차</h3>
         {[['terms', '이용약관'], ['privacy', '개인정보 수집·이용'], ['photo', '얼굴 사진 처리 안내'], ['health', '건강 정보(증상 점수) 별도 동의']].map(([id, label]) => (
-          <button key={id} className="link" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
+          <button key={id} className="link" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}>{label}</button>
         ))}
       </nav>
       <div className="legal-text">
