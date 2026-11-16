@@ -44,6 +44,7 @@ export default function App() {
   const day = date || meta.data?.today
   const viewer = meta.data?.viewer
   const refreshAll = () => setEpoch((n) => n + 1)
+  const goHome = () => { setPage(null); setTab('diary'); setDate(null); window.scrollTo(0, 0) }   // 로고·이름을 누르면 오늘의 다이어리로
   const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
@@ -63,7 +64,7 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand"><img src="/logo.svg" alt="" />낯씨</div>
+        <button className="brand" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
           {TABS.map((t) => (
             <button key={t.id} className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined}
@@ -79,6 +80,7 @@ export default function App() {
       </aside>
 
       <main className="main">
+        <button className="brand-m" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
         {meta.data && (
           <div className="topline">
             <div className="demo-bar">

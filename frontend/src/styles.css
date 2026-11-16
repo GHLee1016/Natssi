@@ -205,3 +205,7 @@ button.cite{font:inherit;font-weight:600;color:var(--accent);padding:0;text-deco
 .welcome-sheet li b{display:block;font-size:15px}.welcome-sheet .actions{margin-top:16px}
 @media (min-width:768px){.welcome{align-items:center;padding:24px}.welcome-sheet{border-radius:24px}}
 .prod-ico{flex:none;width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--accent)}
+
+.brand-m{display:flex;align-items:center;gap:6px;font-size:19px;font-weight:700;margin-bottom:8px;min-height:44px}.brand-m img{width:30px;height:30px}
+button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
+@media (min-width:900px){.brand-m{display:none}}
