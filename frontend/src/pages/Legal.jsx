@@ -14,6 +14,14 @@ export default function Legal({ anchor, back, version }) {
       <p className="notice">공모전 시연용 <b>초안</b>이에요. 실제 서비스 전에 법률 검토를 받고, [대괄호] 항목을 채워야 해요.
         증상 점수는 건강에 관한 정보로 볼 수 있어 별도 동의가 필요한지 확인이 필요해요.</p>
 
+      <div className="legal-body">
+      <nav className="toc card" aria-label="목차">
+        <h3>목차</h3>
+        {[['terms', '이용약관'], ['privacy', '개인정보 수집·이용'], ['photo', '얼굴 사진 처리 안내']].map(([id, label]) => (
+          <button key={id} className="link" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
+        ))}
+      </nav>
+      <div className="legal-text">
       <article className="card" id="terms">
         <h2>이용약관</h2>
         <ol>
@@ -62,6 +70,8 @@ export default function Legal({ anchor, back, version }) {
           <li>사진은 JPG·PNG·WEBP, 4MB 이하만 올릴 수 있어요. 큰 사진은 올리기 전에 자동으로 줄여요.</li>
         </ul>
       </article>
+      </div>
+      </div>
     </section>
   )
 }

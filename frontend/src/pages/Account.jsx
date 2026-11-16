@@ -28,6 +28,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       <header className="page-head"><div><p className="eyebrow">내 계정</p><h1>{meta.viewer.email}</h1></div>
         <button className="btn ghost" onClick={() => { api.logout(); onLoggedOut() }}>로그아웃</button></header>
 
+      <div className="grid2">
       <div className="card">
         <h3>내 데이터</h3>
         <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인과 동의 기록을 파일로 받아요.</p></div>
@@ -52,6 +53,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
             </div>
           </div>
         )}
+      </div>
       </div>
       {msg && <p className="ok-msg" role="status">{msg}</p>}
       {error && <p className="err" role="alert">{error}</p>}

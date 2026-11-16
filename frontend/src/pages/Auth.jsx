@@ -42,6 +42,7 @@ export default function Auth({ onDone, onLegal, back }) {
     <section className="auth">
       <header className="page-head"><div><p className="eyebrow">내 기록은 나만 볼 수 있어요</p><h1>{signup ? '가입하기' : '로그인'}</h1></div>
         <button className="btn ghost" onClick={back}>김서연 데모로 돌아가기</button></header>
+      <div className="auth-wrap">
       <form className="card" onSubmit={submit} noValidate>
         <div className="seg" role="tablist" aria-label="로그인 또는 가입">
           <button type="button" role="tab" aria-selected={!signup} className={!signup ? 'on' : ''} onClick={() => { setMode('login'); setError(null) }}>로그인</button>
@@ -71,7 +72,17 @@ export default function Auth({ onDone, onLegal, back }) {
         <div className="actions"><button className="btn wide" type="submit" disabled={busy || !email || !password}>
           {busy ? '확인하는 중…' : signup ? '동의하고 가입하기' : '로그인'}</button></div>
       </form>
-      <p className="notice">로그인하면 증상 체크인을 저장하고 내 기록으로 변화를 볼 수 있어요. 로그인하지 않아도 김서연 데모는 볼 수 있어요.</p>
+      <aside className="card auth-side" aria-label="낯씨 소개">
+        <img src="/logo.svg" alt="" width="44" height="44" />
+        <h2>루틴을 한 번에 하나만 바꾸고,<br />내 얼굴이 어떻게 달랐는지 확인해요</h2>
+        <ul>
+          <li><b>기록</b><span>매일 셀카 한 장과 증상 체크인으로 남겨요.</span></li>
+          <li><b>변화</b><span>루틴을 바꾼 날을 기준으로 평소 범위와 비교해요.</span></li>
+          <li><b>리포트</b><span>기록에 있는 사실만 문장으로 정리해요. 진단은 하지 않아요.</span></li>
+        </ul>
+        <p className="small muted">로그인하지 않아도 김서연 데모는 읽기 전용으로 볼 수 있어요. 얼굴 사진은 검사 후 바로 버리고 저장하지 않아요.</p>
+      </aside>
+      </div>
     </section>
   )
 }
