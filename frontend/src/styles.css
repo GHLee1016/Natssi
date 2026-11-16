@@ -31,6 +31,7 @@ section>*+*{margin-top:12px}
 .btn.ghost{background:#fff;color:var(--ink);border:1px solid #e9e2dc;font-weight:600}
 .link{color:var(--accent);font-weight:600;font-size:13px;min-height:44px;padding:0 4px}
 .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}.actions.left{justify-content:flex-start;margin:0 0 12px}
+.field + .actions.left{margin-top:16px}
 .err{color:#b3401f;font-size:13px;margin-top:8px}
 .notice{background:#fff8f3;color:#7a4a35;border-radius:16px;padding:12px 14px;font-size:12.500px;line-height:1.55;margin-top:12px}
 
