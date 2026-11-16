@@ -60,6 +60,17 @@ export default function Capture({ maxMb = 4, onLegal }) {
               <input type="file" accept="image/*" onChange={(e) => e.target.files[0] && send(e.target.files[0])} />
             </label>
           </div>
+          {!result && (
+            <div className="card prep">
+              <h3>찍기 전에 확인해요</h3>
+              <ul>
+                <li><b>같은 자리</b>창가나 욕실처럼 매번 같은 곳에서 찍어요.</li>
+                <li><b>같은 조명</b>밝고 그림자가 지지 않게 해 주세요.</li>
+                <li><b>정면, 눈높이</b>고개를 기울이지 않고 볼이 잘 보이게요.</li>
+                <li><b>가리지 않기</b>앞머리나 마스크로 볼을 가리지 말고, 화장 여부는 매번 같게 해요.</li>
+              </ul>
+            </div>
+          )}
           {error && <p className="err" role="alert">{error}</p>}
           {result && (
             <div className="card">

@@ -3,6 +3,7 @@ import { api, session } from './api.js'
 import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
 import MyDay from './pages/MyDay.jsx'
+import Welcome from './pages/Welcome.jsx'
 import Change from './pages/Change.jsx'
 import Capture from './pages/Capture.jsx'
 import Routine from './pages/Routine.jsx'
@@ -29,16 +30,22 @@ function Locked({ title, need }) {
   )
 }
 
+const GUIDE_KEY = 'natssi_guide'
+const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return true } }
+
 export default function App() {
   const [tab, setTab] = useState('diary')
   const [page, setPage] = useState(null)          // null | 'auth' | 'legal' | 'account'
   const [anchor, setAnchor] = useState(null)
+  const [guide, setGuide] = useState(false)         // 사용법 시트
   const [epoch, setEpoch] = useState(0)           // 로그인·로그아웃하면 화면 데이터를 새로 불러옴
   const meta = useLoad(() => api.meta(), [epoch])
   const [date, setDate] = useState(null)
   const day = date || meta.data?.today
   const viewer = meta.data?.viewer
   const refreshAll = () => setEpoch((n) => n + 1)
+  const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
+  const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
   const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
 
@@ -48,6 +55,7 @@ export default function App() {
     return () => window.removeEventListener('natssi:logout', h)
   }, [])
   // 오래된 로그인 정보 때문에 처음부터 막히면 정리하고 데모로 돌아감
+  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen()) setGuide(true) }, [meta.data])
   useEffect(() => {
     if (meta.error && session.get()) { session.clear(); refreshAll() }
   }, [meta.error])
@@ -76,9 +84,12 @@ export default function App() {
             <div className="demo-bar">
               {viewer ? `${viewer.email} · 내 기록 · 김서연 데모는 로그아웃하면 볼 수 있어요` : `${meta.data.persona.name} 님 · ${meta.data.persona.note} · 읽기 전용`}
             </div>
-            {meta.data.auth && (viewer
-              ? <button className="link" onClick={() => setPage('account')}>내 계정</button>
-              : <button className="link strong" onClick={() => setPage('auth')}>로그인 · 가입</button>)}
+            <div className="top-actions">
+              <button className="link" onClick={() => setGuide(true)}>사용법</button>
+              {meta.data.auth && (viewer
+                ? <button className="link" onClick={() => setPage('account')}>내 계정</button>
+                : <button className="link strong" onClick={() => setPage('auth')}>로그인 · 가입</button>)}
+            </div>
           </div>
         )}
         <Status {...meta} />
@@ -88,13 +99,15 @@ export default function App() {
         {meta.data && !page && (
           <div key={epoch}>
             {tab === 'diary' && (viewer ? <MyDay go={setTab} /> : <Diary date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
-            {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change meta={meta.data} />)}
+            {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
             {tab === 'capture' && <Capture maxMb={meta.data.max_upload_mb} onLegal={goLegal} />}
             {tab === 'routine' && (viewer ? <Locked title="루틴" need={7} /> : <Routine />)}
-            {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report />)}
+            {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} />)}
           </div>
         )}
       </main>
+
+      {guide && <Welcome onClose={closeGuide} onStart={canStart ? () => { closeGuide(); setPage('auth') } : null} />}
 
       <nav className="tabbar" aria-label="주 메뉴">
         {TABS.map((t) => (

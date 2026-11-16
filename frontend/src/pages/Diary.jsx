@@ -3,6 +3,9 @@ import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { WEATHER, WeatherIcon } from '../weather.jsx'
 import Calendar from './Calendar.jsx'
+import { RowIcon } from '../icons.jsx'
+import Gauge from '../gauge.jsx'
+import StartCard from './StartCard.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
@@ -58,10 +61,9 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
               {d.record.verdict.reasons.length > 0 && (
                 <ul>{d.record.verdict.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
               )}
-              {d.record.verdict.baseline && (
-                <p className="small fine">
-                  볼 붉은기 {d.record.redness > 0 ? '+' : ''}{d.record.redness} · 평소 범위 {d.record.verdict.baseline.low} ~ {d.record.verdict.baseline.high} (버전 {d.record.verdict.baseline_version} 기준)
-                </p>
+              {d.record.verdict.baseline && d.record.redness !== null && (
+                <Gauge value={d.record.redness} low={d.record.verdict.baseline.low} high={d.record.verdict.baseline.high}
+                  base={d.record.verdict.baseline_version} />
               )}
             </div>
 
@@ -73,19 +75,19 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
                 <button className="link" onClick={() => go('capture')}>촬영하기</button>
               </div>
               <div className="row">
-                <i className="thumb plain" />
+                <RowIcon name="check" />
                 <div><b>증상 체크인</b>
                   <p className="muted small">{SYMPTOMS.map((s) => `${s} ${d.record.symptoms[s]}`).join(' · ')}</p></div>
                 <button className="link" onClick={askLogin}>로그인하고 기록</button>
               </div>
               <div className="row">
-                <i className="thumb plain" />
+                <RowIcon name="routine" />
                 <div><b>루틴 사용</b><p className="muted small">{d.version.items.filter((i) => i.kind === 'cosmetic').map((i) => i.name).join(' · ')}</p></div>
                 <span className="done">✓</span>
               </div>
             </div>
           </div>
-
+          {meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}
         </>
       )}
     </section>

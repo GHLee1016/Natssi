@@ -1,9 +1,21 @@
 import { useState } from 'react'
 import { api } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
+import StartCard from './StartCard.jsx'
 
-export default function Report() {
+// 근거 라벨: 누르면 근거가 된 첫 기록의 날짜로 이동한다(날짜를 모르면 글자로만 보여준다).
+function Cite({ item, dateOf, open }) {
+  if (!item.cite_label) return null
+  const date = dateOf[item.cites?.[0]]
+  return date
+    ? <button className="cite" onClick={() => open(date)} aria-label={`${item.cite_label}, ${date.slice(5).replace('-', '월 ')}일 기록 보기`}>[{item.cite_label}]</button>
+    : <span className="cite">[{item.cite_label}]</span>
+}
+
+export default function Report({ onOpenDay, canStart, onStart }) {
   const q = useLoad(() => api.report(), [])
+  const tl = useLoad(() => api.timeline(), [])
+  const dateOf = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r.date]))
   const [thread, setThread] = useState([])
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
@@ -26,12 +38,12 @@ export default function Report() {
         <div className="chat">
           <div className="bubble ai">
             {r.sentences.map((s, i) => (
-              <p key={i}>{s.text} {s.cite_label && <span className="cite">[{s.cite_label}]</span>}</p>
+              <p key={i}>{s.text} <Cite item={s} dateOf={dateOf} open={onOpenDay} /></p>
             ))}
           </div>
           {thread.map((m, i) => m.me
             ? <div className="bubble me" key={i}>{m.me}</div>
-            : <div className="bubble ai" key={i}><p>{m.text} {m.cite_label && <span className="cite">[{m.cite_label}]</span>}</p></div>)}
+            : <div className="bubble ai" key={i}><p>{m.text} <Cite item={m} dateOf={dateOf} open={onOpenDay} /></p></div>)}
           <p className="muted small">이어서 물어보기</p>
           <div className="chips">
             {r.questions.map((item) => (
@@ -41,6 +53,7 @@ export default function Report() {
             ))}
           </div>
           {error && <p className="err" role="alert">{error}</p>}
+          {canStart && <StartCard onStart={onStart} />}
           <p className="disclaimer">ⓘ {r.disclaimer}</p>
           <p className="muted small">
             {r.source === 'llm'

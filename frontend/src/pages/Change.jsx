@@ -91,10 +91,11 @@ function Compare({ records }) {
   )
 }
 
-export default function Change() {
+export default function Change({ onOpenDay }) {
   const q = useLoad(() => api.timeline(), [])
   const [picked, setPicked] = useState(null)
   const changes = useMemo(() => q.data?.versions.filter((v) => v.change) ?? [], [q.data])
+  const cloudy = useMemo(() => q.data?.records.filter((r) => r.verdict.level === '신호 있음') ?? [], [q.data])
   return (
     <section>
       <header className="page-head"><div><p className="eyebrow">최근 4주</p><h1>변화</h1></div></header>
@@ -105,12 +106,25 @@ export default function Change() {
             <h3>볼 붉은기의 흐름</h3>
             <p className="muted small">점수가 아니라 내 평소 범위와 비교해요. 점을 누르면 그날 기록이 보여요.</p>
             <Chart records={q.data.records} versions={q.data.versions} onPick={setPicked} picked={picked} />
+            <div className="chart-legend" aria-label="그래프 범례">
+              <span><i className="sw band" />내 평소 범위</span>
+              {Object.values(WEATHER).map((w) => <span key={w.name}><i className={'sw dotsw ' + w.cls} />{w.name}</span>)}
+            </div>
             {picked ? (
               <div className={'picked ' + LEVEL_CLASS[picked.verdict.level]}>
                 <b>{fmt.full(picked.date)} · 기록 {picked.id}</b>
                 <span>{WEATHER[picked.verdict.level].name} · 붉은기 {picked.redness > 0 ? '+' : ''}{picked.redness} · 따가움 {picked.symptoms['따가움']}</span>
+                <button className="link" onClick={() => onOpenDay(picked.date)}>다이어리에서 보기</button>
               </div>
-            ) : <p className="muted small hint">주황 점은 '흐림'으로 판정된 날이에요.</p>}
+            ) : <p className="muted small hint">점을 누르거나 아래에서 날짜를 골라 보세요.</p>}
+            {cloudy.length > 0 && (
+              <div className="jump">
+                <p className="muted small">흐렸던 날</p>
+                <div className="chips">
+                  {cloudy.map((r) => <button key={r.id} onClick={() => setPicked(r)} aria-pressed={picked?.id === r.id}>{fmt.md(r.date)}</button>)}
+                </div>
+              </div>
+            )}
           </div>
           <div className="card">
             <h3>루틴 변경 기록</h3>

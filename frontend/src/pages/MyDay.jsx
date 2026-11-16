@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
+import { RowIcon } from '../icons.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
@@ -74,7 +75,7 @@ export default function MyDay({ go }) {
 
             <div className="card">
               <div className="row">
-                <i className="thumb plain" />
+                <RowIcon name="camera" />
                 <div><b>셀카</b><p className="muted small">지금은 밝기·해상도만 검사하고 바로 버려요.</p></div>
                 <button className="link" onClick={() => go('capture')}>촬영하기</button>
               </div>
