@@ -26,7 +26,7 @@ export default function MyDay({ go }) {
   return (
     <section>
       <header className="page-head">
-        <div><p className="eyebrow">오늘</p><h1>{d ? fmt.full(d.today) : '내 기록'}</h1></div>
+        <div><h1>{d ? fmt.full(d.today) : '내 기록'}</h1></div>
       </header>
       <Status {...q} />
       {d && (

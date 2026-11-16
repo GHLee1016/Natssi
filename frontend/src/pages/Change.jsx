@@ -83,7 +83,7 @@ function Compare({ records }) {
             <div><p className="muted small">볼 붉은기 차이 (Δa*)</p>
               <b>{c.diff > 0 ? '+' : ''}{c.diff}</b>{' '}
               <span className={c.beyond_error ? 'warn' : 'calm'}>{c.beyond_error ? '오차 범위 밖' : '오차 범위 안'}</span></div>
-            <span className="pill ok">측정 오차 ±{c.mdc95} (예시 값)</span>
+            <span className="muted small">측정 오차 ±{c.mdc95} (예시 값)</span>
           </div>
         </>
       )}

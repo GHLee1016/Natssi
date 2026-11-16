@@ -41,7 +41,7 @@ export default function Capture({ maxMb = 4, onLegal }) {
 
   return (
     <section className="capture">
-      <header className="page-head"><div><p className="eyebrow">같은 장소, 같은 조명에서</p><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
+      <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
       <div className="grid2">
         <div className="view">
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />

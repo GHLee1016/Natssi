@@ -35,7 +35,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
       <Status {...q} />
       {d && (
         <>
-          <span className="pill accent">루틴 버전 {d.version.id} · {d.version.label} · {d.record.day_in_version}일째</span>
+          <p className="ver-line"><b>루틴 버전 {d.version.id}</b> · {d.version.label} · {d.record.day_in_version}일째</p>
           <p className="muted small env">
             환경 · 초미세먼지 {d.record.env.pm25} · 습도 {d.record.env.humidity}% · {d.record.env.unusual ? '평소와 달라요' : '평소와 비슷'}
           </p>

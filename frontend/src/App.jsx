@@ -25,7 +25,7 @@ const TABS = [
 function Locked({ title, need }) {
   return (
     <section>
-      <header className="page-head"><div><p className="eyebrow">내 기록이 쌓이면 열려요</p><h1>{title}</h1></div></header>
+      <header className="page-head"><div><h1>{title}</h1></div></header>
       <div className="card"><p>내 기록이 {need}일 이상 쌓이면 이 화면이 열려요. 지금은 로그아웃하면 볼 수 있는 김서연 가상 데모에서 미리 볼 수 있어요.</p></div>
     </section>
   )
