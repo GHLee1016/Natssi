@@ -204,3 +204,4 @@ button.cite{font:inherit;font-weight:600;color:var(--accent);padding:0;text-deco
 .welcome-sheet li>i{flex:none;width:28px;height:28px;border-radius:50%;background:#fff1e9;color:var(--accent);font-style:normal;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
 .welcome-sheet li b{display:block;font-size:15px}.welcome-sheet .actions{margin-top:16px}
 @media (min-width:768px){.welcome{align-items:center;padding:24px}.welcome-sheet{border-radius:24px}}
+.prod-ico{flex:none;width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--accent)}

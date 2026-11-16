@@ -1,5 +1,6 @@
 import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
+import { ProductIcon } from '../icons.jsx'
 
 const TONE = { 레티노이드: '#ffe6da', LED: '#ffe6da', '자외선 차단': '#fff3d9' }
 
@@ -21,7 +22,7 @@ export default function Routine() {
             <div className="card">
               {r.current.items.map((it) => (
                 <div className="row" key={it.key}>
-                  <i className="thumb plain" style={{ background: TONE[it.family] || '#e8f2f8' }} />
+                  <ProductIcon name={it.key} tone={TONE[it.family] || '#e8f2f8'} />
                   <div><b>{it.name}</b>
                     <p className="muted small">{it.usage} · {it.kind === 'device' ? '디바이스' : it.family + ' 계열'}</p></div>
                 </div>
