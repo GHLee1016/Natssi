@@ -33,8 +33,10 @@ SYSTEM = """너는 피부 기록 앱 '낯씨'의 리포트 문장을 쓰는 역�
 4. 문장은 2~4개. 각 문장은 80자 이내.
 5. 각 문장에는 근거가 된 기록 번호를 cites 배열로 붙인다. 번호는 facts의 signal_ids, calm_ids 안에 있는 것만 쓴다.
 6. 문장 본문에는 기록 번호를 쓰지 않는다. 번호는 cites 배열에만 넣는다. 괄호로 번호를 나열하지 않는다.
-7. signal_ids가 있는 버전은 문장에 증상 이름과 평소 범위 초과 여부를 한 번 쓴다. 붉은기가 평소 범위를 넘었다고 쓰고, max_sting이 0보다 크면 "따가움 N점이 기록됐어요"처럼 점수를 함께 쓴다. max_sting이 0이면 따가움은 언급하지 않는다. signal_days가 있으면 "N일째"로 시점도 쓴다. "자극 기록이 있었어요"처럼 증상 이름 없이 뭉뚱그리지 않는다.
-8. 출력은 아래 JSON 하나뿐이다. 다른 글은 쓰지 않는다.
+7. signal_ids가 있는 버전은 문장에 증상 이름과 평소 범위 초과 여부를 한 번 쓴다. 붉은기가 평소 범위를 넘었다고 쓰고, max_sting이 0보다 크면 "따가움 N점이 기록됐어요"처럼 점수를 함께 쓴다. max_sting이 0이면 따가움은 언급하지 않는다. signal_days가 있으면 "N일째"로 시점도 쓴다. "자극 기록이 있었어요"처럼 증상 이름 없이 뭉뚱그리지 않는다. "변화는 N일째"처럼 대상이 흐린 말 대신 "바꾼 지 N일째"라고 쓴다.
+8. carried_over가 true이면 앞 버전의 신호가 바꾼 직후까지 이어진 것이다. "붉은기가 아직 평소 범위 밖이었어요"라고 쓰고, 바꾼 뒤에 생겼다거나 바꿔서 나빠졌다는 뜻으로 읽히지 않게 한다.
+9. 신호가 없는 구간(calm_ids)은 "기록이 없었어요" 대신 "붉은기와 따가움이 평소 범위 안이었어요"라고 쓴다.
+10. 출력은 아래 JSON 하나뿐이다. 다른 글은 쓰지 않는다.
 {"sentences":[{"text":"...","cites":[1,2]}]}"""
 
 
@@ -111,9 +113,9 @@ def write_report(facts):
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         return {"error": "OPENROUTER_API_KEY 없음"}
-    payload_facts = [{k: f[k] for k in ("version", "phrase", "change", "reason", "signal_ids", "signal_days",
+    payload_facts = [{k: f[k] for k in ("version", "phrase", "change", "reason", "signal_ids", "signal_days", "carried_over",
                                          "max_sting", "env_unusual", "calm_ids")} for f in facts]
-    digest = hashlib.sha256(json.dumps([payload_facts, models()], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    digest = hashlib.sha256(json.dumps([payload_facts, models(), SYSTEM], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     if digest in _cache:
         return _cache[digest]
     ms = models()

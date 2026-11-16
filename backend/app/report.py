@@ -27,7 +27,11 @@ def build_facts(judged, versions):
     for v in versions:
         rows = [r for r in judged if r["version"] == v["id"]]
         sig = [r for r in rows if r["verdict"]["level"] == SIGNAL]
+        days = [r["day_in_version"] for r in sig]
+        # 앞 버전의 신호가 바꾼 직후 처음 며칠까지 이어졌는가 (바꾼 탓이 아니라 아직 남은 것)
+        prev_signal = any(p["signal_ids"] for p in facts if p["version"] == v["id"] - 1)
         facts.append({
+            "carried_over": bool(prev_signal and days and days == list(range(1, len(days) + 1))),
             "version": v["id"], "label": v["label"], "change": v["change"], "reason": v["reason"],
             "phrase": v.get("phrase") or v["label"],
             "signal_ids": [r["id"] for r in sig],
@@ -45,10 +49,8 @@ def build_report(judged, versions):
     for f in facts:
         if f["version"] == 1 or not f["change"]:
             continue
-        prev_signal = any(p["signal_ids"] for p in facts if p["version"] == f["version"] - 1)
         days = f["signal_days"]
-        carry_over = prev_signal and days and days == list(range(1, len(days) + 1))
-        if days and carry_over:      # 앞 버전의 신호가 바꾼 직후까지 이어진 경우
+        if days and f["carried_over"]:    # 앞 버전의 신호가 바꾼 직후까지 이어진 경우
             sentences.append({"text": f"{f['phrase']} 뒤(버전 {f['version']}) 처음 {len(days)}일은 붉은기가 아직 평소 범위 밖이었어요.",
                               "cites": f["signal_ids"]})
         elif days:
@@ -59,7 +61,7 @@ def build_report(judged, versions):
             if not f["env_unusual"]:
                 sentences.append({"text": "같은 날 미세먼지·습도는 평소와 비슷했어요.", "cites": f["signal_ids"]})
         if f["calm_ids"] and any(p["signal_ids"] for p in facts if p["version"] < f["version"]):
-            sentences.append({"text": f"그 뒤 붉은기가 평소 범위로 돌아왔어요." if carry_over else
+            sentences.append({"text": f"그 뒤 붉은기가 평소 범위로 돌아왔어요." if f["carried_over"] else
                               f"{f['phrase']} 뒤(버전 {f['version']}) 붉은기가 평소 범위로 돌아왔어요.",
                               "cites": f["calm_ids"]})
     if not sentences:
