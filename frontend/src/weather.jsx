@@ -40,11 +40,11 @@ const PICTURE = {
   ),
 }
 
-export function WeatherIcon({ level, size = 24 }) {
+export function WeatherIcon({ level, size = 24, className = '' }) {
   const w = WEATHER[level]
   if (!w) return null
   return (
-    <svg className={'wi ' + w.cls} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg className={'wi ' + w.cls + (className ? ' ' + className : '')} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.800" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{PICTURE[level]}</svg>
   )
 }

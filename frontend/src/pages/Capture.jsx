@@ -1,6 +1,35 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, shrinkImage } from '../api.js'
 
+const SHOTS = [
+  ['front', '정면, 눈높이', true],
+  ['light', '밝고 그림자 없이', true],
+  ['tilt', '고개를 기울이지 않기', false],
+  ['hair', '앞머리·마스크로 볼 가리지 않기', false],
+]
+// 낯씨 캐릭터(로고의 얼굴+구름). 촬영 팁마다 다른 동작을 반복한다. 움직임은 CSS로만 만들고, 모션 줄이기 설정이면 멈춘다.
+function Face({ kind }) {
+  return (
+    <svg viewBox="30 10 140 150" aria-hidden="true" className={'face mc-' + kind}>
+      <g className="mc-body">
+        <rect x="34" y="18" width="132" height="132" rx="48" fill="#ffb86b" />
+        <ellipse cx="78" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" /><ellipse cx="146" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" />
+        <g className="mc-eyes"><circle cx="88" cy="72" r="8" fill="#1f2a37" /><circle cx="136" cy="72" r="8" fill="#1f2a37" /></g>
+        <circle cx="90.600" cy="69.400" r="2.400" fill="#fff" /><circle cx="138.600" cy="69.400" r="2.400" fill="#fff" />
+        <path d="M100 100 q12 9 24 0" stroke="#1f2a37" strokeWidth="4" fill="none" strokeLinecap="round" />
+        {kind === 'hair' && <path className="mc-bangs" d="M34 70 q8 -52 78 -52 q70 0 54 52 q-20 -22 -54 -22 q-36 0 -78 22 Z M34 92 h22 v44 h-22 Z M144 92 h22 v44 h-22 Z" fill="#1f2a37" />}
+      </g>
+      {kind === 'front' && <path className="mc-line" d="M112 8 v146" stroke="#d9653f" strokeWidth="3" strokeDasharray="3 8" strokeLinecap="round" />}
+      {kind === 'light' && (
+        <>
+          <clipPath id="mc-face"><rect x="34" y="18" width="132" height="132" rx="48" /></clipPath>
+          <g clipPath="url(#mc-face)"><rect className="mc-shade" x="34" y="18" width="70" height="132" fill="#1f2a37" opacity=".28" /></g>
+        </>
+      )}
+    </svg>
+  )
+}
+
 export default function Capture({ maxMb = 4, onLegal }) {
   const video = useRef(null)
   const stream = useRef(null)
@@ -62,13 +91,15 @@ export default function Capture({ maxMb = 4, onLegal }) {
           </div>
           {!result && (
             <div className="card prep">
-              <h2 className="h3">찍기 전에 확인해요</h2>
-              <ul>
-                <li><b>같은 자리</b>창가나 욕실처럼 매번 같은 곳에서 찍어요.</li>
-                <li><b>같은 조명</b>밝고 그림자가 지지 않게 해 주세요.</li>
-                <li><b>정면, 눈높이</b>고개를 기울이지 않고 볼이 잘 보이게요.</li>
-                <li><b>가리지 않기</b>앞머리나 마스크로 볼을 가리지 말고, 화장 여부는 매번 같게 해요.</li>
-              </ul>
+              <h2 className="h3">이렇게 찍어 주세요</h2>
+              <div className="shots">
+                {SHOTS.map(([k, t, ok]) => (
+                  <figure className={'shot' + (ok ? ' ok' : ' no')} key={k}>
+                    <Face kind={k} /><figcaption>{t}</figcaption>
+                  </figure>
+                ))}
+              </div>
+              <p className="muted small">매번 같은 자리, 같은 조명, 같은 화장 상태로 찍으면 변화가 더 정확하게 보여요.</p>
             </div>
           )}
           {error && <p className="err" role="alert">{error}</p>}
