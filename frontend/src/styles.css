@@ -292,8 +292,8 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 @keyframes mc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes mc-tilt{0%,15%,100%{transform:rotate(0)}35%{transform:rotate(-20deg)}65%{transform:rotate(20deg)}}
 @keyframes mc-blink{0%,90%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
-@keyframes mc-lock-l{0%,100%{transform:translateX(-26px)}35%,70%{transform:translateX(0)}}
-@keyframes mc-lock-r{0%,100%{transform:translateX(26px)}35%,70%{transform:translateX(0)}}
+@keyframes mc-lock-l{0%,100%{transform:rotate(60deg)}28%{transform:rotate(0)}34%{transform:rotate(-5deg)}40%,70%{transform:rotate(0)}}
+@keyframes mc-lock-r{0%,100%{transform:rotate(-60deg)}28%{transform:rotate(0)}34%{transform:rotate(5deg)}40%,70%{transform:rotate(0)}}
 @keyframes mc-mask{0%,100%{transform:translateY(46px);opacity:0}35%,70%{transform:translateY(0);opacity:1}}
 @keyframes mc-place{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}45%{transform:translateX(12px)}70%{transform:translateX(0)}}
 @keyframes mc-frame{0%,100%{opacity:.55}70%{opacity:1}}
@@ -309,3 +309,4 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .mc-line{animation:mc-line 1.4s linear infinite}
 @media (prefers-reduced-motion:reduce){.face *{animation:none!important}.mc-shade{opacity:.3}}
 .sentences p+p{margin-top:4px}.sentences .link{padding:0;margin-top:2px}
+.mc-lock-l,.mc-lock-r{transform-origin:50% 0}

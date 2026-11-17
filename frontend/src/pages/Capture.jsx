@@ -17,6 +17,7 @@ function Face({ kind }) {
     <svg viewBox="12 0 176 164" aria-hidden="true" className={'face mc-' + kind}>
       {kind === 'place' && <rect className="mc-frame" x="20" y="8" width="160" height="148" rx="26" fill="none" stroke="#d9653f" strokeWidth="3" strokeDasharray="8 7" strokeLinecap="round" />}
       <g className="mc-body">
+        {kind === 'hair' && <path d="M24 96 C10 34 52 2 100 2 C148 2 190 34 176 96 Z" fill={HAIR} />}
         <rect x="34" y="18" width="132" height="132" rx="48" fill="#ffb86b" />
         <ellipse cx="78" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" /><ellipse cx="146" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" />
         <g className="mc-eyes"><circle cx="88" cy="72" r="8" fill="#1f2a37" /><circle cx="136" cy="72" r="8" fill="#1f2a37" /></g>
@@ -24,9 +25,9 @@ function Face({ kind }) {
         <path d="M100 100 q12 9 24 0" stroke="#1f2a37" strokeWidth="4" fill="none" strokeLinecap="round" />
         {kind === 'hair' && (
           <>
-            <path d="M30 66 C26 18 62 2 100 2 C138 2 174 18 170 66 C160 44 138 36 100 36 C62 36 40 44 30 66 Z" fill={HAIR} />
-            <path className="mc-lock-l" d="M30 54 h34 v50 a17 17 0 0 1 -34 0 Z" fill={HAIR} />
-            <path className="mc-lock-r" d="M136 54 h34 v50 a17 17 0 0 1 -34 0 Z" fill={HAIR} />
+            <path d="M104 14 C138 14 172 34 166 64 C150 54 132 42 108 36 C92 46 62 58 34 66 C30 34 66 14 104 14 Z" fill={HAIR} />
+            <path className="mc-lock-l" d="M38 40 C28 70 28 108 46 130 C58 112 60 76 58 40 Z" fill={HAIR} />
+            <path className="mc-lock-r" d="M162 40 C172 70 172 108 154 130 C142 112 140 76 142 40 Z" fill={HAIR} />
           </>
         )}
         {kind === 'mask' && (
