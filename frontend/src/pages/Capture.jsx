@@ -25,7 +25,7 @@ function Face({ kind }) {
         <path d="M100 100 q12 9 24 0" stroke="#1f2a37" strokeWidth="4" fill="none" strokeLinecap="round" />
         {kind === 'hair' && (
           <>
-            <path d="M104 14 C138 14 172 34 166 64 C150 54 132 42 108 36 C92 46 62 58 34 66 C30 34 66 14 104 14 Z" fill={HAIR} />
+            <path d="M26 82 C10 34 52 2 100 2 C148 2 190 34 174 82 C166 58 140 42 108 36 C90 50 56 68 26 82 Z" fill={HAIR} />
             <path className="mc-lock-l" d="M38 40 C28 70 28 108 46 130 C58 112 60 76 58 40 Z" fill={HAIR} />
             <path className="mc-lock-r" d="M162 40 C172 70 172 108 154 130 C142 112 140 76 142 40 Z" fill={HAIR} />
           </>
