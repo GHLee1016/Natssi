@@ -292,13 +292,20 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 @keyframes mc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes mc-tilt{0%,15%,100%{transform:rotate(0)}35%{transform:rotate(-20deg)}65%{transform:rotate(20deg)}}
 @keyframes mc-blink{0%,90%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
-@keyframes mc-bangs{0%,100%{transform:translateY(-34px)}35%,70%{transform:translateY(0)}}
+@keyframes mc-lock-l{0%,100%{transform:translateX(-26px)}35%,70%{transform:translateX(0)}}
+@keyframes mc-lock-r{0%,100%{transform:translateX(26px)}35%,70%{transform:translateX(0)}}
+@keyframes mc-mask{0%,100%{transform:translateY(46px);opacity:0}35%,70%{transform:translateY(0);opacity:1}}
+@keyframes mc-place{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}45%{transform:translateX(12px)}70%{transform:translateX(0)}}
+@keyframes mc-frame{0%,100%{opacity:.55}70%{opacity:1}}
 @keyframes mc-shade{0%,100%{transform:translateX(-30px);opacity:0}35%,70%{transform:translateX(0);opacity:.3}}
 @keyframes mc-line{to{stroke-dashoffset:-22}}
 .mc-front .mc-body,.mc-light .mc-body{animation:mc-float 2.6s ease-in-out infinite}
 .mc-tilt .mc-body{animation:mc-tilt 3s ease-in-out infinite}
+.mc-lock-l{animation:mc-lock-l 3s ease-in-out infinite}.mc-lock-r{animation:mc-lock-r 3s ease-in-out infinite}
+.mc-maskg{animation:mc-mask 3s ease-in-out infinite}
+.mc-place .mc-body{animation:mc-place 3s ease-in-out infinite}.mc-frame{animation:mc-frame 3s ease-in-out infinite}
 .mc-eyes{animation:mc-blink 4s infinite}
-.mc-bangs{animation:mc-bangs 3s ease-in-out infinite}
 .mc-shade{animation:mc-shade 3s ease-in-out infinite}
 .mc-line{animation:mc-line 1.4s linear infinite}
-@media (prefers-reduced-motion:reduce){.face *{animation:none!important}.mc-bangs{transform:none}.mc-shade{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.face *{animation:none!important}.mc-shade{opacity:.3}}
+.sentences p+p{margin-top:4px}.sentences .link{padding:0;margin-top:2px}

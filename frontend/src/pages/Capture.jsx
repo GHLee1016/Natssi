@@ -4,22 +4,40 @@ import { api, shrinkImage } from '../api.js'
 const SHOTS = [
   ['front', '정면, 눈높이', true],
   ['light', '밝고 그림자 없이', true],
+  ['place', '매번 같은 자리에서', true],
   ['tilt', '고개를 기울이지 않기', false],
-  ['hair', '앞머리·마스크로 볼 가리지 않기', false],
+  ['hair', '앞머리로 볼 가리지 않기', false],
+  ['mask', '마스크 쓰지 않기', false],
 ]
-// 낯씨 캐릭터(로고의 얼굴+구름). 촬영 팁마다 다른 동작을 반복한다. 움직임은 CSS로만 만들고, 모션 줄이기 설정이면 멈춘다.
+// 낯씨 캐릭터(로고의 얼굴). 촬영 팁마다 다른 동작을 반복한다. 움직임은 CSS로만 만들고, 모션 줄이기 설정이면 멈춘다.
+// 모션을 끈 상태에서는 가린 모습(앞머리·마스크)이 그대로 보이도록 원래 좌표를 '가린 위치'에 둔다.
+const HAIR = '#1f2a37'
 function Face({ kind }) {
   return (
-    <svg viewBox="30 10 140 150" aria-hidden="true" className={'face mc-' + kind}>
+    <svg viewBox="12 0 176 164" aria-hidden="true" className={'face mc-' + kind}>
+      {kind === 'place' && <rect className="mc-frame" x="20" y="8" width="160" height="148" rx="26" fill="none" stroke="#d9653f" strokeWidth="3" strokeDasharray="8 7" strokeLinecap="round" />}
       <g className="mc-body">
         <rect x="34" y="18" width="132" height="132" rx="48" fill="#ffb86b" />
         <ellipse cx="78" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" /><ellipse cx="146" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" />
         <g className="mc-eyes"><circle cx="88" cy="72" r="8" fill="#1f2a37" /><circle cx="136" cy="72" r="8" fill="#1f2a37" /></g>
         <circle cx="90.600" cy="69.400" r="2.400" fill="#fff" /><circle cx="138.600" cy="69.400" r="2.400" fill="#fff" />
         <path d="M100 100 q12 9 24 0" stroke="#1f2a37" strokeWidth="4" fill="none" strokeLinecap="round" />
-        {kind === 'hair' && <path className="mc-bangs" d="M34 70 q8 -52 78 -52 q70 0 54 52 q-20 -22 -54 -22 q-36 0 -78 22 Z M34 92 h22 v44 h-22 Z M144 92 h22 v44 h-22 Z" fill="#1f2a37" />}
+        {kind === 'hair' && (
+          <>
+            <path d="M30 66 C26 18 62 2 100 2 C138 2 174 18 170 66 C160 44 138 36 100 36 C62 36 40 44 30 66 Z" fill={HAIR} />
+            <path className="mc-lock-l" d="M30 54 h34 v50 a17 17 0 0 1 -34 0 Z" fill={HAIR} />
+            <path className="mc-lock-r" d="M136 54 h34 v50 a17 17 0 0 1 -34 0 Z" fill={HAIR} />
+          </>
+        )}
+        {kind === 'mask' && (
+          <g className="mc-maskg">
+            <path d="M34 98 q-8 0 -12 8 M166 98 q8 0 12 8" stroke="#9fb3c4" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <path d="M42 92 q58 -12 116 0 v26 a40 40 0 0 1 -40 32 h-36 a40 40 0 0 1 -40 -32 Z" fill="#eaf2f7" stroke="#9fb3c4" strokeWidth="3" strokeLinejoin="round" />
+            <path d="M52 108 q48 6 96 0 M56 122 q44 6 88 0" stroke="#b7c8d6" strokeWidth="3" fill="none" strokeLinecap="round" />
+          </g>
+        )}
       </g>
-      {kind === 'front' && <path className="mc-line" d="M112 8 v146" stroke="#d9653f" strokeWidth="3" strokeDasharray="3 8" strokeLinecap="round" />}
+      {kind === 'front' && <path className="mc-line" d="M100 4 v156" stroke="#d9653f" strokeWidth="3" strokeDasharray="3 8" strokeLinecap="round" />}
       {kind === 'light' && (
         <>
           <clipPath id="mc-face"><rect x="34" y="18" width="132" height="132" rx="48" /></clipPath>
@@ -116,7 +134,12 @@ export default function Capture({ maxMb = 4, onLegal }) {
               <p className="muted small">{result.note}</p>
             </div>
           )}
-          <p className="notice">지금은 밝기와 해상도만 확인해요. 고개 각도·표정 검사와 붉은기 측정은 준비 중이에요. 찍은 사진은 검사에만 쓰고 저장하지 않아요. <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button></p>
+          <div className="notice sentences">
+            <p>지금은 밝기와 해상도만 확인해요.</p>
+            <p>고개 각도·표정 검사와 붉은기 측정은 준비 중이에요.</p>
+            <p>찍은 사진은 검사에만 쓰고 저장하지 않아요.</p>
+            <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
+          </div>
         </div>
       </div>
     </section>
