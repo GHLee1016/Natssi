@@ -311,3 +311,4 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 @media (prefers-reduced-motion:reduce){.face *{animation:none!important}.mc-shade{opacity:.3}}
 .sentences p+p{margin-top:4px}.sentences .link{padding:0;margin-top:2px}
 .mc-lock-l,.mc-lock-r{transform-origin:50% 0}
+.diff-note{font-size:14px;margin-top:2px}.diff-note.warn{font-size:14px}

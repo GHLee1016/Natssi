@@ -132,11 +132,14 @@ function Compare({ records }) {
             <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="비교 위치 조절" />
           </div>
           <div className="diff">
-            <div><p className="muted small">볼 붉은기 차이 (Δa*)</p>
-              <b>{c.diff > 0 ? '+' : ''}{c.diff}</b>{' '}
-              <span className={c.beyond_error ? 'warn' : 'calm'}>{c.beyond_error ? '오차 범위 밖' : '오차 범위 안'}</span></div>
-            <span className="muted small">측정 오차 ±{c.mdc95} (예시 값)</span>
+            <div><p className="muted small">두 날의 볼 붉은기 차이</p>
+              <b>{c.diff > 0 ? '+' : ''}{c.diff}</b>
+              <p className={'diff-note ' + (c.beyond_error ? 'warn' : 'calm')}>
+                {c.beyond_error ? '측정 오차보다 커서, 달라진 것으로 보여요' : '측정 오차 안이라, 달라졌다고 보기 어려워요'}
+              </p></div>
+            <span className="muted small">측정 오차는 ±{c.mdc95} 정도예요 (예시 값)</span>
           </div>
+          <details className="tech"><summary>기술 정보</summary><p>붉은기는 Lab 색공간의 a* 값이고, 위 차이는 Δa*(뒤 날짜 − 앞 날짜)예요. 측정 오차는 MDC95 기준이에요.</p></details>
         </>
       )}
     </div>
