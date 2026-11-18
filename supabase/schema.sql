@@ -21,6 +21,19 @@ create policy "checkins_insert_own" on public.checkins for insert to authenticat
 create policy "checkins_update_own" on public.checkins for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "checkins_delete_own" on public.checkins for delete to authenticated using ((select auth.uid()) = user_id);
 
+-- 내 루틴(제품 등록): 사용자당 한 행. 자세한 설명은 patch_2026-11-19_routines.sql 참고.
+drop table if exists public.routines;
+create table public.routines (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.routines enable row level security;
+create policy "routines_select_own" on public.routines for select to authenticated using ((select auth.uid()) = user_id);
+create policy "routines_insert_own" on public.routines for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "routines_update_own" on public.routines for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "routines_delete_own" on public.routines for delete to authenticated using ((select auth.uid()) = user_id);
+
 -- Supabase 보안 점검(0028·0029): 'RLS 자동 켜기' 기능이 만든 rls_auto_enable() 은 이벤트 트리거용 함수라
 -- 브라우저(anon·로그인 사용자)가 /rest/v1/rpc 로 부를 일이 없습니다. 실행 권한을 거둡니다.
 do $$

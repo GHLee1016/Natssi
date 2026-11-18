@@ -319,3 +319,22 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .row-check{display:flex;gap:10px;align-items:center;min-height:44px;margin-top:12px;font-size:14px;line-height:1.5;cursor:pointer}
 .row-check input{flex:none;width:20px;height:20px;accent-color:var(--accent)}
 .row-check+.actions{margin-top:12px}
+
+/* 내 루틴 */
+.ing{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.ing li{display:inline-flex;align-items:center;gap:2px;padding:4px 4px 4px 12px;border-radius:999px;background:#f4efea;font-size:14px}
+.ing li.chk{background:#fde8e2;box-shadow:inset 0 0 0 1px #e9b3a3}
+.ing li button{width:32px;height:32px;border-radius:50%;font-size:18px;line-height:1;color:var(--sub)}
+.add-ing{display:flex;gap:8px;margin-top:6px}.add-ing input{flex:1;min-width:0}
+.fam{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.fam span{padding:2px 8px;border-radius:999px;background:var(--tint);color:var(--accent-ink);font-size:12px;font-weight:600}
+.ask{display:flex;gap:4px}.skip{margin-top:6px}
+.warn-note{background:#fde8e2;color:#8a3318}
+
+/* 안내 박스: 화면 맨 아래에 가로 전체로 놓아 문장이 끊기지 않게 */
+.notice.wide{margin-top:18px}
+@media (min-width:900px){.notice.wide{padding:14px 18px;font-size:13.5px}.notice.wide.sentences p+p{margin-top:2px}}
+@media (min-width:900px){
+  .notice.wide.sentences p{display:inline;margin:0 .5em 0 0}
+  .notice.wide.sentences p+p{margin-top:0}
+  .notice.wide.sentences .link{display:inline;min-height:0;margin:0;padding:0;font-size:13.500px}
+}

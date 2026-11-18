@@ -79,6 +79,10 @@ export const api = {
   report: () => req('/api/report'),
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
+  myRoutine: () => req('/api/me/routine'),
+  analyzeIngredients: (text) => req('/api/me/routine/analyze', json('POST', { text })),
+  addRoutineItem: (body) => req('/api/me/routine/items', json('POST', body)),
+  removeRoutineItem: (key) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, { method: 'DELETE' }),
   checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
   capture: (features) => req('/api/capture', json('POST', features)),   // 사진이 아니라 브라우저가 잰 숫자만 보냄
   consent: () => req('/api/account/consent', json('POST', { photo: true })),

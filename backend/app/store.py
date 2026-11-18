@@ -9,7 +9,9 @@ import uuid
 import httpx
 
 TABLE = "checkins"
+ROUTINE_TABLE = "routines"
 _memory: dict[str, dict[str, dict]] = {}   # {user_id: {day: symptoms}}
+_memory_routine: dict[str, dict] = {}      # {user_id: 루틴 데이터(versions 목록)}
 _client: httpx.Client | None = None      # 테스트에서 바꿔 끼울 수 있음
 
 
@@ -60,15 +62,46 @@ def save(uid: str, day: str, symptoms: dict) -> None:
     r.raise_for_status()
 
 
+def load_routine(uid: str) -> dict:
+    """내 루틴(버전 목록). 아직 없으면 빈 값."""
+    cfg = _cfg()
+    if not cfg:
+        return dict(_memory_routine.get(uid, {"versions": []}))
+    url, key = cfg
+    r = _http().get(f"{url}/rest/v1/{ROUTINE_TABLE}", params={"select": "data", "user_id": f"eq.{_uid(uid)}"},
+                    headers=_headers(key))
+    if r.status_code == 404:                  # routines 표를 아직 안 만든 DB: 루틴이 없는 것으로 본다
+        return {"versions": []}
+    r.raise_for_status()
+    rows = r.json()
+    return rows[0]["data"] if rows else {"versions": []}
+
+
+def save_routine(uid: str, data: dict) -> None:
+    cfg = _cfg()
+    if not cfg:
+        _memory_routine[uid] = data
+        return
+    url, key = cfg
+    r = _http().post(f"{url}/rest/v1/{ROUTINE_TABLE}", params={"on_conflict": "user_id"},
+                     headers=_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
+                     json={"user_id": _uid(uid), "data": data})
+    r.raise_for_status()
+
+
 def clear(uid: str) -> None:
-    """해당 사용자의 체크인만 지웁니다."""
+    """해당 사용자의 체크인과 루틴을 지웁니다."""
     cfg = _cfg()
     _memory.pop(uid, None)
+    _memory_routine.pop(uid, None)
     if not cfg:
         return
     url, key = cfg
-    r = _http().delete(f"{url}/rest/v1/{TABLE}", params={"user_id": f"eq.{_uid(uid)}"}, headers=_headers(key))
-    r.raise_for_status()
+    for table in (TABLE, ROUTINE_TABLE):
+        r = _http().delete(f"{url}/rest/v1/{table}", params={"user_id": f"eq.{_uid(uid)}"}, headers=_headers(key))
+        if table == ROUTINE_TABLE and r.status_code == 404:     # 표가 없으면 지울 것도 없다(탈퇴·초기화를 막지 않음)
+            continue
+        r.raise_for_status()
 
 
 def why(exc: Exception) -> str:
@@ -77,7 +110,7 @@ def why(exc: Exception) -> str:
         code = exc.response.status_code
         hint = {401: "키가 올바르지 않아요(service_role/secret 키인지 확인)",
                 403: "키 권한이 없어요(anon 키가 아닌 service_role/secret 키를 쓰세요)",
-                404: "checkins 테이블이 없어요(supabase/schema.sql 실행 필요)"}.get(code, "")
+                404: "checkins 또는 routines 테이블이 없어요(supabase/schema.sql 또는 patch_*.sql 실행 필요)"}.get(code, "")
         try:
             body = exc.response.json()
             msg = body.get("message") or body.get("hint") or ""

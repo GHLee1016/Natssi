@@ -33,6 +33,7 @@ export default function MyDay({ go }) {
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
       {d && (
+        <>
         <div className="grid2">
           <div>
             <div className="card">
@@ -84,9 +85,10 @@ export default function MyDay({ go }) {
                 </div>
               ))}
             </div>
-            <p className="notice">판정과 리포트는 로그아웃하면 볼 수 있는 김서연 가상 데모에서 보여 드려요. 내 기록이 쌓이면 내 데이터로 보여 드릴게요.</p>
           </div>
         </div>
+        <p className="notice wide">판정과 리포트는 로그아웃하면 볼 수 있는 김서연 가상 데모에서 보여 드려요. 내 기록이 쌓이면 내 데이터로 보여 드릴게요.</p>
+        </>
       )}
     </section>
   )

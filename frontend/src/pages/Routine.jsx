@@ -1,6 +1,7 @@
 import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
+import { routineCopy } from '../copy/routine.js'
 
 const TONE = { 레티노이드: '#ffe6da', LED: '#ffe6da', '자외선 차단': '#fff3d9' }
 
@@ -12,6 +13,7 @@ export default function Routine() {
       <header className="page-head"><div><p className="eyebrow">지금 쓰는 제품과 기기</p><h1>내 루틴</h1></div></header>
       <Status {...q} />
       {r && (
+        <>
         <div className="grid2">
           <div>
             <div className="card dark">
@@ -28,7 +30,6 @@ export default function Routine() {
                 </div>
               ))}
             </div>
-            <p className="notice">새 제품 등록(전성분 촬영)은 준비 중이에요. 등록하면 이전에 신호가 났던 성분 계열이 있는지만 알려 드리고, 제품 추천은 하지 않아요.</p>
           </div>
           <div className="card">
             <h3>지난 버전</h3>
@@ -41,6 +42,8 @@ export default function Routine() {
             ))}
           </div>
         </div>
+        <p className="notice wide">{routineCopy().demo}</p>
+        </>
       )}
     </section>
   )

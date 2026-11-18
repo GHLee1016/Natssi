@@ -34,8 +34,9 @@ import os
 # ── 계정·보안 ───────────────────────────────────────────────
 # 비밀번호 찾기는 Supabase 커스텀 SMTP를 설정한 뒤에만 켠다(기본 메일 서비스는 팀 구성원에게만 보낸다).
 RECOVERY_ENABLED = os.environ.get("NATSSI_RECOVERY") == "1"
+OCR_ENABLED = os.environ.get("NATSSI_OCR") == "1"       # 전성분 사진 읽기(OCR). 서버·화면이 모두 준비된 뒤에만 켜기(기본 꺼짐)
 OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1"   # 로컬 개발용: 로그인 없이 쓰기 허용(운영에서는 켜지 마세요)
-CONSENT_VERSION = "2026-11-19"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결)
+CONSENT_VERSION = "2026-11-20"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결 / 11-20: 내 루틴 저장 추가)
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024                      # Vercel 함수 요청 한도(4.5MB) 아래
 MAX_IMAGE_PIXELS = 40_000_000                           # 압축 폭탄 방지
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}

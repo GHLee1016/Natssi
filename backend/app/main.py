@@ -10,7 +10,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, config, demo_data, judge, llm, quality, ratelimit, report, store
+from . import auth, config, demo_data, ingredients, judge, llm, quality, ratelimit, report, store
+from . import routine as myroutine
 
 log = logging.getLogger("natssi")
 app = FastAPI(title="낯씨 API", version="0.2.0")
@@ -96,7 +97,7 @@ def meta(v=Depends(viewer)):
     return {"persona": demo_data.PERSONA, "today": config.demo_today().isoformat(),
             "first": demo_data.versions(config.demo_shift())[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
             "mdc95_is_example": False, "storage": store.backend_name(), "llm": llm.enabled(),
-            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "consent_version": config.CONSENT_VERSION,
+            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version")} if v else None}
 
@@ -207,11 +208,13 @@ def export_account(request: Request, v=Depends(need_user)):
     limit("account", request, v)
     try:
         saved = store.load_all(v["id"])
+        my_routine = store.load_routine(v["id"])
     except Exception as e:
         raise _store_fail("저장소에 연결하지 못했어요.", e)
     return {"email": v["email"], "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "consent": v.get("consent"),
             "checkins": [{"day": d, "symptoms": s} for d, s in sorted(saved.items())],
+            "routine": my_routine.get("versions", []),
             "note": "얼굴 사진은 서버에 저장하지 않아 내려받을 사진이 없어요."}
 
 
@@ -345,6 +348,71 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
     """브라우저가 잰 측정값(숫자)만 받아 품질을 판정합니다. 사진은 서버로 오지 않고, 측정값도 저장하지 않아요."""
     limit("capture", request, v)
     return quality.evaluate(body)
+
+
+# ── 내 루틴(제품 등록) ─────────────────────────────────────────
+class AnalyzeBody(BaseModel):
+    text: str = Field(..., min_length=1, max_length=ingredients.MAX_TEXT)
+
+
+class RoutineAdd(BaseModel):
+    name: str = Field(..., min_length=1, max_length=40)
+    usage: str = Field(..., max_length=20)
+    ingredients: list[str] = Field(default_factory=list, max_length=ingredients.MAX_ITEMS + 1)
+    reason: Optional[str] = Field(None, max_length=60)
+
+
+def _routine_response(data, warnings=()):
+    return {**myroutine.payload(data), "warnings": list(warnings)}
+
+
+@app.get("/api/me/routine")
+def my_routine(v=Depends(need_user)):
+    """내 루틴(제품 목록과 버전). 판정·리포트와 달리 첫날부터 열려 있어요."""
+    try:
+        return _routine_response(store.load_routine(v["id"]))
+    except Exception as e:
+        raise _store_fail("루틴을 불러오지 못했어요.", e)
+
+
+@app.post("/api/me/routine/analyze")
+def analyze_ingredients(body: AnalyzeBody, request: Request, v=Depends(need_user)):
+    """붙여 넣은 전성분 글자를 성분 목록과 성분 계열로 나눈다. 저장하지 않아요."""
+    limit("write", request, v)
+    try:
+        return ingredients.analyze(body.text)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/me/routine/items")
+def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
+    """제품을 루틴에 추가한다. 다른 날 바꾸면 새 버전이 생기고, 직전 변경이 7일 안이면 경고를 함께 돌려준다."""
+    limit("write", request, v)
+    try:
+        data = store.load_routine(v["id"])
+        warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason)
+        store.save_routine(v["id"], data)
+    except myroutine.RoutineError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _store_fail("루틴을 저장하지 못했어요.", e)
+    return _routine_response(data, warnings)
+
+
+@app.delete("/api/me/routine/items/{key}")
+def remove_routine_item(key: str, request: Request, v=Depends(need_user)):
+    """제품 사용을 멈춘다(기록은 지난 버전에 남아요)."""
+    limit("write", request, v)
+    try:
+        data = store.load_routine(v["id"])
+        warnings = myroutine.remove_item(data, config.today_kst(), key)
+        store.save_routine(v["id"], data)
+    except myroutine.RoutineError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _store_fail("루틴을 저장하지 못했어요.", e)
+    return _routine_response(data, warnings)
 
 
 class ConsentUpdate(BaseModel):

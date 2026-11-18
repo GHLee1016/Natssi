@@ -107,7 +107,7 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
       <section className="capture">
         <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
         <div className="card">
-          <h2 className="h3">사진 처리 방식이 바뀌었어요</h2>
+          <h2 className="h3">처리 안내가 바뀌었어요</h2>
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
             <li>고개 각도·표정·선명도·노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
@@ -179,14 +179,14 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
               <p className="muted small">{result.note}</p>
             </div>
           )}
-          <div className="notice sentences">
-            <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
-            <p>고개 각도·표정·선명도·노출을 확인하고, 통과하면 볼 붉은기를 보여 드려요.</p>
-            <p>측정한 숫자는 품질 판정에만 쓰고 저장하지 않아요.</p>
-            <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
-          </div>
         </div>
       </div>
+  <div className="notice sentences wide">
+    <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
+    <p>고개 각도·표정·선명도·노출을 확인하고, 통과하면 볼 붉은기를 보여 드려요.</p>
+    <p>측정한 숫자는 품질 판정에만 쓰고 저장하지 않아요.</p>
+    <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
+  </div>
     </section>
   )
 }
