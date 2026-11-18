@@ -137,7 +137,7 @@ function Compare({ records }) {
               <p className={'diff-note ' + (c.beyond_error ? 'warn' : 'calm')}>
                 {c.beyond_error ? '측정 오차보다 커서, 달라진 것으로 보여요' : '측정 오차 안이라, 달라졌다고 보기 어려워요'}
               </p></div>
-            <span className="muted small">측정 오차는 ±{c.mdc95} 정도예요 (예시 값)</span>
+            <span className="muted small">측정 오차는 ±{c.mdc95} 정도예요 (팀원 반복 촬영 예비 측정)</span>
           </div>
           <details className="tech"><summary>기술 정보</summary><p>붉은기는 Lab 색공간의 a* 값이고, 위 차이는 Δa*(뒤 날짜 − 앞 날짜)예요. 측정 오차는 MDC95 기준이에요.</p></details>
         </>

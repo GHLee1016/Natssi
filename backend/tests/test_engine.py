@@ -26,6 +26,11 @@ def test_signal_on_days_4_to_7_of_version_2():
     assert sig == [4, 5, 6, 7]
 
 
+def test_demo_story_signal_days():
+    # MDC95를 바꾸면 데모 이야기가 달라질 수 있어요(1.65~2.40에서는 같고, 2.45 이상이면 '신호 있음'이 줄어요).
+    assert sum(r["verdict"]["level"] == judge.SIGNAL for r in rows) == 5, config.MDC95_A_STAR
+
+
 def test_returns_to_range_in_version_3():
     assert by_date["2026-11-16"]["verdict"]["level"] == judge.NO_SIGNAL
     assert by_date["2026-11-16"]["verdict"]["baseline_version"] == 1

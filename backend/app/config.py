@@ -1,8 +1,11 @@
-"""판정에 쓰는 설정값. 사전 검증(반복 촬영)이 끝나면 MDC95를 실제 값으로 바꾸세요."""
+"""판정에 쓰는 설정값. MDC95는 팀원 반복 촬영 예비 검증값이며, 사진이 늘면 다시 계산해 갱신합니다."""
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-MDC95_A_STAR = 1.8          # 예시 값. 반복 촬영 실험 결과로 교체
+# 볼 붉은기(a*) 측정 오차의 최소 변화량(하루 1장 기준). 팀원 3명 반복 셀카 59장(품질 통과), 2026-11-19 계산,
+# 95% 신뢰구간 1.85~2.97. 같은 폰·같은 장소 조건의 예비값(대상자가 적음). 계산: natssi_selfie_validation(run_pipeline.py)
+# 데모(김서연) 판정은 1.65~2.40에서 같고, 2.45 이상이면 '신호 있음' 날이 줄어요(test_demo_story_signal_days).
+MDC95_A_STAR = 2.35
 MIN_BASELINE_RECORDS = 7    # 평소 범위를 만들기 위한 최소 기록 수
 MAD_K = 3.0                 # 평소 범위 폭 = max(MDC95, MAD_K × 1.4826 × MAD)
 SYMPTOM_ALERT = 2           # 증상 점수가 이 값 이상이면 '겹침'으로 봄
