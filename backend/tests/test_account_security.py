@@ -1,12 +1,10 @@
 """로그인·데이터 분리·제한·업로드 검사. Supabase는 가짜 서버로 대신합니다."""
-import io
 import json
 import uuid
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
 
 from app import auth, config, llm, ratelimit, store
 from app.main import app
@@ -42,6 +40,9 @@ class FakeSupabase:
             if not uid:
                 return httpx.Response(401, json={})
             email, u = next((e, u) for e, u in self.users.items() if u["id"] == uid)
+            if request.method == "PUT" and "data" in body:          # 사용자 메타데이터(동의 기록) 갱신
+                u["meta"].update(body["data"])
+                return httpx.Response(200, json={"id": uid, "email": email, "user_metadata": u["meta"]})
             if request.method == "PUT":                              # 비밀번호 바꾸기
                 if u["password"] == body["password"]:
                     return httpx.Response(422, json={"error_code": "same_password"})
@@ -187,36 +188,46 @@ def test_rate_limits(env, monkeypatch):
     assert codes[2:] == [429, 429]
 
 
-def jpeg(size=(640, 640), fmt="JPEG"):
-    buf = io.BytesIO()
-    Image.new("RGB", size, (150, 120, 110)).save(buf, fmt)
-    return buf.getvalue()
+GOOD = dict(width=2316, height=3088, brightness=135.0, face_found=True, n_faces=1, face_ratio=0.72, sharpness=510.0,
+            yaw=0.5, pitch=11.0, roll=-1.5, smile=0.001, blink=0.10, n_L=90000, n_R=95000,
+            clip_ratio_L=0.0005, clip_ratio_R=0.002, L_L=60.0, L_R=76.0, a_L=11.5, a_R=10.5, b_L=16.0, b_R=16.5,
+            a_star=11.0, L_star=68.0, L_diff=-16.0)
 
 
-def up(c, data, name="a.jpg", ctype="image/jpeg", headers=None):
-    return c.post("/api/capture", files={"photo": (name, data, ctype)}, headers=headers or {})
+def up(c, body=None, headers=None):
+    return c.post("/api/capture", json=GOOD if body is None else body, headers=headers or {})
 
 
-def test_upload_limits(env):
+def test_capture_takes_numbers_not_photos(env):
     _, c = env
-    assert up(c, jpeg()).status_code == 200
-    assert up(c, b"x" * (config.MAX_UPLOAD_BYTES + 10)).status_code == 413
-    assert up(c, b"not an image at all").status_code == 400
-    assert up(c, jpeg(fmt="GIF"), "a.gif", "image/gif").status_code == 400            # 허용 형식 아님
-    assert up(c, jpeg(fmt="BMP"), "a.bmp", "image/bmp").status_code == 400
+    r = up(c)
+    assert r.status_code == 200 and r.json()["passed"] and r.json()["redness"] == 11.0
+    assert up(c, {**GOOD, "brightness": 999}).status_code == 422                 # 범위를 벗어난 값은 거절
+    assert up(c, {"width": 10}).status_code == 422                                # 필수 값 없음
+    files = {"photo": ("a.jpg", b"\xff\xd8" + b"x" * 100, "image/jpeg")}
+    assert c.post("/api/capture", files=files).status_code == 422                # 사진 파일은 더 받지 않음
 
 
-def test_huge_dimensions_are_refused(env, monkeypatch):
-    _, c = env
-    monkeypatch.setattr(config, "MAX_IMAGE_PIXELS", 10_000)
-    assert up(c, jpeg((640, 640))).status_code == 400
-
-
-def test_photo_is_not_stored(env):
+def test_measurements_are_not_stored(env):
     fake, c = env
     h = join(c, "a@test.kr")
-    assert up(c, jpeg(), headers=h).status_code == 200
+    assert up(c, headers=h).status_code == 200
     assert not fake.rows and not store._memory
+
+
+def test_photo_consent_is_renewed(env):
+    fake, c = env
+    h = join(c, "b@test.kr")
+    u = fake.users["b@test.kr"]
+    u["meta"]["consent"]["version"] = "2026-11-18"                               # 예전 안내에 동의한 사용자
+    auth._cache.clear()
+    assert c.get("/api/meta", headers=h).json()["viewer"]["consent_version"] == "2026-11-18"
+    assert c.post("/api/account/consent", json={"photo": False}, headers=h).status_code == 400
+    r = c.post("/api/account/consent", json={"photo": True}, headers=h)
+    assert r.status_code == 200 and r.json()["consent_version"] == config.CONSENT_VERSION
+    assert u["meta"]["consent"]["version"] == config.CONSENT_VERSION and u["meta"]["consent"]["health"] is True
+    assert c.get("/api/meta", headers=h).json()["viewer"]["consent_version"] == config.CONSENT_VERSION
+    assert c.post("/api/account/consent", json={"photo": True}).status_code == 401   # 로그인 필요
 
 
 def test_headers_and_cors(env):

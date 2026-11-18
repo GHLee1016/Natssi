@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, shrinkImage } from '../api.js'
+import { api } from '../api.js'
+import { loadLandmarker, measurePhoto } from '../measure/browser.js'
+
+const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
 
 const SHOTS = [
   ['front', '정면, 눈높이', true],
@@ -49,16 +52,27 @@ function Face({ kind }) {
   )
 }
 
-export default function Capture({ maxMb = 4, onLegal }) {
+export default function Capture({ onLegal, viewer, consentVersion, mdc95, onConsented }) {
   const video = useRef(null)
   const stream = useRef(null)
   const [cam, setCam] = useState('idle')   // idle | on | blocked
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(null)   // null | '얼굴 모델 불러오는 중…' | '검사하는 중…'
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [agree, setAgree] = useState(false)
+  const [seenLocal, setSeenLocal] = useState(() => { try { return localStorage.getItem(NOTICE_KEY) } catch { return null } })
+  const needConsent = viewer ? viewer.consent_version !== consentVersion : seenLocal !== consentVersion
 
   const stop = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null }
   useEffect(() => stop, [])
+
+  const acceptNotice = async () => {
+    setError(null)
+    try {
+      if (viewer) { await api.consent(); onConsented?.() }
+      else { try { localStorage.setItem(NOTICE_KEY, consentVersion) } catch { /* 무시 */ } setSeenLocal(consentVersion) }
+    } catch (e) { setError(e.message) }
+  }
 
   const start = async () => {
     setError(null)
@@ -70,21 +84,42 @@ export default function Capture({ maxMb = 4, onLegal }) {
     } catch {
       setCam('blocked')
     }
+    loadLandmarker().catch(() => {})       // 카메라를 켜는 동안 얼굴 모델을 미리 받아 둠
   }
 
-  const send = async (blob) => {
-    setBusy(true); setError(null); setResult(null)
+  // 사진(또는 카메라 화면)을 이 기기에서 재고, 숫자만 서버로 보내 품질 판정을 받음
+  const send = async (src) => {
+    setError(null); setResult(null)
     try {
-      const small = await shrinkImage(blob)
-      if (small.size > maxMb * 1024 * 1024) throw new Error(`사진이 너무 커요 (${maxMb}MB 이하)`)
-      setResult(await api.capture(small))
-    } catch (e) { setError(e.message) } finally { setBusy(false) }
+      setBusy('얼굴 모델 불러오는 중…')
+      await loadLandmarker()
+      setBusy('검사하는 중…')
+      const features = await measurePhoto(src)
+      setResult(await api.capture(features))
+    } catch (e) {
+      setError(e?.status ? e.message : '사진을 분석하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')
+    } finally { setBusy(null) }
   }
-  const shoot = () => {
-    const v = video.current, c = document.createElement('canvas')
-    c.width = v.videoWidth; c.height = v.videoHeight
-    c.getContext('2d').drawImage(v, 0, 0)
-    c.toBlob((b) => b && send(b), 'image/jpeg', 0.92)
+  const shoot = () => video.current && send(video.current)
+
+  if (needConsent) {
+    return (
+      <section className="capture">
+        <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
+        <div className="card">
+          <h2 className="h3">사진 처리 방식이 바뀌었어요</h2>
+          <ul className="sentences">
+            <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
+            <li>고개 각도·표정·선명도·노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
+            <li>서버에는 측정한 숫자만 보내 품질을 판정하고, 저장하지 않아요.</li>
+          </ul>
+          <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
+          <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> 바뀐 얼굴 사진 처리 안내({consentVersion})를 읽고 동의해요</label>
+          <div className="actions left"><button className="btn" disabled={!agree} onClick={acceptNotice}>동의하고 촬영하기</button></div>
+          {error && <p className="err" role="alert">{error}</p>}
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -103,9 +138,9 @@ export default function Capture({ maxMb = 4, onLegal }) {
         </div>
         <div>
           <div className="actions left">
-            <button className="btn" onClick={shoot} disabled={cam !== 'on' || busy}>{busy ? '검사하는 중…' : '사진 찍기'}</button>
+            <button className="btn" onClick={shoot} disabled={cam !== 'on' || !!busy}>{busy || '사진 찍기'}</button>
             <label className="btn ghost file">사진 고르기
-              <input type="file" accept="image/*" onChange={(e) => e.target.files[0] && send(e.target.files[0])} />
+              <input type="file" accept="image/*" disabled={!!busy} onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) send(f) }} />
             </label>
           </div>
           {!result && (
@@ -124,21 +159,30 @@ export default function Capture({ maxMb = 4, onLegal }) {
           {error && <p className="err" role="alert">{error}</p>}
           {result && (
             <div className="card">
-              <h2 className="h3">{result.passed ? '품질 검사 통과' : '다시 찍어 주세요'}</h2>
+              <h2 className="h3">{result.passed ? '사진이 잘 찍혔어요' : '한 번 더 찍어 볼까요?'}</h2>
               <p className="muted small">{result.message}</p>
+              {result.redness !== null && (
+                <div className="row">
+                  <div><b>볼 붉은기 (a*)</b><p className="muted small">측정 오차 ±{mdc95} · 같은 폰·같은 장소에서 찍은 날끼리 비교해요</p></div>
+                  <b>{result.redness.toFixed(1)}</b>
+                </div>
+              )}
               {result.checks.map((c) => (
                 <div className="row" key={c.name}>
                   <div><b>{c.name}</b><p className="muted small">{c.detail}</p></div>
-                  <span className={c.ok === null ? 'muted small' : c.ok ? 'done' : 'warn'}>{c.ok === null ? '준비 중' : c.ok ? '통과 ✓' : '확인 필요'}</span>
+                  <span className={c.ok === null ? 'muted small' : c.ok ? 'done' : 'warn'}>{c.ok === null ? '확인 못 함' : c.ok ? '좋아요 ✓' : '아쉬워요'}</span>
                 </div>
               ))}
+              <details className="tech"><summary>측정 값 보기</summary>
+                {result.checks.map((c) => <p key={c.name}>{c.name} · {c.tech}</p>)}
+              </details>
               <p className="muted small">{result.note}</p>
             </div>
           )}
           <div className="notice sentences">
-            <p>지금은 밝기와 해상도만 확인해요.</p>
-            <p>고개 각도·표정 검사와 붉은기 측정은 준비 중이에요.</p>
-            <p>찍은 사진은 검사에만 쓰고 저장하지 않아요.</p>
+            <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
+            <p>고개 각도·표정·선명도·노출을 확인하고, 통과하면 볼 붉은기를 보여 드려요.</p>
+            <p>측정한 숫자는 품질 판정에만 쓰고 저장하지 않아요.</p>
             <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
           </div>
         </div>

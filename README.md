@@ -63,7 +63,7 @@ backend/app/
   report.py      근거 번호를 붙인 리포트 문장 + 문장·기록 대조(verify)
   llm.py         OpenRouter 호출 + LLM 문장 검사(guard)
   store.py       증상 체크인 저장 (Supabase, 없으면 메모리)
-  quality.py     촬영 품질 검사 자리 (지금은 밝기·해상도만)
+  quality.py     촬영 품질 판정 (브라우저가 잰 숫자를 받아 검증 파이프라인과 같은 기준으로 판정)
   main.py        API
 frontend/src/
   pages/         Diary, Change(그래프·겹쳐 비교), Capture, Routine, Report
@@ -76,18 +76,24 @@ frontend/src/
 - 증상 체크인 수정 → 바로 다시 판정 (Supabase에 저장, 설정이 없으면 서버 메모리)
 - 리포트: OpenRouter 무료 모델이 문장을 쓰고, 검사에 걸리면 정해진 틀 문장으로 대체. 문장마다 근거 기록 번호
 - 겹쳐 비교: 두 날짜 선택, 슬라이더, 붉은기 차이와 오차 범위 비교
-- 촬영: 카메라 또는 사진 선택 → 밝기·해상도 검사 (사진은 저장하지 않음)
+- 촬영: 카메라 또는 사진 선택 → **브라우저에서** MediaPipe로 얼굴 점·고개 각도·표정, 선명도·노출, 양 볼 a* 측정(`frontend/src/measure/`) → 숫자만 서버로 보내 품질 판정(`/api/capture`). 사진은 서버로 보내지 않고, 숫자도 저장하지 않음
 
 ## 아직 자리만 있는 것 (파트별 연결 지점)
 
 | 할 일 | 넣을 곳 |
 |---|---|
-| 얼굴 인식, 고개 각도·표정 검사, 볼 a* 측정 (MediaPipe·OpenCV) | `backend/app/quality.py`의 `check()` |
-| 실제 사진 저장과 기록 추가 (Supabase Storage) | `backend/app/store.py`, `/api/capture` |
+| 측정한 볼 a*를 내 기록에 저장해 판정에 쓰기(사진은 저장하지 않음, 처리방침 갱신 필요) | `backend/app/store.py`, `/api/capture`, `judge.py` |
 | 이어서 묻기 답변을 LLM으로 | `backend/app/report.py`의 `answer()` (지금은 정해진 답) |
 | 전성분 OCR, 새 제품 등록, 버전 추가 | 새 API + `frontend/src/pages/Routine.jsx` |
 | 환경 데이터(서울시·기상청) | `demo_data.py`의 `env` 자리 |
 | 로그인 | 없음 (지금은 누구나 같은 가상 데이터를 봄) |
+
+## 촬영 측정 (2026-11-19)
+
+- 계산 식은 검증 파이프라인(`natssi_selfie_validation/code/measure_redness.py`)과 같아요: 볼 영역 랜드마크 번호, sRGB→CIELAB, 날아간·어두운 픽셀 제외, a* 중앙값, 흐림(256px INTER_AREA → 라플라시안 분산), 머리 자세(pitch +3.7° 보정).
+- `cd frontend && npm test` — 같은 그림을 파이썬·OpenCV로 잰 기준값과 JS 결과가 맞는지 확인(볼 a* ±0.05, 흐림 ±0.2%, 자세 일치).
+- `npm run build`·`npm run dev` 전에 `scripts/copy-mediapipe.mjs`가 MediaPipe wasm을 `public/mediapipe`로 복사하고 얼굴 모델(약 3.6MB)을 받아 둡니다. 모델을 못 받으면 앱이 실행 중에 Google 주소에서 받아요.
+- 처리방침 버전이 바뀌면(`config.CONSENT_VERSION`) 촬영 화면에서 바뀐 사진 안내에 다시 동의해야 촬영할 수 있어요(`/api/account/consent`, 로그인 없이 쓰면 이 브라우저에만 기억).
 
 ## 주의
 
@@ -102,7 +108,7 @@ frontend/src/
 - **로그인 후**: 예시 기록 위에 **내 증상 체크인**만 덮어 보입니다. 데이터는 `user_id`로 분리되고 RLS 정책이 걸려 있습니다.
 - **내 데이터**: `/api/account/export`(내려받기), `DELETE /api/account`(체크인+계정 삭제).
 - **동의**: 가입 때 이용약관·개인정보·얼굴 사진 처리 안내에 모두 동의해야 하며, 약관 버전과 시각이 사용자 메타데이터에 기록됩니다. 문구는 `frontend/src/pages/Legal.jsx` — **초안이므로 법률 검토 후 [대괄호]를 채우세요.**
-- **제한**: 호출 횟수(`config.LIMITS`, 인스턴스별 최선 노력 방식), 업로드 4MB·JPG/PNG/WEBP·픽셀 수 제한, 큰 사진은 브라우저에서 먼저 축소.
+- **제한**: 호출 횟수(`config.LIMITS`, 인스턴스별 최선 노력 방식). 촬영은 측정값(숫자)만 받고 범위를 벗어난 값은 422로 거절.
 - **환경변수**(Vercel): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_MODELS`. 로컬 개발은 `NATSSI_OPEN_MODE=1`.
 - **Supabase 설정**: `supabase/schema.sql`(v2)을 실행하고, Authentication → Providers에서 Email을 켭니다. 시연용으로 메일 인증을 끄려면 Authentication → Sign In / Providers → Email의 "Confirm email"을 끄세요.
 - 실제 호출 상한은 OpenRouter 키의 크레딧 한도로도 함께 거세요.

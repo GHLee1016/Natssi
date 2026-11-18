@@ -3,9 +3,10 @@ import os
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,13 @@ from . import auth, config, demo_data, judge, llm, quality, ratelimit, report, s
 
 log = logging.getLogger("natssi")
 app = FastAPI(title="낯씨 API", version="0.2.0")
+
+
+@app.exception_handler(RequestValidationError)
+async def _invalid(request, exc):
+    """입력 검사 실패. 받은 값(사진 바이트 등)은 응답에 다시 넣지 않아요."""
+    errs = [{"loc": list(e.get("loc", [])), "msg": e.get("msg", ""), "type": e.get("type", "")} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errs})
 # 같은 주소에서 화면과 API를 함께 서비스하므로 다른 출처의 접근은 허용하지 않습니다.
 # 로컬에서 프런트(5173)를 따로 띄울 때만 CORS_ORIGINS 환경변수에 주소를 넣으세요.
 _origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
@@ -87,10 +95,10 @@ def routine_payload(v):
 def meta(v=Depends(viewer)):
     return {"persona": demo_data.PERSONA, "today": config.demo_today().isoformat(),
             "first": demo_data.versions(config.demo_shift())[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
-            "mdc95_is_example": True, "storage": store.backend_name(), "llm": llm.enabled(),
+            "mdc95_is_example": False, "storage": store.backend_name(), "llm": llm.enabled(),
             "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "consent_version": config.CONSENT_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
-            "viewer": {"email": v["email"]} if v else None}
+            "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version")} if v else None}
 
 
 # ── 가입·로그인 ────────────────────────────────────────────────
@@ -333,18 +341,31 @@ def checkin(body: Checkin, request: Request, v=Depends(need_user)):
 
 
 @app.post("/api/capture")
-async def capture(request: Request, photo: UploadFile = File(...), v=Depends(viewer)):
+def capture(body: quality.Features, request: Request, v=Depends(viewer)):
+    """브라우저가 잰 측정값(숫자)만 받아 품질을 판정합니다. 사진은 서버로 오지 않고, 측정값도 저장하지 않아요."""
     limit("capture", request, v)
-    declared = request.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > config.MAX_UPLOAD_BYTES + 64 * 1024:
-        raise HTTPException(413, f"사진이 너무 커요 ({config.MAX_UPLOAD_BYTES // (1024 * 1024)}MB 이하)")
-    data = await photo.read(config.MAX_UPLOAD_BYTES + 1)     # 한도보다 많이는 읽지 않음
-    if len(data) > config.MAX_UPLOAD_BYTES:
-        raise HTTPException(413, f"사진이 너무 커요 ({config.MAX_UPLOAD_BYTES // (1024 * 1024)}MB 이하)")
+    return quality.evaluate(body)
+
+
+class ConsentUpdate(BaseModel):
+    photo: bool = False
+
+
+@app.post("/api/account/consent")
+def update_consent(body: ConsentUpdate, request: Request, authorization: Optional[str] = Header(None),
+                   v=Depends(need_user)):
+    """바뀐 사진 처리 안내에 다시 동의한 기록을 남깁니다(서버가 시각을 찍음)."""
+    limit("account", request, v)
+    if not body.photo:
+        raise HTTPException(400, "바뀐 사진 처리 안내에 동의해야 촬영할 수 있어요.")
+    if config.OPEN_MODE:                                     # 로컬 개발: 메모리에만 기록
+        LOCAL_USER["consent"] = {"version": config.CONSENT_VERSION, "photo": True}
+        return {"consent_version": config.CONSENT_VERSION}
     try:
-        return quality.check(data)   # 사진은 저장하지 않습니다
-    except quality.BadImage as e:
-        raise HTTPException(400, str(e))
+        consent = auth.update_consent(authorization[7:].strip(), v.get("consent"))
+    except auth.AuthError as e:
+        raise HTTPException(e.status, e.message)
+    return {"consent_version": consent["version"]}
 
 
 @app.post("/api/reset")

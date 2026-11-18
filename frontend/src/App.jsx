@@ -121,7 +121,7 @@ export default function App() {
           <div key={epoch}>
             {tab === 'diary' && (viewer ? <MyDay go={setTab} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
             {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
-            {tab === 'capture' && <Capture maxMb={meta.data.max_upload_mb} onLegal={goLegal} />}
+            {tab === 'capture' && <Capture onLegal={goLegal} viewer={viewer} consentVersion={meta.data.consent_version} mdc95={meta.data.mdc95} onConsented={refreshAll} />}
             {tab === 'routine' && (viewer ? <Locked title="루틴" need={7} /> : <Routine />)}
             {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
           </div>

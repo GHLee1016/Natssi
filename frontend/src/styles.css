@@ -312,3 +312,8 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .sentences p+p{margin-top:4px}.sentences .link{padding:0;margin-top:2px}
 .mc-lock-l,.mc-lock-r{transform-origin:50% 0}
 .diff-note{font-size:14px;margin-top:2px}.diff-note.warn{font-size:14px}
+
+/* 촬영 전 바뀐 사진 안내 동의 */
+.capture ul.sentences{margin:8px 0 6px 18px;font-size:14px;line-height:1.6}
+.row-check{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:14px;line-height:1.5}
+.row-check input{margin-top:3px}

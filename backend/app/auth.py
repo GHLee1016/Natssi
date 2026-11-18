@@ -172,6 +172,20 @@ def user_from_token(token: str) -> dict:
     return out
 
 
+def update_consent(token: str, old: dict | None) -> dict:
+    """현재 처리방침 버전으로 동의 기록을 갱신합니다(기존 항목은 유지, 사진 처리 동의를 다시 받음)."""
+    _, anon, _ = _env()
+    consent = {**(old or {}), "version": config.CONSENT_VERSION, "photo": True,
+               "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    r = _call("PUT", "/auth/v1/user", key=anon, token=token, json={"data": {"consent": consent}})
+    if r.status_code in (401, 403):
+        raise AuthError(401, "로그인이 필요해요.")
+    if r.status_code >= 400:
+        raise AuthError(503, "동의 기록을 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+    _cache.pop(token, None)                # 다음 요청부터 새 동의 버전을 보게
+    return consent
+
+
 def delete_user(uid: str) -> None:
     _, _, svc = _env()
     r = _call("DELETE", f"/auth/v1/admin/users/{uid}", key=svc)

@@ -3,3 +3,4 @@ frontend/.DS_Store
 natssi_blender_mockup/.DS_Store
 .DS_Store
 /frontend/dist
+/frontend/public/mediapipe

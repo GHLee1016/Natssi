@@ -80,7 +80,8 @@ export const api = {
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
   checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
-  capture: (blob) => { const f = new FormData(); f.append('photo', blob, 'selfie.jpg'); return req('/api/capture', { method: 'POST', body: f }) },
+  capture: (features) => req('/api/capture', json('POST', features)),   // 사진이 아니라 브라우저가 잰 숫자만 보냄
+  consent: () => req('/api/account/consent', json('POST', { photo: true })),
   signup: async (body) => { const r = await req('/api/auth/signup', json('POST', body)); if (r.access_token) session.set(r); return r },
   login: async (body) => { const r = await req('/api/auth/login', json('POST', body)); session.set(r); return r },
   recover: (body) => req('/api/auth/recover', json('POST', body)),
