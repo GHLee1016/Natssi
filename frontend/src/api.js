@@ -82,6 +82,7 @@ export const api = {
   myRoutine: () => req('/api/me/routine'),
   analyzeIngredients: (text) => req('/api/me/routine/analyze', json('POST', { text })),
   addRoutineItem: (body) => req('/api/me/routine/items', json('POST', body)),
+  changeRoutineUsage: (key, usage, reason) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, json('PATCH', { usage, reason: reason || null })),
   removeRoutineItem: (key) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, { method: 'DELETE' }),
   checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
   capture: (features) => req('/api/capture', json('POST', features)),   // 사진이 아니라 브라우저가 잰 숫자만 보냄

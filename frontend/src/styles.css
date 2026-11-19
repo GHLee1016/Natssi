@@ -338,3 +338,10 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
   .notice.wide.sentences p+p{margin-top:0}
   .notice.wide.sentences .link{display:inline;min-height:0;margin:0;padding:0;font-size:13.500px}
 }
+
+.edit-usage{margin:2px 0 8px;padding:12px 14px;border-radius:16px;background:#faf6f2}
+.edit-usage .opts{margin:6px 0 10px}
+.reasons{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+.reasons button{min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid #f0d6c8;font-size:13px;color:#a8502f}
+.reasons button.on{background:var(--tint);border-color:var(--accent);font-weight:700}
+.ask{flex-wrap:wrap;justify-content:flex-end}

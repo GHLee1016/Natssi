@@ -355,6 +355,11 @@ class AnalyzeBody(BaseModel):
     text: str = Field(..., min_length=1, max_length=ingredients.MAX_TEXT)
 
 
+class UsageChange(BaseModel):
+    usage: str = Field(..., max_length=20)
+    reason: Optional[str] = Field(None, max_length=60)
+
+
 class RoutineAdd(BaseModel):
     name: str = Field(..., min_length=1, max_length=40)
     usage: str = Field(..., max_length=20)
@@ -363,7 +368,8 @@ class RoutineAdd(BaseModel):
 
 
 def _routine_response(data, warnings=()):
-    return {**myroutine.payload(data), "warnings": list(warnings)}
+    return {**myroutine.payload(data), "warnings": list(warnings),
+            "setup_day": myroutine.is_setup_day(data, config.today_kst())}
 
 
 @app.get("/api/me/routine")
@@ -392,6 +398,21 @@ def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     try:
         data = store.load_routine(v["id"])
         warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason)
+        store.save_routine(v["id"], data)
+    except myroutine.RoutineError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _store_fail("루틴을 저장하지 못했어요.", e)
+    return _routine_response(data, warnings)
+
+
+@app.patch("/api/me/routine/items/{key}")
+def change_routine_usage(key: str, body: UsageChange, request: Request, v=Depends(need_user)):
+    """등록한 제품의 사용 빈도를 바꾼다. 새 버전이 생기고, 변경이 잦으면 경고를 함께 돌려준다."""
+    limit("write", request, v)
+    try:
+        data = store.load_routine(v["id"])
+        warnings = myroutine.change_usage(data, config.today_kst(), key, body.usage, body.reason)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))

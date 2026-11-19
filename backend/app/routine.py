@@ -33,8 +33,10 @@ def _commit(data: dict, today: date, items: list, op: str, reason: str | None) -
         v["items"] = items
         v["ops"] = [*v.get("ops", []), op]
         v["change"] = None if v["id"] == 1 else ", ".join(v["ops"])
-        if reason:
+        if reason and v["id"] >= 2:                            # 처음 등록한 날(버전 1)은 '바꾼' 것이 아니라 출발점이라 이유를 남기지 않는다
             v["reason"] = reason
+        if v["id"] >= 2 and len(v["ops"]) >= 2:                 # 처음 등록한 날(버전 1)은 여러 개를 넣어도 되지만, 그 뒤에는 하루에 하나씩
+            warnings.append("오늘 루틴을 이미 한 번 바꿨어요. 한 번에 하나씩 바꿔야 무엇이 원인인지 알 수 있어요.")
         return warnings
     if vs and vs[-1]["id"] >= 2 and (today - date.fromisoformat(vs[-1]["start"])).days < GAP_DAYS:
         warnings.append("최근 7일 안에 루틴을 이미 한 번 바꿨어요. 한 번에 하나씩 바꿔야 무엇이 원인인지 알 수 있어요.")
@@ -67,12 +69,35 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
     return _commit(data, today, [*items, item], f"{name} 추가 ({usage})", reason)
 
 
+REASONS = ["자극이 있어서", "더 자주 쓰려고", "그냥 바꿔 봤어요"]
+
+
+def change_usage(data: dict, today: date, key: str, usage: str, reason: str | None = None) -> list[str]:
+    """이미 등록한 제품의 사용 빈도를 바꾼다(예: 매일 저녁 → 주 2~3회). 새 버전이 생긴다."""
+    if usage not in USAGES:
+        raise RoutineError("사용 빈도를 골라 주세요.")
+    items = _items(data)
+    old = next((i for i in items if i["key"] == key), None)
+    if not old:
+        raise RoutineError("그 제품을 찾지 못했어요.")
+    if old["usage"] == usage:
+        raise RoutineError("지금과 같은 사용 빈도예요.")
+    return _commit(data, today, [{**i, "usage": usage} if i["key"] == key else i for i in items],
+                   f"{old['name']} {old['usage']} → {usage}", reason)
+
+
 def remove_item(data: dict, today: date, key: str, reason: str | None = None) -> list[str]:
     items = _items(data)
     gone = next((i for i in items if i["key"] == key), None)
     if not gone:
         raise RoutineError("그 제품을 찾지 못했어요.")
     return _commit(data, today, [i for i in items if i["key"] != key], f"{gone['name']} 사용 중단", reason)
+
+
+def is_setup_day(data: dict, today: date) -> bool:
+    """오늘이 처음 루틴을 등록한 날인가(이날 바꾸는 것은 '변경'이 아니라 등록이라 이유를 묻지 않는다)."""
+    vs = data.get("versions", [])
+    return bool(vs) and vs[-1]["id"] == 1 and vs[-1]["start"] == today.isoformat()
 
 
 def payload(data: dict) -> dict:
@@ -86,4 +111,4 @@ def payload(data: dict) -> dict:
                            "family": i["family"] or "성분", "families": i["families"], "ingredients": i["ingredients"]}
                           for i in v["items"]]}
 
-    return {"current": one(vs[-1]) if vs else None, "versions": [one(v) for v in vs], "usages": USAGES}
+    return {"current": one(vs[-1]) if vs else None, "versions": [one(v) for v in vs], "usages": USAGES, "reasons": REASONS}

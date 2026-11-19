@@ -14,12 +14,22 @@ export default function MyRoutine({ ocr }) {
   const q = useLoad(() => api.myRoutine(), [])
   const [adding, setAdding] = useState(false)
   const [asking, setAsking] = useState(null)            // 사용 중단 확인 중인 제품 key
+  const [editing, setEditing] = useState(null)          // 사용 빈도를 바꾸는 중인 제품 key
+  const [newUsage, setNewUsage] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
   const [warn, setWarn] = useState([])
   const [note, setNote] = useState('')
   const [error, setError] = useState(null)
   const r = q.data
 
   const saved = (data) => { q.setData(data); setAdding(false); setWarn(data.warnings || []); setNote('루틴에 등록했어요.') }
+  const openEdit = (it) => { setEditing(it.key); setNewUsage(''); setReason(''); setAsking(null); setError(null) }
+  const change = async (key) => {
+    setError(null); setSaving(true)
+    try { const data = await api.changeRoutineUsage(key, newUsage, r.setup_day ? '' : reason); q.setData(data); setEditing(null); setWarn(data.warnings || []); setNote('사용 빈도를 바꿨어요.') }
+    catch (e) { setError(e.message) } finally { setSaving(false) }
+  }
   const stop = async (key) => {
     setError(null)
     try { const data = await api.removeRoutineItem(key); q.setData(data); setAsking(null); setWarn(data.warnings || []); setNote('사용 중단으로 기록했어요.') }
@@ -43,15 +53,47 @@ export default function MyRoutine({ ocr }) {
               <div className="card">
                 <h2 className="h3">버전 {r.current.id} · {fmt.md(r.current.start)}부터</h2>
                 {r.current.items.map((it) => (
-                  <div className="row" key={it.key}>
-                    <ProductIcon name={ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />
-                    <div><b>{it.name}</b>
-                      <p className="muted small">{it.usage}{it.ingredients.length ? ` · 성분 ${it.ingredients.length}개` : ' · 성분 미입력'}</p>
-                      {it.families.length > 0 && <p className="fam">{it.families.map((f) => <span key={f}>{f}</span>)}</p>}
+                  <div key={it.key}>
+                    <div className="row">
+                      <ProductIcon name={ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />
+                      <div><b>{it.name}</b>
+                        <p className="muted small">{it.usage}{it.ingredients.length ? ` · 성분 ${it.ingredients.length}개` : ' · 성분 미입력'}</p>
+                        {it.families.length > 0 && <p className="fam">{it.families.map((f) => <span key={f}>{f}</span>)}</p>}
+                      </div>
+                      {asking === it.key ? (
+                        <span className="ask"><button className="link" onClick={() => stop(it.key)}>중단할게요</button><button className="link" onClick={() => setAsking(null)}>취소</button></span>
+                      ) : (
+                        <span className="ask">
+                          <button className="link" onClick={() => openEdit(it)} aria-label={`${it.name} 사용 빈도 바꾸기`}>빈도 바꾸기</button>
+                          <button className="link" onClick={() => { setAsking(it.key); setEditing(null) }} aria-label={`${it.name} 사용 중단`}>사용 중단</button>
+                        </span>
+                      )}
                     </div>
-                    {asking === it.key ? (
-                      <span className="ask"><button className="link" onClick={() => stop(it.key)}>중단할게요</button><button className="link" onClick={() => setAsking(null)}>취소</button></span>
-                    ) : <button className="link" onClick={() => setAsking(it.key)} aria-label={`${it.name} 사용 중단`}>사용 중단</button>}
+                    {editing === it.key && (
+                      <div className="edit-usage">
+                        <p className="small"><b>{it.name}</b>을 얼마나 자주 쓰나요? <span className="muted">(지금: {it.usage})</span></p>
+                        <div role="radiogroup" aria-label="새 사용 빈도" className="opts">
+                          {r.usages.filter((u) => u !== it.usage).map((u) => (
+                            <label className={'opt' + (newUsage === u ? ' on' : '')} key={u}>
+                              <input type="radio" name={'u-' + it.key} checked={newUsage === u} onChange={() => setNewUsage(u)} />
+                              <span className="opt-dot" aria-hidden="true" />{u}
+                            </label>
+                          ))}
+                        </div>
+                        {!r.setup_day && (
+                          <>
+                            <p className="muted small">바꾼 이유가 있나요? (선택)</p>
+                            <div className="reasons" role="group" aria-label="바꾼 이유">
+                              {r.reasons.map((x) => <button type="button" key={x} aria-pressed={reason === x} className={reason === x ? 'on' : ''} onClick={() => setReason(reason === x ? '' : x)}>{x}</button>)}
+                            </div>
+                          </>
+                        )}
+                        <div className="step-actions">
+                          <button className="btn ghost" onClick={() => setEditing(null)}>취소</button>
+                          <button className="btn" onClick={() => change(it.key)} disabled={!newUsage || saving}>{saving ? '저장하는 중…' : '바꾸기'}</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {error && <p className="err" role="alert">{error}</p>}
@@ -71,7 +113,7 @@ export default function MyRoutine({ ocr }) {
                 <div className="ev" key={v.id}>
                   <b>버전 {v.id}</b>
                   <div>{v.change || '처음 등록한 루틴'}
-                    <p className="muted small">{fmt.md(v.start)} 시작</p></div>
+                    <p className="muted small">{fmt.md(v.start)} 시작{v.reason ? ` · 바꾼 이유: ${v.reason}` : ''}</p></div>
                 </div>
               ))}
             </div>

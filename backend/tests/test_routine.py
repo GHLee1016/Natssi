@@ -93,3 +93,70 @@ def test_ocr_copy_flag_is_off_by_default(env, monkeypatch):
     assert c.get("/api/meta").json()["ocr"] is False            # 사진 읽기는 준비되기 전까지 꺼 둔다
     monkeypatch.setattr(config, "OCR_ENABLED", True)
     assert c.get("/api/meta").json()["ocr"] is True
+
+
+def test_changing_usage_makes_a_new_version_with_reason():
+    d = {"versions": []}
+    routine.add_item(d, date(2026, 11, 1), "레티놀 세럼", "매일 저녁", ["레티놀"])
+    routine.add_item(d, date(2026, 11, 1), "크림", "매일 저녁", [])
+    key = d["versions"][0]["items"][0]["key"]
+    assert routine.change_usage(d, date(2026, 11, 10), key, "주 2~3회", "자극이 있어서") == []
+    v = d["versions"][-1]
+    assert v["id"] == 2 and v["change"] == "레티놀 세럼 매일 저녁 → 주 2~3회" and v["reason"] == "자극이 있어서"
+    assert [i["usage"] for i in v["items"]] == ["주 2~3회", "매일 저녁"]
+    assert d["versions"][0]["items"][0]["usage"] == "매일 저녁"                       # 지난 버전은 그대로
+    for bad in ("주 2~3회", "하루 열 번"):                                           # 지금과 같은 빈도·없는 빈도는 거절
+        try:
+            routine.change_usage(d, date(2026, 11, 20), key, bad)
+            assert False
+        except routine.RoutineError:
+            pass
+    try:
+        routine.change_usage(d, date(2026, 11, 20), "nope", "매일 아침")
+        assert False
+    except routine.RoutineError:
+        pass
+
+
+def test_two_changes_on_the_same_day_warn_except_on_setup_day():
+    d = {"versions": []}
+    assert routine.add_item(d, date(2026, 11, 1), "A", "매일 저녁", []) == []
+    assert routine.add_item(d, date(2026, 11, 1), "B", "매일 아침", []) == []          # 처음 등록한 날은 여러 개 OK
+    assert routine.add_item(d, date(2026, 11, 12), "C", "매일 저녁", []) == []         # 첫 변경은 경고 없음
+    w = routine.add_item(d, date(2026, 11, 12), "D", "매일 저녁", [])                 # 같은 날 두 번째 변경
+    assert w and "오늘" in w[0] and len(d["versions"]) == 2
+    assert d["versions"][-1]["change"] == "C 추가 (매일 저녁), D 추가 (매일 저녁)"
+
+
+def test_change_usage_api(env):
+    _, c = env
+    assert c.patch("/api/me/routine/items/x", json={"usage": "주 2~3회"}).status_code == 401
+    h = join(c, "a@test.kr")
+    cur = c.post("/api/me/routine/items", headers=h, json={"name": "세럼", "usage": "매일 저녁", "ingredients": ["레티놀"]}).json()["current"]
+    key = cur["items"][0]["key"]
+    r = c.patch(f"/api/me/routine/items/{key}", headers=h, json={"usage": "주 2~3회", "reason": "자극이 있어서"})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["current"]["items"][0]["usage"] == "주 2~3회" and len(j["versions"]) == 1      # 처음 등록한 날이라 같은 버전에 합쳐짐
+    assert c.patch(f"/api/me/routine/items/{key}", headers=h, json={"usage": "주 2~3회"}).status_code == 400
+    assert c.patch(f"/api/me/routine/items/{key}", headers=h, json={"usage": "하루 열 번"}).status_code == 400
+    assert c.get("/api/me/routine", headers=h).json()["reasons"]
+
+
+def test_no_reason_on_setup_day_but_kept_later():
+    d = {"versions": []}
+    routine.add_item(d, date(2026, 11, 1), "세럼", "매일 저녁", [])
+    assert routine.is_setup_day(d, date(2026, 11, 1)) and not routine.is_setup_day(d, date(2026, 11, 2))
+    key = d["versions"][0]["items"][0]["key"]
+    routine.change_usage(d, date(2026, 11, 1), key, "주 2~3회", "자극이 있어서")     # 첫날: 이유는 버린다
+    assert d["versions"][0].get("reason") is None and d["versions"][0]["items"][0]["usage"] == "주 2~3회"
+    routine.change_usage(d, date(2026, 11, 9), key, "필요할 때", "자극이 있어서")     # 다른 날: 이유를 남긴다
+    assert d["versions"][-1]["reason"] == "자극이 있어서" and not routine.is_setup_day(d, date(2026, 11, 9))
+
+
+def test_api_reports_setup_day(env):
+    _, c = env
+    h = join(c, "a@test.kr")
+    assert c.get("/api/me/routine", headers=h).json()["setup_day"] is False            # 아직 등록 전
+    r = c.post("/api/me/routine/items", headers=h, json={"name": "세럼", "usage": "매일 저녁"}).json()
+    assert r["setup_day"] is True                                                      # 오늘 처음 등록
