@@ -39,7 +39,7 @@ export default function MyRoutine({ ocr }) {
   return (
     <section>
       <header className="page-head"><div><p className="eyebrow">지금 쓰는 제품</p><h1>내 루틴</h1></div>
-        {r && !adding && <button className="btn" onClick={() => { setAdding(true); setNote(''); setWarn([]) }}>제품 추가</button>}
+        {r && r.current && !adding && <button className="btn" onClick={() => { setAdding(true); setNote(''); setWarn([]) }}>제품 추가</button>}
       </header>
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
@@ -106,9 +106,9 @@ export default function MyRoutine({ ocr }) {
               </div>
             ))}
           </div>
-          {r.versions.length > 0 && (
+          {r.versions.length > 0 ? (
             <div className="card">
-              <h3>루틴이 바뀐 기록</h3>
+              <h3>{t.history.title}</h3>
               {[...r.versions].reverse().map((v) => (
                 <div className="ev" key={v.id}>
                   <b>버전 {v.id}</b>
@@ -116,6 +116,11 @@ export default function MyRoutine({ ocr }) {
                     <p className="muted small">{fmt.md(v.start)} 시작{v.reason ? ` · 바꾼 이유: ${v.reason}` : ''}</p></div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="card hist-empty">
+              <h3>{t.history.title}</h3>
+              <p className="muted">{t.history.empty}</p>
             </div>
           )}
         </div>

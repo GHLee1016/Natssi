@@ -345,3 +345,5 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .reasons button{min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid #f0d6c8;font-size:13px;color:#a8502f}
 .reasons button.on{background:var(--tint);border-color:var(--accent);font-weight:700}
 .ask{flex-wrap:wrap;justify-content:flex-end}
+.card p+.actions.left{margin-top:16px}
+.hist-empty{background:transparent;border-style:dashed}.hist-empty h3{color:var(--sub)}
