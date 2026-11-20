@@ -46,5 +46,11 @@ from ingredients.pipeline import register
 register(["제품_1.jpg", "제품_2.jpg"])   # {"ingredients": [...], "families": [...], "needs_review": [...], "seconds": ...}
 ```
 
+### OCR 서버 (`ocr_server/`)
+```powershell
+python -m uvicorn ocr_server.app:app --host 0.0.0.0 --port 7860   # http://localhost:7860 테스트 페이지, /docs API 문서
+python scripts/build_space.py                                     # 허깅페이스 Space에 올릴 폴더 → build/hf_space
+```
+
 엔진 선택과 계단식 재시도는 이건희의 소비기한 OCR 저장소(itda3-dscover-capybara)를 참고했다.
 같은 합성 라벨에서 EasyOCR 대비 장당 32초 → 4초, 한글 오타 6개 → 1개.

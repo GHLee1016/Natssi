@@ -57,13 +57,14 @@ def ingredient_lines(text: str, m: Matcher) -> str:
     return "\n".join(keep)
 
 
-def from_text(text: str) -> dict:
-    """OCR 원문(또는 사람이 붙여 넣은 전성분 글)을 성분 목록으로."""
+def from_text(text: str, select_lines: bool = True) -> dict:
+    """OCR 원문(또는 사람이 붙여 넣은 전성분 글)을 성분 목록으로.
+    select_lines=False: 사람이 넣은 글이라 줄 고르기(광고 문구 거르기)를 하지 않는다."""
     global _matcher
     _matcher = _matcher or Matcher()
     if _matcher.has_dict:
         # 성분 줄을 하나도 못 찾으면 빈 결과 → 앱에서 '전성분이 보이게 다시 찍어 주세요'
-        picked = ingredient_lines(text, _matcher)
+        picked = ingredient_lines(text, _matcher) if select_lines else text
         matched = [r for frags in parse.split_chunks(picked) for r in _segment(frags, _matcher)]
     else:
         matched = [_matcher.match(t) for t in parse.split_list(text)]
@@ -137,7 +138,7 @@ def suggest(query: str, k: int = 8) -> list[dict]:
 
 def from_names(names: list[str], extra_families: list[str] = ()) -> dict:
     """사용자가 고른 핵심 성분 몇 개 + '들어 있다'고 체크한 계열 → OCR 결과와 같은 모양."""
-    out = from_text("전성분: " + ", ".join(names)) if names else {"ingredients": [], "families": [], "needs_review": []}
+    out = from_text("전성분: " + ", ".join(names), select_lines=False) if names else {"ingredients": [], "families": [], "needs_review": []}
     out["families"] = sorted(set(out["families"]) | set(extra_families))
     out["source"] = "manual"
     return out

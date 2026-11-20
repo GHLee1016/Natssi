@@ -57,6 +57,38 @@ facts 예: `최근 3일 초미세먼지가 평소보다 높았어요.` / `최근
 
 ## B. 전성분 OCR — 루틴 제품 등록
 
+OCR은 용량(라이브러리 약 290MB)과 시간(사진당 20~40초) 때문에 Vercel 함수에 넣지 않고 **별도 OCR 서버**로 띄워요.
+앱(프론트)은 그 서버를 `fetch`로 부르기만 하면 돼요. 서버 코드: `ocr_server/` (FastAPI)
+
+### API (모두 같은 결과 모양 → 확인 화면 하나로 처리)
+| 요청 | 보내는 것 | 용도 |
+|---|---|---|
+| `POST /ocr` | multipart, 필드 `files`에 사진 1~3장 (10MB 이하) | 사진 등록 |
+| `POST /parse` | `{"text": "정제수, 글리세린, ..."}` | 글자 붙여넣기 (지금 앱의 글자 입력을 이걸로 바꾸면 오타 교정·계열이 붙음) |
+| `POST /manual` | `{"names": ["레티놀"], "families": ["향료"]}` | 둥근 병 등 직접 입력 |
+| `GET /suggest?q=레티` | | 성분 자동완성 `[{name, inci, families}]` |
+| `GET /families` | | 계열 목록, 다시 물어볼 7개 |
+
+결과:
+```json
+{"ingredients": [{"name": "판테놀", "inci": "Panthenol", "status": "보정", "ocr": "판테늘", "families": ["판테놀"]}],
+ "families": ["레티노이드", "판테놀"],
+ "ask_families": ["향료", "알코올", "에센셜오일", "AHA", "BHA", "비타민C"],
+ "needs_review": 3, "source": "ocr", "seconds": 29.7,
+ "message": "전성분을 찾지 못했어요. ..."}            ← 성분이 0개일 때만
+```
+확인 화면 제안: `status`가 `보정`이면 "읽은 글자: 판테늘" 작게, `확인 필요`면 빨간색+수정 칸, 아래에 `ask_families` 체크.
+→ 사용자가 확인한 결과를 지금 있는 루틴 등록 흐름으로 저장.
+
+```js
+const fd = new FormData(); photos.forEach(p => fd.append("files", p));
+const res = await fetch(`${OCR_URL}/ocr`, { method: "POST", body: fd }).then(r => r.json());
+```
+- 30초 넘게 걸릴 수 있으니 "성분 읽는 중…" 표시 필요. 앱 쪽 타임아웃은 90초 이상.
+- CORS: `https://natssiweb.vercel.app`, `localhost:5173` 허용됨 (다른 주소면 서버 환경변수 `ALLOWED_ORIGINS`).
+- 서버 주소(`OCR_URL`)는 허깅페이스에 올린 뒤 알려 드릴게요. 테스트 페이지는 서버 주소 `/`, API 문서는 `/docs`.
+
+### 파이썬에서 직접 쓰기 (서버 없이)
 main에 '전성분 글자 입력으로 제품 등록'이 생겼으니, 그 앞에 사진 → 글자 단계만 붙이면 돼요.
 
 ```python
@@ -72,5 +104,3 @@ from_names(["레티놀", "병풀추출물"], extra_families=["향료"])   # 둥�
 - 결과 화면에 `ASK_FAMILIES`(향료·알코올·에센셜오일·레티노이드·AHA·BHA·비타민C) 체크를 함께 보여 주세요.
   OCR이 놓치는 30%가 주로 이런 뒤쪽 성분이에요.
 - 정답 20장 결과: 성분 일치율 67%(평평한 면), 정밀도 88%, **없는 계열을 붙인 경우 0건**.
-- 주의: RapidOCR·onnxruntime·opencv는 Vercel 함수 용량(250MB)에 빠듯해요. 사진 OCR은 별도 서버나
-  브라우저 밖에서 돌리고, 앱에는 `from_text`·`suggest`·`from_names`(가벼움, rapidfuzz만 필요)부터 붙이는 걸 추천해요.

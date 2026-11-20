@@ -35,6 +35,16 @@ def jamo(s: str) -> str:
     return "".join(out)
 
 
+def _one_jamo_apart(a: str, b: str) -> bool:
+    """자모 문자열이 한 자모만 바뀌었거나(치환) 받침 하나만 더하거나 빠진 경우."""
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) == 1
+    if abs(len(a) - len(b)) == 1:
+        s, l = (a, b) if len(a) < len(b) else (b, a)
+        return any(l[:i] + l[i + 1:] == s for i in range(len(l)))
+    return False
+
+
 class Matcher:
     def __init__(self, path: Path = DICT_PATH, cutoff: int = 80):
         self.cutoff = cutoff
@@ -67,11 +77,17 @@ class Matcher:
         if len(k) < 3 or not self.keys:
             return None
         from rapidfuzz import fuzz, process
-        # 짧은 조각은 한 글자만 달라도 엉뚱한 성분이 된다('추출물'→'무추출물') → 기준을 높인다
-        cutoff = self.cutoff if len(k) >= 5 else (87 if len(k) == 4 else 92)
-        best = process.extractOne(jamo(k), self.jkeys, scorer=fuzz.ratio, score_cutoff=cutoff)
-        if best:
-            return {"ocr": token, **self.index[self.keys[best[2]]], "status": "보정", "score": round(best[1])}
+        if len(k) >= 5:
+            best = process.extractOne(jamo(k), self.jkeys, scorer=fuzz.ratio, score_cutoff=self.cutoff)
+            if best:
+                return {"ocr": token, **self.index[self.keys[best[2]]], "status": "보정", "score": round(best[1])}
+            return None
+        # 짧은 이름(3~4글자)은 글자 수가 같고 자모 하나만 다를 때만 고친다.
+        #   '리모넷'→'리모넨'(받침 하나) O,  '추출물'→'무추출물'(글자가 늘어남) X
+        for _, score, i in process.extract(jamo(k), self.jkeys, scorer=fuzz.ratio, limit=5, score_cutoff=75):
+            cand = self.keys[i]
+            if len(cand) == len(k) and _one_jamo_apart(jamo(k), self.jkeys[i]):
+                return {"ocr": token, **self.index[cand], "status": "보정", "score": round(score)}
         return None
 
     def match(self, token: str) -> dict:

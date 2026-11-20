@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>낯씨 전성분 등록 테스트</title>
+<style>
+  :root { --bg:#fbf8f5; --card:#fff; --ink:#2b2622; --muted:#7a716a; --line:#ece6e0;
+          --ok:#2f7d4f; --fix:#b7791f; --bad:#c0392b; --chip:#f3ece6; --accent:#c96f53; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family: Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:20px; margin:4px 0 2px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px; }
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { flex:1; padding:10px; border:1px solid var(--line); background:var(--card); border-radius:10px; font-size:14px; color:var(--ink); }
+  .tabs button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .pane { display:none; } .pane.on { display:block; }
+  label.drop { display:block; border:2px dashed var(--line); border-radius:12px; padding:22px; text-align:center; color:var(--muted); }
+  input[type=file] { display:none; }
+  textarea, input[type=text] { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-family:inherit; }
+  textarea { min-height:110px; }
+  .btn { width:100%; margin-top:10px; padding:12px; border:0; border-radius:10px; background:var(--accent); color:#fff; font-size:15px; }
+  .btn:disabled { opacity:.5; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
+  .thumbs { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; } .thumbs img { width:72px; height:96px; object-fit:cover; border-radius:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:var(--chip); border-radius:999px; padding:5px 10px; font-size:13px; }
+  .chip.check { cursor:pointer; border:1px solid var(--line); background:var(--card); }
+  .chip.check.on { background:var(--ink); color:#fff; }
+  ul.ing { list-style:none; padding:0; margin:0; }
+  ul.ing li { display:flex; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  ul.ing li small { color:var(--muted); }
+  .st { font-size:12px; white-space:nowrap; } .st.일치 { color:var(--ok); } .st.보정 { color:var(--fix); } .st.확인 { color:var(--bad); }
+  .sugg { border:1px solid var(--line); border-radius:10px; margin-top:4px; overflow:hidden; }
+  .sugg div { padding:9px 10px; border-bottom:1px solid var(--line); font-size:14px; cursor:pointer; } .sugg div:last-child { border-bottom:0; }
+  .msg { color:var(--bad); font-size:14px; }
+  h3 { font-size:15px; margin:0 0 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>전성분 등록</h1>
+  <p class="sub">낯씨 OCR 서버 테스트 페이지 · 사진은 저장하지 않아요</p>
+
+  <div class="tabs">
+    <button data-p="photo" class="on">사진</button>
+    <button data-p="text">글자 붙여넣기</button>
+    <button data-p="manual">직접 입력</button>
+  </div>
+
+  <section class="card pane on" id="photo">
+    <label class="drop" for="file">📷 전성분표 찍기 / 고르기 (최대 3장)
+      <input id="file" type="file" accept="image/*" capture="environment" multiple>
+    </label>
+    <div class="thumbs" id="thumbs"></div>
+    <button class="btn" id="go-photo" disabled>성분 읽기</button>
+    <p class="hint">상자처럼 평평한 면을, 전성분 글자가 화면을 가득 채우게 찍어 주세요. 둥근 병은 잘 안 읽혀요.<br>한 장에 20~40초쯤 걸려요.</p>
+  </section>
+
+  <section class="card pane" id="text">
+    <textarea id="txt" placeholder="정제수, 글리세린, 부틸렌글라이콜, ..."></textarea>
+    <button class="btn" id="go-text">성분 정리</button>
+  </section>
+
+  <section class="card pane" id="manual">
+    <input type="text" id="q" placeholder="핵심 성분 검색 (예: 레티, 나이아신)" autocomplete="off">
+    <div class="sugg" id="sugg" hidden></div>
+    <div class="chips" id="picked" style="margin-top:10px"></div>
+    <p class="hint">핵심 성분을 최대 5개까지 골라 주세요.</p>
+    <button class="btn" id="go-manual">등록</button>
+  </section>
+
+  <section id="result"></section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let files = [], picked = [], checked = new Set();
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === b.dataset.p));
+});
+
+$('#file').onchange = e => {
+  files = [...e.target.files].slice(0, 3);
+  $('#thumbs').innerHTML = '';
+  files.forEach(f => { const i = new Image(); i.src = URL.createObjectURL(f); $('#thumbs').append(i); });
+  $('#go-photo').disabled = !files.length;
+};
+
+async function call(url, opts, btn) {
+  const label = btn.textContent; btn.disabled = true; btn.textContent = '읽는 중…';
+  const t0 = performance.now();
+  try {
+    const r = await fetch(url, opts);
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.status);
+    render(j, (performance.now() - t0) / 1000);
+  } catch (e) {
+    $('#result').innerHTML = `<div class="card msg">오류: ${e.message}</div>`;
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+
+$('#go-photo').onclick = () => {
+  const fd = new FormData(); files.forEach(f => fd.append('files', f));
+  call('/ocr', { method: 'POST', body: fd }, $('#go-photo'));
+};
+$('#go-text').onclick = () => call('/parse', { method: 'POST', headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({ text: $('#txt').value }) }, $('#go-text'));
+$('#go-manual').onclick = () => call('/manual', { method: 'POST', headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({ names: picked, families: [...checked] }) }, $('#go-manual'));
+
+let timer;
+$('#q').oninput = e => {
+  clearTimeout(timer);
+  const q = e.target.value.trim();
+  if (!q) { $('#sugg').hidden = true; return; }
+  timer = setTimeout(async () => {
+    const r = await fetch('/suggest?q=' + encodeURIComponent(q)); const list = await r.json();
+    $('#sugg').innerHTML = list.map(s => `<div data-n="${s.name}">${s.name} <small style="color:#7a716a">${s.inci || ''}</small></div>`).join('') || '<div>찾는 성분이 없어요</div>';
+    $('#sugg').hidden = false;
+    $('#sugg').querySelectorAll('[data-n]').forEach(d => d.onclick = () => {
+      if (picked.length < 5 && !picked.includes(d.dataset.n)) picked.push(d.dataset.n);
+      $('#q').value = ''; $('#sugg').hidden = true; drawPicked();
+    });
+  }, 200);
+};
+function drawPicked() {
+  $('#picked').innerHTML = picked.map((n, i) => `<span class="chip">${n} <a data-i="${i}" style="cursor:pointer">✕</a></span>`).join('');
+  $('#picked').querySelectorAll('a').forEach(a => a.onclick = () => { picked.splice(+a.dataset.i, 1); drawPicked(); });
+}
+
+function render(j, wall) {
+  checked = new Set(checked);
+  const rows = j.ingredients.map(i => {
+    const st = i.status === '확인 필요' ? '확인' : i.status;
+    const note = i.status === '보정' ? ` <small>(읽은 글자: ${i.ocr})</small>` : '';
+    return `<li><span>${i.name}${note}</span><span class="st ${st}">${i.status}</span></li>`;
+  }).join('');
+  $('#result').innerHTML = `
+    ${j.message ? `<div class="card msg">${j.message}</div>` : ''}
+    <div class="card">
+      <h3>성분 계열</h3>
+      <div class="chips">${j.families.map(f => `<span class="chip">${f}</span>`).join('') || '<span class="hint">없음</span>'}</div>
+      <h3 style="margin-top:14px">이 제품에 들어 있나요?</h3>
+      <div class="chips" id="ask">${j.ask_families.map(f => `<span class="chip check ${checked.has(f) ? 'on' : ''}" data-f="${f}">${f}</span>`).join('')}</div>
+      <p class="hint">OCR이 뒤쪽 성분(향료 등)을 놓칠 수 있어요. 아는 것만 눌러 주세요.</p>
+    </div>
+    <div class="card">
+      <h3>성분 ${j.ingredients.length}개 · 확인할 것 ${j.needs_review}개</h3>
+      <ul class="ing">${rows}</ul>
+      <p class="hint">서버 처리 ${j.seconds}초 · 전체 ${wall.toFixed(1)}초 · ${j.source}</p>
+    </div>`;
+  document.querySelectorAll('#ask .check').forEach(c => c.onclick = () => {
+    c.classList.toggle('on'); c.classList.contains('on') ? checked.add(c.dataset.f) : checked.delete(c.dataset.f);
+  });
+}
+</script>
+</body>
+</html>

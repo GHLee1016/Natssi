@@ -33,12 +33,14 @@ def _engine(unclip: float = 1.6):
     })
 
 
-def load(path, invert: bool = False) -> np.ndarray:
-    """한글 경로도 읽히게 imdecode 사용 (폰 사진 회전 정보도 반영됨)."""
+def load(src, invert: bool = False) -> np.ndarray:
+    """src: 파일 경로 또는 업로드된 사진 바이트. 한글 경로도 읽히게 imdecode 사용 (폰 사진 회전 정보도 반영됨)."""
     import cv2
-    img = cv2.imdecode(np.fromfile(str(path), dtype=np.uint8), cv2.IMREAD_COLOR)
+    buf = np.frombuffer(src, dtype=np.uint8) if isinstance(src, (bytes, bytearray)) \
+        else np.fromfile(str(src), dtype=np.uint8)
+    img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
     if img is None:
-        raise ValueError(f"사진을 열 수 없어요: {path}")
+        raise ValueError("사진을 열 수 없어요")
     h, w = img.shape[:2]
     if max(h, w) > 3000:
         s = 3000 / max(h, w)

@@ -6,3 +6,5 @@ photos/
 *.heic
 .env
 __pycache__/
+build/
+.pytest_cache/
