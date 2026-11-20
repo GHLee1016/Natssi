@@ -31,8 +31,16 @@ def ingredient_lines(text: str, m: Matcher) -> str:
     '전성분' 머리말은 OCR이 자주 못 읽어서 기대지 않는다. 대신 줄을 쉼표로 나눈 조각이
     사전에 많이 있으면(40% 이상, 2개 이상) 성분 줄로 본다. 광고 문구·주의사항은 여기서 빠진다.
     """
-    keep = []
+    keep, skip = [], 0
     for line in text.splitlines():
+        # '8 FREE' 표시 바로 뒤 몇 줄('동물성원료, 실리콘오일, 합성색소…')은 '안 들어간' 성분 목록이다
+        if parse.FREE_FROM.search(line):
+            skip = 3
+            continue
+        if skip and not parse.START.search(line):
+            skip -= 1
+            continue
+        skip = 0
         s = parse.START.search(line)
         if s:
             line = line[s.end():]
@@ -93,4 +101,43 @@ def register(image_paths: list) -> dict:
     out["variants"] = used
     out["raw_text"] = text
     out["seconds"] = round(time.perf_counter() - t0, 1)
+    return out
+
+
+# ---------- 직접 입력 (둥근 병처럼 OCR이 안 되는 제품) ----------
+
+def suggest(query: str, k: int = 8) -> list[dict]:
+    """성분 이름 자동완성. 앞부분이 같은 이름 → 포함하는 이름 → 오타 보정 순."""
+    global _matcher
+    _matcher = _matcher or Matcher()
+    from .match import norm
+    q = norm(query)
+    if len(q) < 1 or not _matcher.has_dict:
+        return []
+    seen, out = set(), []
+    for rank in (lambda key: key.startswith(q), lambda key: q in key):
+        for key in sorted((x for x in _matcher.keys if rank(x)), key=len):
+            e = _matcher.index[key]
+            if e["kor"] not in seen:
+                seen.add(e["kor"])
+                out.append(e)
+            if len(out) >= k:
+                return out
+    if not out and len(q) >= 2:   # 오타면 비슷한 이름 몇 개 (자동완성이라 기준을 낮춘다)
+        from rapidfuzz import fuzz, process
+        from .match import jamo
+        for _, score, i in process.extract(jamo(q), _matcher.jkeys, scorer=fuzz.ratio, limit=k * 3, score_cutoff=70):
+            e = _matcher.index[_matcher.keys[i]]
+            if e["kor"] not in seen:
+                seen.add(e["kor"])
+                out.append(e)
+        out = out[:k]
+    return out
+
+
+def from_names(names: list[str], extra_families: list[str] = ()) -> dict:
+    """사용자가 고른 핵심 성분 몇 개 + '들어 있다'고 체크한 계열 → OCR 결과와 같은 모양."""
+    out = from_text("전성분: " + ", ".join(names)) if names else {"ingredients": [], "families": [], "needs_review": []}
+    out["families"] = sorted(set(out["families"]) | set(extra_families))
+    out["source"] = "manual"
     return out

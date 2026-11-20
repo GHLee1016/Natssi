@@ -10,6 +10,9 @@ STOP = re.compile(
     r"책임\s*판매\s*업자|보관\s*방법|기능성\s*화장품|고객\s*(상담|센터)|made\s*in|원산지)",
     re.I,
 )
+# '무첨가·FREE' 목록 줄: 들어 있지 않은 성분이라 등록하면 안 된다
+# ('프리지아추출물'·'아프리코트'처럼 이름에 '프리'가 든 성분이 48개라, '프리'는 '8 프리'·'프리:' 꼴만 본다)
+FREE_FROM = re.compile(r"free(?!sia)|\d\s*프리|프리\s*[:：]|무\s*첨\s*가|미\s*함\s*유|무\s*\d+\s*종", re.I)
 # 쉼표로 나누되 '1,2-헥산다이올'처럼 숫자 사이 쉼표는 남긴다
 # OCR이 쉼표를 마침표로 읽는 경우도 많다('카프릴릴글라이콜. 수크로오스'). 소수점(0.1)은 나누지 않는다.
 SPLIT = re.compile(r"(?<!\d)[,，、;]|[,，、;](?!\d)|\.(?=\s*[가-힣A-Za-z])")
@@ -41,7 +44,7 @@ def cut_section(text: str) -> str:
 def clean(token: str) -> str:
     t = token.strip()
     t = re.sub(r"\(.*?\)|\[.*?\]", "", t)          # 괄호 속 함량·설명 제거
-    t = re.sub(r"\d+(\.\d+)?\s*(%|ppm|mg)", "", t, flags=re.I)
+    t = re.sub(r"\d*(\.\d+)?\s*(%|ppm|ppb|mg)", "", t, flags=re.I)
     t = t.strip(" .·:：-_*\"'“”‘’|[]")
     return t
 

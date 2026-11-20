@@ -6,7 +6,7 @@
 import re
 
 RULES: dict[str, list[str]] = {
-    "레티노이드": ["레티놀", "레티닐", "레티날", "레티노익", "레티노에이트", "retinol", "retinyl", "retinal", "retinoate"],
+    "레티노이드": ["레티놀", "레티닐", "레티날", "레틴알", "레티노익", "레티노에이트", "retinol", "retinyl", "retinal", "retinoate"],
     "AHA": ["글라이콜릭애씨드", "락틱애씨드", "만델릭애씨드", "말릭애씨드", "타타릭애씨드",
             "glycolic acid", "lactic acid", "mandelic acid", "malic acid", "tartaric acid"],
     "BHA": ["살리실릭애씨드", "베타인살리실레이트", "salicylic acid", "betaine salicylate"],
@@ -33,3 +33,7 @@ _COMPILED = {f: re.compile("|".join(re.escape(w) for w in ws), re.I) for f, ws i
 def tag(kor: str, inci: str = "") -> list[str]:
     text = f"{kor} {inci}".replace(" ", "") + " " + f"{kor} {inci}"
     return [f for f, rx in _COMPILED.items() if rx.search(text)]
+
+# 직접 입력할 때 따로 물어볼 계열: 홍조·자극과 관련 있는데, 사람들이 '핵심 성분'으로는 잘 안 적는 것들
+# (매장 사진 정답 20개에서 OCR이 가장 많이 놓친 계열도 판테놀·펩타이드·향료 같은 '뒤쪽' 성분이었다)
+ASK_FAMILIES = ["향료", "알코올", "에센셜오일", "레티노이드", "AHA", "BHA", "비타민C"]

@@ -68,7 +68,7 @@ class Matcher:
             return None
         from rapidfuzz import fuzz, process
         # 짧은 조각은 한 글자만 달라도 엉뚱한 성분이 된다('추출물'→'무추출물') → 기준을 높인다
-        cutoff = self.cutoff if len(k) >= 5 else 92
+        cutoff = self.cutoff if len(k) >= 5 else (87 if len(k) == 4 else 92)
         best = process.extractOne(jamo(k), self.jkeys, scorer=fuzz.ratio, score_cutoff=cutoff)
         if best:
             return {"ocr": token, **self.index[self.keys[best[2]]], "status": "보정", "score": round(best[1])}

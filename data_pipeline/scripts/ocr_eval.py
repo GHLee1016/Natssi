@@ -30,8 +30,13 @@ IMG = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("folder")
+    p.add_argument("--cached", action="store_true",
+                   help="OCR을 다시 돌리지 않고 지난 실행의 OCR 원문(data/ocr_eval_detail.json)으로 다시 채점")
     args = p.parse_args()
     folder = Path(args.folder)
+    cache = {}
+    if args.cached:
+        cache = json.loads(Path("data/ocr_eval_detail.json").read_text(encoding="utf-8"))
 
     groups = defaultdict(list)
     for f in sorted(folder.iterdir()):
@@ -44,7 +49,11 @@ def main():
 
     rows, detail = [], {}
     for product, files in groups.items():
-        res = register(files)
+        if product in cache:
+            res = {**from_text(cache[product]["raw_text"]), "raw_text": cache[product]["raw_text"],
+                   "seconds": cache[product]["seconds"], "variants": cache[product].get("variants")}
+        else:
+            res = register(files)
         pred = {norm(i["kor"]) for i in res["ingredients"]}
         n = len(res["ingredients"])
         exact = sum(i["status"] == "일치" for i in res["ingredients"])
@@ -55,7 +64,7 @@ def main():
                "dict_fixed": round(fixed / n, 3) if n else None,
                "needs_review": len(res["needs_review"])}
         ans = folder / f"{product}.txt"
-        if ans.exists():
+        if ans.exists() and ans.read_text(encoding="utf-8").strip():  # 빈 정답 파일은 건너뜀
             gt_items = from_text("전성분: " + ans.read_text(encoding="utf-8"))["ingredients"]
             gt = {norm(i["kor"]) for i in gt_items}
             hit = pred & gt
