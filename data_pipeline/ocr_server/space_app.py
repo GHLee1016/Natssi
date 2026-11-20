@@ -34,7 +34,11 @@ def g_ocr(images):
     if not images:
         return {"ingredients": [], "message": "사진을 올려 주세요."}
     paths = [p if isinstance(p, str) else p.get("path") for p in images][:3]
-    res = pipeline.register([open(p, "rb").read() for p in paths])
+    try:
+        res = pipeline.register([open(p, "rb").read() for p in paths])
+    except ValueError:
+        return {"ingredients": [], "families": [], "ask_families": fam.ASK_FAMILIES, "needs_review": 0,
+                "source": "ocr", "seconds": 0, "message": "사진을 열 수 없어요. JPG·PNG로 보내 주세요."}
     return _shape(res, "ocr", res["seconds"])
 
 
@@ -57,7 +61,8 @@ def g_suggest(q):
 with gr.Blocks(title="낯씨 전성분 OCR") as demo:
     gr.Markdown("## 낯씨 전성분 OCR\n사진은 처리 후 저장하지 않아요. 폰 테스트 페이지는 이 주소의 맨 앞(`/`)이에요.")
     with gr.Tab("사진"):
-        imgs = gr.File(file_count="multiple", file_types=["image"], type="filepath", label="전성분표 사진 (1~3장)")
+        # file_types로 막지 않는다: 앱에서 이름 없는 Blob으로 보내면 확장자가 없어 거절됨. 사진인지는 디코딩에서 확인.
+        imgs = gr.File(file_count="multiple", type="filepath", label="전성분표 사진 (1~3장)")
         out1 = gr.JSON(label="결과")
         gr.Button("성분 읽기").click(g_ocr, imgs, out1, api_name="ocr")
     with gr.Tab("글자"):
