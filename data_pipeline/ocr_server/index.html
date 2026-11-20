@@ -52,9 +52,15 @@
   </div>
 
   <section class="card pane on" id="photo">
-    <label class="drop" for="file">📷 전성분표 찍기 / 고르기 (최대 3장)
-      <input id="file" type="file" accept="image/*" capture="environment" multiple>
-    </label>
+    <div style="display:flex; gap:8px">
+      <label class="drop" for="cam" style="flex:1">📷 찍기
+        <input id="cam" type="file" accept="image/*" capture="environment">
+      </label>
+      <label class="drop" for="file" style="flex:1">🖼️ 갤러리에서 고르기
+        <input id="file" type="file" accept="image/*" multiple>
+      </label>
+    </div>
+    <p class="hint" style="margin-top:6px">사진은 최대 3장까지 (둥근 용기는 돌려 가며 2~3장)</p>
     <div class="thumbs" id="thumbs"></div>
     <button class="btn" id="go-photo" disabled>성분 읽기</button>
     <p class="hint">상자처럼 평평한 면을, 전성분 글자가 화면을 가득 채우게 찍어 주세요. 둥근 병은 잘 안 읽혀요.<br>한 장에 20~40초쯤 걸려요.</p>
@@ -84,12 +90,19 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === b.dataset.p));
 });
 
-$('#file').onchange = e => {
-  files = [...e.target.files].slice(0, 3);
+// 찍기는 한 장씩 더해 가고, 갤러리는 고른 것들로 채운다 (합쳐서 최대 3장)
+function addFiles(list) {
+  files = [...files, ...list].slice(-3);
   $('#thumbs').innerHTML = '';
-  files.forEach(f => { const i = new Image(); i.src = URL.createObjectURL(f); $('#thumbs').append(i); });
+  files.forEach((f, idx) => {
+    const i = new Image(); i.src = URL.createObjectURL(f); i.title = '눌러서 빼기';
+    i.onclick = () => { files.splice(idx, 1); addFiles([]); };
+    $('#thumbs').append(i);
+  });
   $('#go-photo').disabled = !files.length;
-};
+}
+$('#cam').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+$('#file').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
 
 async function call(url, opts, btn) {
   const label = btn.textContent; btn.disabled = true; btn.textContent = '읽는 중…';
