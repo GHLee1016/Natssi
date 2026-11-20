@@ -86,7 +86,19 @@ const res = await fetch(`${OCR_URL}/ocr`, { method: "POST", body: fd }).then(r =
 ```
 - 30초 넘게 걸릴 수 있으니 "성분 읽는 중…" 표시 필요. 앱 쪽 타임아웃은 90초 이상.
 - CORS: `https://natssiweb.vercel.app`, `localhost:5173` 허용됨 (다른 주소면 서버 환경변수 `ALLOWED_ORIGINS`).
-- 서버 주소(`OCR_URL`)는 허깅페이스에 올린 뒤 알려 드릴게요. 테스트 페이지는 서버 주소 `/`, API 문서는 `/docs`.
+- 서버 주소(`OCR_URL`)
+  - **지금(임시)**: 강주희 노트북 + Cloudflare 터널. 노트북을 껐다 켜면 주소가 바뀌어요 → 바뀌면 알려 드려요.
+  - **고정 주소(시도 중)**: 허깅페이스 Space(ZeroGPU). 되면 `https://<계정>-natssi-ocr.hf.space`.
+    FastAPI 주소가 막히면 Gradio API로만 열려요 → 그때는 `@gradio/client`로:
+    ```js
+    import { Client } from "@gradio/client";
+    const c = await Client.connect("<계정>/natssi-ocr");
+    const { data } = await c.predict("/ocr", { images: photos });   // /parse {text}, /suggest {q}, /manual {names, families}
+    ```
+- 테스트 페이지는 서버 주소 `/`, API 문서는 `/docs`.
+- **사진 없는 기능(`/parse`·`/suggest`·`/manual`)은 앱 백엔드(Vercel)에 바로 넣을 수 있어요.** `ingredients/`는 pandas 없이
+  rapidfuzz만 쓰고, 사전 CSV(1.6MB)는 `INGREDIENT_DICT` 환경변수나 `ingredients/` 옆 `data/`에서 읽어요.
+  그러면 OCR 서버가 꺼져 있어도 글자·직접 입력 등록은 항상 돼요.
 
 ### 파이썬에서 직접 쓰기 (서버 없이)
 main에 '전성분 글자 입력으로 제품 등록'이 생겼으니, 그 앞에 사진 → 글자 단계만 붙이면 돼요.

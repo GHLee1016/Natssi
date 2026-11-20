@@ -5,12 +5,14 @@ status
 - 보정:      OCR 오타를 비슷한 표준 이름으로 고침 (사용자 확인 화면에 표시)
 - 확인 필요: 사전에서 못 찾음 → 사용자가 직접 고치게 한다 (AI가 지어내지 않음)
 """
+import csv
+import os
 import re
 from pathlib import Path
 
-import pandas as pd
-
-DICT_PATH = Path("data/ingredient_dict.csv")
+# pandas 없이 읽는다 → Vercel 함수(앱 백엔드)에도 그대로 들어간다. 필요한 건 rapidfuzz뿐.
+# 위치: INGREDIENT_DICT 환경변수 > 이 패키지 옆 data/ingredient_dict.csv
+DICT_PATH = Path(os.environ.get("INGREDIENT_DICT") or Path(__file__).resolve().parents[1] / "data" / "ingredient_dict.csv")
 
 
 def norm(s: str) -> str:
@@ -50,8 +52,9 @@ class Matcher:
         self.cutoff = cutoff
         self.index: dict[str, dict] = {}
         if Path(path).exists():
-            d = pd.read_csv(path, dtype=str).fillna("")
-            for r in d.to_dict("records"):
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                rows = [{k: (v or "") for k, v in r.items()} for r in csv.DictReader(f)]
+            for r in rows:
                 entry = {"kor": r["kor"], "inci": r.get("inci", "")}
                 # 동의어는 쉼표로 이어져 있는데 'N,N-비스…'처럼 이름 안에도 쉼표가 있어, 양옆이 영숫자인 쉼표는 나누지 않는다
                 syns = re.split(r";|(?<![0-9A-Za-z]),|,(?![0-9A-Za-z])", r.get("synonyms", ""))
