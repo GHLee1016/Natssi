@@ -1,5 +1,7 @@
 # data_pipeline — 환경 데이터 · 전성분 OCR (강주희)
 
+**앱에 붙이는 방법은 [INTEGRATION.md](INTEGRATION.md)** 에 정리했어요.
+
 앱(backend/frontend)과 따로 돌아가는 파이썬 모듈. **이 폴더 안에서** 실행한다.
 
 ```powershell
@@ -14,11 +16,13 @@ $env:DATA_GO_KR_KEY = "공공데이터포털 인증키"   # 코드·저장소에
 |---|---|
 | `envdata/airkorea.py` | 에어코리아 자치구 측정소 PM10·PM2.5 시간별 → 일평균 (최근 3개월까지 다시 받기 가능) |
 | `envdata/kma.py` | 기상청 ASOS 일자료(서울 108, 과거 기온·습도), 초단기실황(촬영 순간, 5km 격자) |
-| `envdata/flags.py` | 최근 3일 vs 그 전 14일 중앙값 → 사실 문장 + `env_changed` |
+| `envdata/service.py` | **앱용** (표준 라이브러리만). `attach_env(기록들, 구)` → 기록마다 `env={pm25, humidity, unusual, facts}` |
+| `envdata/flags.py` | 같은 판단을 pandas 표로 (분석용) |
+| `scripts/update_env.py` | 서울 25개 구 일별 값 → Supabase `env_daily` 또는 `data/env_daily_seoul.csv` (매일 실행) |
 | `scripts/backfill_env.py` | 팀원별 일별 표 → `data/env_daily.csv` |
 
 ```powershell
-python scripts/backfill_env.py --start 2026-10-15        # 팀원 3명 (성북구·강서구·서대문구)
+python scripts/backfill_env.py --start 2026-10-15        # 팀원 3명 (성북구·은평구·서대문구)
 ```
 
 앱 연결: 기록별 `env = {"pm25": ..., "humidity": ..., "unusual": ...}` 에

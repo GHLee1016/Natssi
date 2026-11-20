@@ -1,4 +1,5 @@
 import os
+import time
 
 import requests
 
@@ -15,9 +16,18 @@ def service_key() -> str:
 
 def get_items(url: str, params: dict, timeout: int = 15) -> tuple[list[dict], int]:
     """data.go.kr JSON 응답에서 (items, totalCount)를 꺼낸다. 오류 코드면 예외."""
-    params = {"serviceKey": service_key(), **params}
-    r = requests.get(url, params=params, timeout=timeout)
-    r.raise_for_status()
+    key = service_key()
+    params = {"serviceKey": key, **params}
+    for attempt in range(3):   # data.go.kr은 가끔 연결이 끊긴다 → 3번까지
+        try:
+            r = requests.get(url, params=params, timeout=timeout)
+            r.raise_for_status()
+            break
+        except requests.RequestException as e:
+            if attempt == 2:
+                # 예외 메시지의 URL에 키가 들어 있어 로그에 남지 않게 지운다
+                raise RuntimeError(f"요청 실패: {str(e).replace(key, '***')[:200]}") from None
+            time.sleep(2 * (attempt + 1))
     try:
         data = r.json()
     except ValueError:
