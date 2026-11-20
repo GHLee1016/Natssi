@@ -1,7 +1,7 @@
 """Hugging Face Space (Gradio SDK, ZeroGPU 하드웨어) 시작 파일. build_space.py가 Space 맨 위 app.py로 복사한다.
 
 두 가지 길을 함께 연다 (ZeroGPU에서 어느 쪽이 되는지 올려 봐야 알 수 있어서):
-1) 우리 FastAPI 주소 그대로   /ocr /parse /manual /suggest /families /health, 테스트 페이지 /
+1) 우리 FastAPI 주소 그대로   /ocr /parse ... (로컬·터널에서만. Space에서는 포트를 못 잡아 2번만 연다)
 2) Gradio API (Gradio가 늘 여는 길)   api_name: ocr, parse, manual, suggest
    → 앱에서는 @gradio/client:  (await Client.connect("<계정>/natssi-ocr")).predict("/ocr", {images: [file]})
 
@@ -74,9 +74,10 @@ with gr.Blocks(title="낯씨 전성분 OCR") as demo:
         out4 = gr.JSON(label="후보")
         q.change(g_suggest, q, out4, api_name="suggest")
 
-if os.environ.get("NATSSI_GRADIO_ONLY"):
-    # FastAPI 주소가 ZeroGPU에서 막히면 Space Settings > Variables에 NATSSI_GRADIO_ONLY=1 → Gradio 방식만
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+if os.environ.get("SPACE_ID") or os.environ.get("NATSSI_GRADIO_ONLY"):
+    # 허깅페이스 Space(ZeroGPU)에서는 7860 포트를 허깅페이스 쪽이 먼저 잡고 있어서 우리가 uvicorn을 직접 못 띄운다
+    # (첫 배포 로그: address already in use). → Gradio가 띄우게 하고, 앱은 Gradio API(@gradio/client)로 부른다.
+    demo.launch()
 else:
     import uvicorn
     app = gr.mount_gradio_app(api, demo, path="/gradio")
