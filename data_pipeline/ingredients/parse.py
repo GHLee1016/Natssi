@@ -1,27 +1,41 @@
 """OCR 원문 → 성분 이름 목록."""
 import re
 
-START = re.compile(r"(전\s*성\s*분|화장품\s*성분|ingredients?)\s*[:：]?", re.I)
+START = re.compile(
+    r"(전\s*성\s*분|화장품\s*성분|ingredients?|\[\s*성\s*분\s*\]|(?<![가-힣])성\s*분\s*[:：])\s*\]?\s*[:：]?", re.I)
 STOP = re.compile(
-    r"(사용\s*시?\s*의?\s*주\s*의\s*사\s*항|주\s*의\s*사\s*항|사용\s*방법|사용\s*법|"
+    r"(\[[^\]\d,]{1,15}\]|"   # [용량], [사용할 때의 주의사항] 같은 대괄호 머리말
+    r"사용\s*할?\s*때?\s*의?\s*주\s*의\s*사\s*항|사용\s*시?\s*의?\s*주\s*의\s*사\s*항|주\s*의\s*사\s*항|사용\s*방법|사용\s*법|"
     r"제조\s*번호|사용\s*기한|개봉\s*후|내\s*용\s*량|용\s*량|제조\s*(판매)?\s*업자|"
     r"책임\s*판매\s*업자|보관\s*방법|기능성\s*화장품|고객\s*(상담|센터)|made\s*in|원산지)",
     re.I,
 )
 # 쉼표로 나누되 '1,2-헥산다이올'처럼 숫자 사이 쉼표는 남긴다
-SPLIT = re.compile(r"(?<!\d)[,，、;]|[,，、;](?!\d)")
+# OCR이 쉼표를 마침표로 읽는 경우도 많다('카프릴릴글라이콜. 수크로오스'). 소수점(0.1)은 나누지 않는다.
+SPLIT = re.compile(r"(?<!\d)[,，、;]|[,，、;](?!\d)|\.(?=\s*[가-힣A-Za-z])")
+
+
+def cut_sections(text: str) -> list[str]:
+    """'전성분' 표시마다 그 뒤부터 주의사항 등이 나오기 전까지. 세트 상품(본품+증정품)은 여러 개.
+    표시가 하나도 없으면 전체를 한 구간으로 본다."""
+    t = re.sub(r"\s+", " ", text)
+    starts = list(START.finditer(t))
+    if not starts:
+        return [t]
+    out = []
+    for i, m in enumerate(starts):
+        end = starts[i + 1].start() if i + 1 < len(starts) else len(t)
+        seg = t[m.end():end]
+        s = STOP.search(seg)
+        if s:
+            seg = seg[: s.start()]
+        if seg.strip():
+            out.append(seg)
+    return out
 
 
 def cut_section(text: str) -> str:
-    """'전성분' 표시 뒤부터 주의사항 등이 나오기 전까지. 표시가 없으면 전체."""
-    t = re.sub(r"\s+", " ", text)
-    m = START.search(t)
-    if m:
-        t = t[m.end():]
-    s = STOP.search(t)
-    if s:
-        t = t[: s.start()]
-    return t
+    return " , ".join(cut_sections(text))
 
 
 def clean(token: str) -> str:

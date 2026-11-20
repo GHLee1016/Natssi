@@ -43,7 +43,9 @@ class Matcher:
             d = pd.read_csv(path, dtype=str).fillna("")
             for r in d.to_dict("records"):
                 entry = {"kor": r["kor"], "inci": r.get("inci", "")}
-                for name in [r["kor"], r.get("inci", ""), *re.split(r"[;,]", r.get("synonyms", ""))]:
+                # 동의어는 쉼표로 이어져 있는데 'N,N-비스…'처럼 이름 안에도 쉼표가 있어, 양옆이 영숫자인 쉼표는 나누지 않는다
+                syns = re.split(r";|(?<![0-9A-Za-z]),|,(?![0-9A-Za-z])", r.get("synonyms", ""))
+                for name in [r["kor"], r.get("inci", ""), *syns]:
                     k = norm(name)
                     if len(k) >= 2:
                         self.index.setdefault(k, entry)
@@ -62,10 +64,12 @@ class Matcher:
 
     def fuzzy(self, token: str) -> dict | None:
         k = norm(token)
-        if len(k) < 2 or not self.keys:
+        if len(k) < 3 or not self.keys:
             return None
         from rapidfuzz import fuzz, process
-        best = process.extractOne(jamo(k), self.jkeys, scorer=fuzz.ratio, score_cutoff=self.cutoff)
+        # 짧은 조각은 한 글자만 달라도 엉뚱한 성분이 된다('추출물'→'무추출물') → 기준을 높인다
+        cutoff = self.cutoff if len(k) >= 5 else 92
+        best = process.extractOne(jamo(k), self.jkeys, scorer=fuzz.ratio, score_cutoff=cutoff)
         if best:
             return {"ocr": token, **self.index[self.keys[best[2]]], "status": "보정", "score": round(best[1])}
         return None

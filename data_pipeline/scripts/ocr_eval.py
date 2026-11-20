@@ -36,7 +36,8 @@ def main():
     groups = defaultdict(list)
     for f in sorted(folder.iterdir()):
         if f.suffix.lower() in IMG:
-            groups[re.sub(r"_\d+$", "", f.stem)].append(f)
+            # '제품_1', '제품_2'는 한 제품으로 묶는다. 폰 기본 이름(20261118_190053)은 사진마다 따로.
+            groups[re.sub(r"_\d{1,2}$", "", f.stem)].append(f)
     if not groups:
         print(f"{folder}에 사진이 없어요.")
         return
@@ -45,8 +46,14 @@ def main():
     for product, files in groups.items():
         res = register(files)
         pred = {norm(i["kor"]) for i in res["ingredients"]}
+        n = len(res["ingredients"])
+        exact = sum(i["status"] == "일치" for i in res["ingredients"])
+        fixed = sum(i["status"] == "보정" for i in res["ingredients"])
+        # 정답 없이도 볼 수 있는 지표: 읽은 성분 중 식약처 사전과 그대로/보정 후 맞은 비율
         row = {"product": product, "photos": len(files), "seconds": res["seconds"],
-               "ocr_count": len(pred), "needs_review": len(res["needs_review"])}
+               "ocr_count": n, "dict_exact": round(exact / n, 3) if n else None,
+               "dict_fixed": round(fixed / n, 3) if n else None,
+               "needs_review": len(res["needs_review"])}
         ans = folder / f"{product}.txt"
         if ans.exists():
             gt_items = from_text("전성분: " + ans.read_text(encoding="utf-8"))["ingredients"]
