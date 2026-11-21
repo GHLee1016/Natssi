@@ -11,3 +11,6 @@ __pycache__/
 !.env.example
 *.pem
 *.key
+
+# 패키지는 npm install로 받는다(Vercel도 빌드 때 설치)
+node_modules/
