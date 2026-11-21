@@ -474,3 +474,6 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .notice p+p,.ai-toggle .muted p+p{margin-top:4px}
 .ch-what{margin-top:10px}
 .env-line{display:block;margin-top:8px}
+/* 사진에서 성분이 적게 읽혔을 때(AddProduct FEW) */
+.few-read{margin:10px 0 4px;padding:10px 12px;border-radius:10px;background:#fff6ee;border:1px solid #f3d9c6;font-size:13.5px;line-height:1.5}
+.few-read p{margin:0 0 6px}.few-read .btn{margin-top:2px}.few-read .btn.disabled{opacity:.6;pointer-events:none}

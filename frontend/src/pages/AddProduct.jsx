@@ -18,6 +18,7 @@ const josa = (w) => {
 // 같은 성분이 두 번 오면 처음 것만(사진 여러 장이 겹칠 때)
 const uniq = (items) => { const seen = new Set(); return items.filter((i) => !seen.has(key(i.name)) && seen.add(key(i.name))) }
 const MAX_PHOTOS = 3
+const FEW = 10                                   // 사진에서 이보다 적게 읽히면 일부만 찍혔을 수 있다고 알린다
 const NOT_FOUND = '전성분을 찾지 못했어요. 전성분 부분이 화면을 가득 채우게 다시 찍거나, 쇼핑몰 상세 화면을 캡처해서 올려 주세요. 글자를 붙여 넣어도 돼요.'
 // 둥근 통 찍는 법: 가장자리 글자는 눌려서 잘 못 읽으니, 통을 돌려 가며 가운데에 오게 여러 장
 function RoundTip() {
@@ -278,6 +279,17 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {list.length === 0 ? <p className="muted">{t.step3.none}</p> : (
             <>
               <KV items={[['성분', `${list.length}개`], ['자동으로 고침', fixed.length > 0 && `${fixed.length}개`], ['확인 필요', review > 0 && <b className="warn">{review}개</b>]]} />
+              {fromPhotos && list.length < FEW && (
+                <div className="few-read" role="status">
+                  <p><b>성분이 {list.length}개만 읽혔어요.</b> 전성분이 사진에 다 들어갔는지 확인해 주세요.</p>
+                  <p>전성분 부분이 화면을 가득 채우게 다시 찍거나, 쇼핑몰 상세 화면을 캡처해서 올리면 더 많이 읽혀요.</p>
+                  <label className={'btn ghost file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
+                    {reading ? '다시 읽는 중… (10~20초)' : '다른 사진으로 다시 읽기'}
+                    {pickInput((f) => readPhotos(f))}
+                  </label>
+                  {ocrFiles.length >= MAX_PHOTOS && blurBox}
+                </div>
+              )}
               <p className="muted small">{review > 0 ? t.step3.review : t.step3.fix}</p>
               <ul className="ing">
                 {list.map((i) => (editing === i.name ? (
