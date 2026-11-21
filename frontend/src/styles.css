@@ -375,3 +375,8 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .fam-check.on{background:var(--tint);border-color:var(--accent);font-weight:700}
 .add-ing input{min-height:44px;border:1px solid #e3dcd5;border-radius:14px;padding:0 14px;background:#fff;font-size:15px}
 .add-ing input:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+/* 사는 구 · 오늘 동네 환경 */
+.district-row{display:flex;gap:8px;margin-top:10px}
+.district-row select{flex:1;min-width:0;min-height:44px;border:1px solid #e3dcd5;border-radius:14px;padding:0 12px;background:#fff;font-size:15px}
+.env-today{margin:0 0 12px}

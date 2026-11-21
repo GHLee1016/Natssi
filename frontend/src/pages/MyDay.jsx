@@ -9,7 +9,26 @@ const addDays = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDa
 const line = (s) => SYMPTOMS.map((k) => `${k} ${s[k] ?? 0}`).join(' · ')
 
 // 로그인한 사용자의 첫 화면: 오늘 체크인과 '평소 범위까지 N/7일'. 판정·리포트는 김서연 데모에서만 보여준다.
-export default function MyDay({ go }) {
+// 오늘 내 동네 환경값(실측). 구를 고르지 않았으면 고르는 곳을 알려 준다.
+function EnvToday({ district, env, today, onAccount }) {
+  if (!district) {
+    return (
+      <p className="notice env-today">사는 구를 고르면 오늘 동네의 미세먼지·습도·기온을 같이 보여 드려요.{' '}
+        <button className="link" onClick={onAccount}>내 계정에서 고르기</button></p>
+    )
+  }
+  const when = env?.measured_on && env.measured_on !== today ? ` (${+env.measured_on.slice(5, 7)}/${+env.measured_on.slice(8)} 측정값)` : ''
+  const parts = env && [env.pm25 != null && `초미세먼지 ${env.pm25}`, env.humidity != null && `습도 ${env.humidity}%`, env.temp != null && `기온 ${env.temp}℃`].filter(Boolean)
+  return (
+    <p className="notice env-today">
+      <b>오늘 {district}</b>{' · '}
+      {parts?.length ? `${parts.join(' · ')}${when} · ${env.unusual ? '평소와 달라요' : '평소와 비슷'}` : '측정값은 아직 없어요(보통 다음 날 아침에 들어와요)'}
+      {env?.facts?.length > 0 && <><br />{env.facts.join(' ')}</>}
+    </p>
+  )
+}
+
+export default function MyDay({ go, onAccount }) {
   const q = useLoad(() => api.me(), [])
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -34,6 +53,7 @@ export default function MyDay({ go }) {
       <Status {...q} />
       {d && (
         <>
+        <EnvToday district={d.district} env={d.env} today={d.today} onAccount={onAccount} />
         <div className="grid2">
           <div>
             <div className="card">

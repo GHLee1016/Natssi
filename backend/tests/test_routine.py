@@ -112,7 +112,9 @@ def test_routine_is_exported_and_deleted_with_account(env):
     assert exp["routine"] and exp["routine"][0]["items"][0]["name"] == "크림"
     assert fake.routines
     assert c.post("/api/reset", headers=h).status_code == 200
-    assert not fake.routines                                                         # 초기화하면 루틴도 지움
+    assert fake.routines                                                             # '체크인 모두 지우기'는 루틴을 남김
+    assert c.delete("/api/account", headers=h).status_code == 200
+    assert not fake.routines                                                         # 탈퇴하면 루틴도 지움
 
 
 def test_ocr_copy_flag_is_off_by_default(env, monkeypatch):

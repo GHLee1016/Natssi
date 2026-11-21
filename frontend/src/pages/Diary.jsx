@@ -8,6 +8,15 @@ import StartCard from './StartCard.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
+// 환경 줄. 김서연은 가상 인물이지만 환경값은 실제 측정값(에어코리아·기상청)이라 어느 구 값인지 밝힌다.
+function envLine(e, district, day) {
+  const src = district ? `환경(${district} 실측)` : '환경'
+  const parts = [e.pm25 != null && `초미세먼지 ${e.pm25}`, e.humidity != null && `습도 ${e.humidity}%`, e.temp != null && `기온 ${e.temp}℃`].filter(Boolean)
+  if (!parts.length) return `${src} · 이날 측정값은 아직 없어요`
+  const when = e.measured_on && e.measured_on !== day ? ` (${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값)` : ''
+  return `${src} · ${parts.join(' · ')}${when} · ${e.unusual ? '평소와 달라요' : '평소와 비슷'}`
+}
+
 export default function Diary({ date, setDate, meta, go, askLogin }) {
   const q = useLoad(() => api.day(date), [date])
   const [calOpen, setCalOpen] = useState(false)
@@ -48,7 +57,8 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
             )}
             <p className="hero-meta">
               루틴 버전 {d.version.id} · {d.version.label} · {d.record.day_in_version}일째<br />
-              환경 · 초미세먼지 {d.record.env.pm25} · 습도 {d.record.env.humidity}% · {d.record.env.unusual ? '평소와 달라요' : '평소와 비슷'}
+              {envLine(d.record.env, meta.env_district, date)}
+              {d.record.env.facts?.length > 0 && <><br />{d.record.env.facts.join(' ')}</>}
             </p>
           </div>
 

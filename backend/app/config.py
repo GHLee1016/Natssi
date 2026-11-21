@@ -9,10 +9,13 @@ MDC95_A_STAR = 2.35
 MIN_BASELINE_RECORDS = 7    # 평소 범위를 만들기 위한 최소 기록 수
 MAD_K = 3.0                 # 평소 범위 폭 = max(MDC95, MAD_K × 1.4826 × MAD)
 SYMPTOM_ALERT = 2           # 증상 점수가 이 값 이상이면 '겹침'으로 봄
-# 김서연 이야기는 기준일(11/16)에 끝나게 짜여 있고, 접속한 날(한국 시간)이 마지막 날로 보이도록 통째로 밉니다.
-# DEMO_SHIFT_DAYS가 None이면 접속일 기준, 숫자면 그 일수로 고정합니다(예: 시연일을 11/27로 고정하려면 11).
+# 김서연 이야기는 기준일(11/16)에 끝나게 짜여 있고, DEMO_SHIFT_DAYS만큼 통째로 밉니다.
+# 10으로 고정 → 10/30~11/26. 실제 환경값(서대문구)을 그 날짜에 붙이므로 날짜를 매일 밀지 않고 고정합니다(2026-11-21 결정).
+# None으로 두면 예전처럼 접속한 날(한국 시간)이 마지막 날이 되도록 매일 밉니다.
 DEMO_BASE = date(2026, 11, 16)
-DEMO_SHIFT_DAYS = None
+DEMO_SHIFT_DAYS = 10
+DEMO_ENV_DISTRICT = "서대문구"
+ENV_SOURCE = "auto"              # 로그인 사용자의 환경값: Supabase env_daily 표(매일 갱신) → 없으면 CSV. "csv"면 CSV만   # 김서연 기록에 붙일 실제 환경값의 구(공공데이터, 함께 배포한 CSV에서 읽어 값을 고정). None이면 가상값
 
 
 def today_kst() -> date:
@@ -36,7 +39,7 @@ import os
 RECOVERY_ENABLED = os.environ.get("NATSSI_RECOVERY") == "1"
 OCR_ENABLED = os.environ.get("NATSSI_OCR") == "1"       # 전성분 사진 읽기(OCR). 서버·화면이 모두 준비된 뒤에만 켜기(기본 꺼짐)
 OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1"   # 로컬 개발용: 로그인 없이 쓰기 허용(운영에서는 켜지 마세요)
-CONSENT_VERSION = "2026-11-20"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결 / 11-20: 내 루틴 저장 추가)
+CONSENT_VERSION = "2026-11-21"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결 / 11-20: 내 루틴 저장 추가 / 11-21: 사는 구(선택) 추가)
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024                      # Vercel 함수 요청 한도(4.5MB) 아래
 MAX_IMAGE_PIXELS = 40_000_000                           # 압축 폭탄 방지
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}

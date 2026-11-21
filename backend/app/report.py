@@ -5,7 +5,7 @@ build_report_llm(): OpenRouter 무료 모델이 같은 사실을 자연스럽게
 (llm.guard + verify)를 통과하지 못하거나 호출이 실패하면 틀 문장으로 돌아갑니다.
 """
 import re
-from . import llm
+from . import env, llm
 from .judge import SIGNAL, NO_SIGNAL
 
 DISCLAIMER = "진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소·전문의와 상담하세요."
@@ -38,6 +38,7 @@ def build_facts(judged, versions):
             "signal_days": [r["day_in_version"] for r in sig],
             "max_sting": max((r["symptoms"]["따가움"] for r in sig), default=0),
             "env_unusual": any(r["env"]["unusual"] for r in sig),
+            "envs": [r["env"] for r in sig],
             "calm_ids": [r["id"] for r in rows if r["verdict"]["level"] == NO_SIGNAL],
         })
     return facts
@@ -58,8 +59,9 @@ def build_report(judged, versions):
             text = f"{f['phrase']} 뒤(버전 {f['version']}) {span} 양 볼 붉은기가 평소 범위를 넘었"
             text += f"고, 같은 기간 따가움 {f['max_sting']}점이 기록됐어요." if f["max_sting"] else "어요."
             sentences.append({"text": text, "cites": f["signal_ids"]})
-            if not f["env_unusual"]:
-                sentences.append({"text": "같은 날 미세먼지·습도는 평소와 비슷했어요.", "cites": f["signal_ids"]})
+            if not f["env_unusual"]:                 # 환경이 평소와 달랐던 날은 판정이 이미 '구분 불가'라 여기 오지 않는다
+                for t in env.summarize(f["envs"]):   # 실제 측정값에서 나온 사실 문장(없으면 '평소와 비슷했어요')
+                    sentences.append({"text": t, "cites": f["signal_ids"]})
         if f["calm_ids"] and any(p["signal_ids"] for p in facts if p["version"] < f["version"]):
             sentences.append({"text": f"그 뒤 붉은기가 평소 범위로 돌아왔어요." if f["carried_over"] else
                               f"{f['phrase']} 뒤(버전 {f['version']}) 붉은기가 평소 범위로 돌아왔어요.",
@@ -104,8 +106,7 @@ def answer(qid, judged, versions):
         text = ("원인을 단정할 수는 없어요. 다만 바꾼 시기와 붉은기가 오른 시기가 겹쳤어요. "
                 "수면·생리 주기처럼 기록하지 않은 요인도 있을 수 있어요.")
     elif qid == "other":
-        text = ("같은 기간 미세먼지와 습도는 평소와 비슷했어요. "
-                "기록하지 않은 요인은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
+        text = (" ".join(env.summarize(sig["envs"])) + " 기록하지 않은 요인은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
                "같은 기간 환경도 평소와 달랐어요. 그래서 어느 쪽 때문인지 가릴 수 없어요."
     elif qid == "next":
         text = "빈도를 바꾸면 새 버전으로 기록돼요. 그 뒤 붉은기가 평소 범위로 돌아오는지 2주 동안 비교해요."

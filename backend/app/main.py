@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, config, demo_data, ingredients, judge, llm, quality, ratelimit, report, store
+from . import auth, config, demo_data, env, ingredients, judge, llm, quality, ratelimit, report, store
 from . import routine as myroutine
 
 log = logging.getLogger("natssi")
@@ -69,8 +69,12 @@ def limit(bucket: str, request: Request, v=None):
 
 
 def records(v=None):
-    """김서연 예시 기록. 로그인한 사용자의 기록은 섞지 않는다(내 기록은 /api/me)."""
-    return demo_data.build_records(offset=config.demo_shift())
+    """김서연 예시 기록. 로그인한 사용자의 기록은 섞지 않는다(내 기록은 /api/me).
+    사람과 기록은 가상이지만 환경값(미세먼지·습도·기온)은 서대문구 실제 측정값을 붙인다. 값을 고정하려고 CSV에서만 읽는다."""
+    recs = demo_data.build_records(offset=config.demo_shift())
+    if config.DEMO_ENV_DISTRICT:
+        env.attach_env(recs, config.DEMO_ENV_DISTRICT, source="csv")
+    return recs
 
 
 def judged(v=None):
@@ -97,7 +101,7 @@ def meta(v=Depends(viewer)):
     return {"persona": demo_data.PERSONA, "today": config.demo_today().isoformat(),
             "first": demo_data.versions(config.demo_shift())[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
             "mdc95_is_example": False, "storage": store.backend_name(), "llm": llm.enabled(),
-            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION,
+            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "env_district": config.DEMO_ENV_DISTRICT, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version")} if v else None}
 
@@ -209,12 +213,14 @@ def export_account(request: Request, v=Depends(need_user)):
     try:
         saved = store.load_all(v["id"])
         my_routine = store.load_routine(v["id"])
+        profile = store.load_profile(v["id"])
     except Exception as e:
         raise _store_fail("저장소에 연결하지 못했어요.", e)
     return {"email": v["email"], "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "consent": v.get("consent"),
             "checkins": [{"day": d, "symptoms": s} for d, s in sorted(saved.items())],
             "routine": my_routine.get("versions", []),
+            "district": profile.get("district"),
             "note": "얼굴 사진은 서버에 저장하지 않아 내려받을 사진이 없어요."}
 
 
@@ -318,12 +324,50 @@ def _mine(uid):
         raise _store_fail("저장소에 연결하지 못했어요.", e)
 
 
+def _my_env(uid, today):
+    """내가 고른 구의 오늘 환경값(실측). 구를 안 골랐거나 값을 못 읽으면 None — 환경값 때문에 화면이 멈추지 않게."""
+    try:
+        district = store.load_profile(uid).get("district")
+        if not district:
+            return None, None
+        return district, env.attach_env([{"date": today}], district, config.ENV_SOURCE)[0]["env"]
+    except Exception as e:
+        log.warning("my env failed: %s", store.why(e))
+        return None, None
+
+
 def _me_payload(uid):
     saved = _mine(uid)
     today = config.today_kst().isoformat()
     recent = [{"date": d, "symptoms": saved[d]} for d in sorted(saved, reverse=True)[:7]]
+    district, today_env = _my_env(uid, today)
     return {"today": today, "today_checkin": saved.get(today), "days_recorded": len(saved),
-            "needed": BASELINE_DAYS, "recent": recent}
+            "needed": BASELINE_DAYS, "recent": recent, "district": district, "env": today_env}
+
+
+class ProfileBody(BaseModel):
+    district: Optional[str] = Field(None, max_length=10)     # 서울 25개 구 중 하나, None이면 지움
+
+
+@app.get("/api/me/profile")
+def my_profile(v=Depends(need_user)):
+    try:
+        return {**store.load_profile(v["id"]), "districts": env.SEOUL_DISTRICTS}
+    except Exception as e:
+        raise _store_fail("내 정보를 불러오지 못했어요.", e)
+
+
+@app.put("/api/me/profile")
+def save_my_profile(body: ProfileBody, request: Request, v=Depends(need_user)):
+    """사는 구(선택). 고르면 그 구의 미세먼지·습도·기온을 같이 보여 준다. 구 단위만 받고 정확한 위치는 받지 않는다."""
+    limit("account", request, v)
+    if body.district and body.district not in env.SEOUL_DISTRICTS:
+        raise HTTPException(400, "서울 25개 구 중에서 골라 주세요.")
+    try:
+        store.save_profile(v["id"], body.district or None)
+    except Exception as e:
+        raise _store_fail("사는 구를 저장하지 못했어요.", e)
+    return {"district": body.district or None}
 
 
 @app.get("/api/me")
@@ -468,10 +512,10 @@ def update_consent(body: ConsentUpdate, request: Request, authorization: Optiona
 
 @app.post("/api/reset")
 def reset(request: Request, v=Depends(need_user)):
-    """내 체크인만 지웁니다(다른 사용자 데이터는 건드리지 않아요)."""
+    """내 체크인만 지웁니다(루틴·사는 구는 남기고, 다른 사용자 데이터는 건드리지 않아요)."""
     limit("write", request, v)
     try:
-        store.clear(v["id"])
+        store.clear_checkins(v["id"])
     except Exception as e:
         raise _store_fail("체크인을 지우지 못했어요.", e)
     return {"ok": True}

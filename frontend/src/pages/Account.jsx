@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 
 export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
@@ -7,6 +7,12 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [word, setWord] = useState('')
+  const [district, setDistrict] = useState('')
+  const [saved, setSaved] = useState('')
+  const [districts, setDistricts] = useState([])
+  useEffect(() => { api.myProfile().then((p) => { setDistricts(p.districts); setDistrict(p.district || ''); setSaved(p.district || '') }).catch(() => {}) }, [])
+  const saveDistrict = () => run('district', async () => { await api.saveProfile(district); setSaved(district) },
+    district ? `사는 구를 ${district}로 저장했어요.` : '사는 구를 지웠어요.')
 
   const run = async (name, fn, okMsg) => {
     setBusy(name); setError(null); setMsg(null)
@@ -31,16 +37,29 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       <div className="grid2">
       <div className="card">
         <h2 className="h3">내 데이터</h2>
-        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인과 동의 기록을 파일로 받아요.</p></div>
+        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인·루틴·사는 구와 동의 기록을 파일로 받아요.</p></div>
           <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
         <div className="row"><div><b>체크인 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 체크인만 지워요.</p></div>
           <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
         <div className="row"><div><b>사진</b><p className="muted small">얼굴 사진은 검사 후 바로 버려서 저장된 사진이 없어요.</p></div><span className="done">저장 안 함</span></div>
       </div>
 
+      <div className="card">
+        <h2 className="h3">사는 구 <span className="muted small">(선택)</span></h2>
+        <p className="muted small">고르면 그 구의 미세먼지·습도·기온(에어코리아·기상청 실측)을 기록과 함께 보여 드려요. 구 단위만 저장하고 정확한 위치는 받지 않아요. 지금은 서울만 돼요.</p>
+        <div className="district-row">
+          <label className="sr-only" htmlFor="district">사는 구</label>
+          <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!districts.length}>
+            <option value="">고르지 않음</option>
+            {districts.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <button className="btn ghost" onClick={saveDistrict} disabled={!!busy || district === saved}>{busy === 'district' ? '저장 중…' : '저장'}</button>
+        </div>
+      </div>
+
       <div className="card danger">
         <h2 className="h3">탈퇴</h2>
-        <p className="muted small">계정과 내 체크인이 모두 지워지고 되돌릴 수 없어요.</p>
+        <p className="muted small">계정과 내 체크인·루틴·사는 구가 모두 지워지고 되돌릴 수 없어요.</p>
         {!confirmDelete ? (
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>
         ) : (

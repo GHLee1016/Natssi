@@ -79,6 +79,8 @@ export const api = {
   report: () => req('/api/report'),
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
+  myProfile: () => req('/api/me/profile'),
+  saveProfile: (district) => req('/api/me/profile', json('PUT', { district: district || null })),
   myRoutine: () => req('/api/me/routine'),
   suggestIngredients: (q) => req(`/api/me/routine/suggest?q=${encodeURIComponent(q)}`),
   analyzeIngredients: (text) => req('/api/me/routine/analyze', json('POST', { text })),

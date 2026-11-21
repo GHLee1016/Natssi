@@ -10,8 +10,10 @@ import httpx
 
 TABLE = "checkins"
 ROUTINE_TABLE = "routines"
+PROFILE_TABLE = "profiles"
 _memory: dict[str, dict[str, dict]] = {}   # {user_id: {day: symptoms}}
 _memory_routine: dict[str, dict] = {}      # {user_id: 루틴 데이터(versions 목록)}
+_memory_profile: dict[str, dict] = {}      # {user_id: {"district": 사는 구}}
 _client: httpx.Client | None = None      # 테스트에서 바꿔 끼울 수 있음
 
 
@@ -89,17 +91,56 @@ def save_routine(uid: str, data: dict) -> None:
     r.raise_for_status()
 
 
-def clear(uid: str) -> None:
-    """해당 사용자의 체크인과 루틴을 지웁니다."""
+def load_profile(uid: str) -> dict:
+    """사는 구 등 선택 정보. 없거나 표가 아직 없으면 빈 값."""
+    cfg = _cfg()
+    if not cfg:
+        return dict(_memory_profile.get(uid, {}))
+    url, key = cfg
+    r = _http().get(f"{url}/rest/v1/{PROFILE_TABLE}", params={"select": "district", "user_id": f"eq.{_uid(uid)}"},
+                    headers=_headers(key))
+    if r.status_code == 404:                  # profiles 표를 아직 안 만든 DB
+        return {}
+    r.raise_for_status()
+    rows = r.json()
+    return {"district": rows[0]["district"]} if rows and rows[0].get("district") else {}
+
+
+def save_profile(uid: str, district: str | None) -> None:
+    cfg = _cfg()
+    if not cfg:
+        _memory_profile[uid] = {"district": district} if district else {}
+        return
+    url, key = cfg
+    r = _http().post(f"{url}/rest/v1/{PROFILE_TABLE}", params={"on_conflict": "user_id"},
+                     headers=_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
+                     json={"user_id": _uid(uid), "district": district})
+    r.raise_for_status()
+
+
+def clear_checkins(uid: str) -> None:
+    """체크인만 지운다('체크인 모두 지우기'). 루틴과 사는 구는 남긴다."""
     cfg = _cfg()
     _memory.pop(uid, None)
-    _memory_routine.pop(uid, None)
     if not cfg:
         return
     url, key = cfg
-    for table in (TABLE, ROUTINE_TABLE):
+    r = _http().delete(f"{url}/rest/v1/{TABLE}", params={"user_id": f"eq.{_uid(uid)}"}, headers=_headers(key))
+    r.raise_for_status()
+
+
+def clear(uid: str) -> None:
+    """해당 사용자의 체크인·루틴·사는 구를 모두 지웁니다(탈퇴)."""
+    cfg = _cfg()
+    _memory.pop(uid, None)
+    _memory_routine.pop(uid, None)
+    _memory_profile.pop(uid, None)
+    if not cfg:
+        return
+    url, key = cfg
+    for table in (TABLE, ROUTINE_TABLE, PROFILE_TABLE):
         r = _http().delete(f"{url}/rest/v1/{table}", params={"user_id": f"eq.{_uid(uid)}"}, headers=_headers(key))
-        if table == ROUTINE_TABLE and r.status_code == 404:     # 표가 없으면 지울 것도 없다(탈퇴·초기화를 막지 않음)
+        if table != TABLE and r.status_code == 404:     # 루틴·프로필 표가 아직 없으면 지울 것도 없다(탈퇴·초기화를 막지 않음)
             continue
         r.raise_for_status()
 

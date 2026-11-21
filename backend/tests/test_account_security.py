@@ -16,6 +16,7 @@ class FakeSupabase:
         self.tokens = {}       # token -> id
         self.rows = {}         # (user_id, day) -> symptoms
         self.routines = {}     # user_id -> 루틴 데이터
+        self.profiles = {}     # user_id -> 사는 구
         self.deleted = []
         self.recovered = []    # 재설정 메일을 요청한 이메일
 
@@ -70,6 +71,13 @@ class FakeSupabase:
             if request.method == "DELETE":
                 self.rows = {k: v for k, v in self.rows.items() if k[0] != uid}; return httpx.Response(204)
             return httpx.Response(200, json=[{"day": k[1], "symptoms": v} for k, v in self.rows.items() if k[0] == uid])
+        if path == "/rest/v1/profiles":
+            if request.method == "POST":
+                self.profiles[body["user_id"]] = body["district"]; return httpx.Response(201)
+            uid = request.url.params["user_id"].removeprefix("eq.")
+            if request.method == "DELETE":
+                self.profiles.pop(uid, None); return httpx.Response(204)
+            return httpx.Response(200, json=[{"district": self.profiles[uid]}] if uid in self.profiles else [])
         if path == "/rest/v1/routines":
             if request.method == "POST":
                 self.routines[body["user_id"]] = body["data"]; return httpx.Response(201)
