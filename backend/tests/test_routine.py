@@ -189,3 +189,15 @@ def test_api_reports_setup_day(env):
     assert c.get("/api/me/routine", headers=h).json()["setup_day"] is False            # 아직 등록 전
     r = c.post("/api/me/routine/items", headers=h, json={"name": "세럼", "usage": "매일 저녁"}).json()
     assert r["setup_day"] is True                                                      # 오늘 처음 등록
+
+
+def test_recent_flag_only_on_first_routine():
+    """'최근 2주 안에 쓰기 시작'은 처음 등록하는 루틴에서만 남는다(나중 추가는 그 자체가 변화)."""
+    data, d1 = {}, date(2026, 12, 1)
+    routine.add_item(data, d1, "새 세럼", "매일 저녁", [], recent=True)
+    routine.add_item(data, d1, "크림", "매일 아침", [])
+    later = date(2026, 12, 10)
+    routine.add_item(data, later, "토너", "매일 아침", [], recent=True)
+    first, last = routine.payload(data)["versions"]
+    assert [i["recent"] for i in first["items"]] == [True, False]
+    assert [i["recent"] for i in last["items"]] == [True, False, False]

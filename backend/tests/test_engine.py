@@ -76,3 +76,16 @@ def test_demo_story_follows_today(monkeypatch):
         assert config.demo_shift() == shift
         assert len(recs) == 28 and (recs[-1]["version"], recs[-1]["day_in_version"]) == (3, 7)
         assert recs[-1]["date"] == config.demo_today().isoformat()
+
+
+def test_light_change_turns_high_redness_into_fog():
+    """조명 색(b*)이 평소와 다르면 붉은기가 높아도 '흐림'이 아니라 안개(구분 불가)."""
+    def rec(i, a, b):
+        return {"date": f"2026-12-{i + 1:02d}", "version": 1, "redness": a, "b": b, "quality_ok": True,
+                "symptoms": {}, "env": {}}
+    usual = [rec(i, 10 + (i % 3) * 0.2, 16 + (i % 2) * 0.3) for i in range(8)]
+    warm = judge.judge_all(usual + [rec(8, 15, 22), rec(9, 15, 22)])           # 따뜻한 조명: a*, b* 함께 오름
+    assert [r["verdict"]["level"] for r in warm[-2:]] == [judge.UNKNOWN, judge.UNKNOWN]
+    assert "조명" in warm[-1]["verdict"]["reasons"][0]
+    same_light = judge.judge_all(usual + [rec(8, 15, 16.2), rec(9, 15, 16.1)])  # 조명 그대로: 흐림
+    assert same_light[-1]["verdict"]["level"] == judge.SIGNAL

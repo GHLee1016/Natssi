@@ -12,10 +12,22 @@ MESSAGES = {
     SIGNAL: "바꾼 시기와 붉은기가 오른 시기가 겹쳐요. 같은 장소·시간에 며칠 더 찍거나, 빈도를 줄여 보고 달라지는지 확인할 수 있어요.",
     UNKNOWN: "기록이 더 필요해요.",
 }
+# 루틴을 바꾸지 않은 채(같은 버전 안에서) 평소 범위를 넘은 경우: '바꾼 시기'가 없으므로 다른 문장을 쓴다
+SIGNAL_NO_CHANGE = "루틴을 바꾸지 않았는데 붉은기가 평소 범위를 넘은 날이 이어졌어요. 같은 장소·시간에 며칠 더 찍어 확인해 보세요."
 
 
 def _mad(values, med):
     return median([abs(v - med) for v in values]) if values else 0.0
+
+
+def light_off(r, prev):
+    """조명 색이 평소와 달랐나: 그날 볼의 노란기(b*)가 내 평소 b* 범위 밖인가. b*가 없는 기록(데모)은 늘 False.
+    조명 필터 실험(2026-11-21, 3명 57장)에서 품질 검사가 놓친 색 변화의 대부분을 잡았다. 예비값."""
+    vals = [p["b"] for p in prev if p.get("b") is not None]
+    if r.get("b") is None or len(vals) < config.MIN_BASELINE_RECORDS:
+        return False
+    med = median(vals)
+    return abs(r["b"] - med) > max(config.LIGHT_B_MIN, config.MAD_K * 1.4826 * _mad(vals, med))
 
 
 def baseline_from(values):
@@ -55,7 +67,10 @@ def judge_all(records):
             res.update(baseline=b, exceeds=exceeds)
             prev_same = [p for p in prev if p["version"] == r["version"] and p["verdict"]["exceeds"]]
             prev_day_exceeded = bool(prev) and prev[-1]["verdict"]["exceeds"]
-            if exceeds and r["env"].get("unusual"):
+            if exceeds and light_off(r, prev):         # '흐림'으로 올리지 않고 안개로 내린다(조명 탓일 수 있음)
+                verdict = UNKNOWN
+                res["reasons"].append("사진의 조명 색이 평소와 달라요. 같은 장소·시간에 다시 찍어 주세요")
+            elif exceeds and r["env"].get("unusual"):
                 verdict = UNKNOWN
                 res["reasons"].append("같은 시기에 환경도 크게 달라졌어요")
             elif exceeds and (prev_day_exceeded or max_symptom >= config.SYMPTOM_ALERT):
@@ -76,6 +91,7 @@ def judge_all(records):
             _ = prev_same
         if verdict == SIGNAL:
             signal_versions.add(r["version"])
-        res.update(level=verdict, message=MESSAGES[verdict])
+        msg = SIGNAL_NO_CHANGE if verdict == SIGNAL and base_version == r["version"] else MESSAGES[verdict]
+        res.update(level=verdict, message=msg)
         out.append({**r, "verdict": res})
     return out

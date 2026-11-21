@@ -46,7 +46,9 @@ def _commit(data: dict, today: date, items: list, op: str, reason: str | None) -
 
 
 def add_item(data: dict, today: date, name: str, usage: str, names: list[str], reason: str | None = None,
-             extra_families: list[str] = ()) -> list[str]:
+             extra_families: list[str] = (), recent: bool = False) -> list[str]:
+    """recent: 처음 등록하는 루틴(버전 1)에 넣는 제품을 '최근 2주 안에 쓰기 시작했다'고 표시. 이 제품은 쓰기 전 기록이 없어
+    판정의 기준(평소) 안에 들어가므로, 화면에서 '지금은 판단할 수 없어요'라고 알린다. 나중에 추가하는 제품은 그 자체가 변화라 무시."""
     name = name.strip()
     if not name:
         raise RoutineError("제품 이름을 입력해 주세요.")
@@ -69,8 +71,10 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
         raise RoutineError("알 수 없는 성분 계열이에요.")
     # 성분에서 찾은 계열 + 사용자가 '들어 있어요'라고 체크한 계열(글자·OCR이 뒤쪽 성분을 놓치는 경우가 많아서)
     fams = sorted({f for n in clean for f in ingredients.families_of(n)} | set(extra_families))
+    vs = data.get("versions", [])
+    first = not vs or (vs[-1]["id"] == 1 and vs[-1]["start"] == today.isoformat())
     item = {"key": uuid.uuid4().hex[:8], "name": name, "usage": usage, "kind": "cosmetic",
-            "family": fams[0] if fams else "", "families": fams, "ingredients": clean}
+            "family": fams[0] if fams else "", "families": fams, "ingredients": clean, "recent": bool(recent and first)}
     return _commit(data, today, [*items, item], f"{name} 추가 ({usage})", reason)
 
 
@@ -113,7 +117,8 @@ def payload(data: dict) -> dict:
         return {"id": v["id"], "start": v["start"], "label": v["change"] or "처음 등록한 루틴", "change": v["change"],
                 "reason": v.get("reason"),
                 "items": [{"key": i["key"], "name": i["name"], "usage": i["usage"], "kind": i["kind"],
-                           "family": i["family"] or "성분", "families": i["families"], "ingredients": i["ingredients"]}
+                           "family": i["family"] or "성분", "families": i["families"], "ingredients": i["ingredients"],
+                           "recent": i.get("recent", False)}
                           for i in v["items"]]}
 
     return {"current": one(vs[-1]) if vs else None, "versions": [one(v) for v in vs], "usages": USAGES, "reasons": REASONS}

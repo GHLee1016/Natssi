@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 MDC95_A_STAR = 2.35
 MIN_BASELINE_RECORDS = 7    # 평소 범위를 만들기 위한 최소 기록 수
 MAD_K = 3.0                 # 평소 범위 폭 = max(MDC95, MAD_K × 1.4826 × MAD)
+LIGHT_B_MIN = 3.0           # 조명 색 판단: 평소 b*에서 max(이 값, MAD_K×1.4826×MAD) 넘게 벗어나면 '조명이 달라요'(예비값, 3명 데이터)
 SYMPTOM_ALERT = 2           # 증상 점수가 이 값 이상이면 '겹침'으로 봄
 # 김서연 이야기는 기준일(11/16)에 끝나게 짜여 있고, DEMO_SHIFT_DAYS만큼 통째로 밉니다.
 # 10으로 고정 → 10/30~11/26. 실제 환경값(서대문구)을 그 날짜에 붙이므로 날짜를 매일 밀지 않고 고정합니다(2026-11-21 결정).
@@ -39,8 +40,9 @@ import os
 RECOVERY_ENABLED = os.environ.get("NATSSI_RECOVERY") == "1"
 OCR_ENABLED = os.environ.get("NATSSI_OCR") == "1"       # 전성분 사진 읽기(OCR). 서버·화면이 모두 준비된 뒤에만 켜기(기본 꺼짐)
 OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1"   # 로컬 개발용: 로그인 없이 쓰기 허용(운영에서는 켜지 마세요)
-CONSENT_VERSION = "2026-11-21"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결 / 11-20: 내 루틴 저장 추가 / 11-21: 사는 구(선택) 추가)
-PHOTO_NOTICE_VERSION = "2026-11-19"                     # 얼굴 사진 처리 방식이 바뀐 날. 이 값이 오를 때만 촬영 전에 다시 동의를 받는다
+CONSENT_VERSION = "2026-11-22"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-22: 볼 색 숫자(a*·b*) 하루 1번 저장 / 11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결 / 11-20: 내 루틴 저장 추가 / 11-21: 사는 구(선택) 추가)
+PHOTO_NOTICE_VERSION = "2026-11-22"                     # 얼굴 사진 처리 방식이 바뀐 날. 이 값이 오를 때만 촬영 전에 다시 동의를 받는다
+REDNESS_SINCE = "2026-11-22"                            # 이 버전 이상에 동의한 사용자만 볼 붉은기 숫자를 저장한다
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024                      # Vercel 함수 요청 한도(4.5MB) 아래
 MAX_IMAGE_PIXELS = 40_000_000                           # 압축 폭탄 방지
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}

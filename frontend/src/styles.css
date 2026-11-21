@@ -409,3 +409,4 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .story button{min-height:44px;padding:0 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--ink);font-size:13px}
 .story button.on{background:var(--tint);border-color:transparent;color:var(--accent-ink);font-weight:600}
 .fix-list{margin:6px 0 2px;padding-left:18px;font-size:14px;line-height:1.55}.fix-list b{margin-right:4px}
+.recent-note ol{padding-left:22px;margin-top:8px;font-size:14px;line-height:1.55}.recent-note li+li{margin-top:6px}

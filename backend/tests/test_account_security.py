@@ -1,5 +1,6 @@
 """로그인·데이터 분리·제한·업로드 검사. Supabase는 가짜 서버로 대신합니다."""
 import json
+from datetime import date, timedelta
 import uuid
 
 import httpx
@@ -224,11 +225,41 @@ def test_capture_takes_numbers_not_photos(env):
     assert c.post("/api/capture", files=files).status_code == 422                # 사진 파일은 더 받지 않음
 
 
-def test_measurements_are_not_stored(env):
+def test_only_one_redness_number_is_stored_per_day(env, monkeypatch):
     fake, c = env
+    assert up(c).json()["saved"] is False                                       # 로그인 전(데모): 저장 안 함
     h = join(c, "a@test.kr")
-    assert up(c, headers=h).status_code == 200
-    assert not fake.rows and not store._memory
+    r = up(c, headers=h).json()
+    assert r["saved"] and c.get("/api/me", headers=h).json()["today_redness"] == 11.0
+    up(c, {**GOOD, "a_star": 5.0}, headers=h)                                   # 다시 찍어도 처음 값 유지
+    c.post("/api/me/checkin", json={"따가움": 2}, headers=h)                     # 체크인이 붉은기를 지우지 않음
+    me = c.get("/api/me", headers=h).json()
+    assert me["today_redness"] == 11.0 and me["today_checkin"] == {"따가움": 2, "화끈": 0, "가려움": 0, "당김": 0}
+    row = c.get("/api/account/export", headers=h).json()["checkins"][0]
+    assert row["redness"] == 11.0 and row["b"] == 16.25 and "redness" not in row["symptoms"]
+    assert "width" not in str(fake.rows) and "sharpness" not in str(fake.rows)   # 품질 측정값은 남기지 않음
+
+
+def test_old_consent_does_not_store_redness(env):
+    fake, c = env
+    h = join(c, "b@test.kr")
+    fake.users["b@test.kr"]["meta"]["consent"]["version"] = "2026-11-21"
+    auth._cache.clear()
+    assert up(c, headers=h).json()["saved"] is False and not fake.rows
+
+
+def test_my_verdict_after_seven_days(env, monkeypatch):
+    _, c = env
+    h = join(c, "c@test.kr")
+    day = date(2026, 12, 1)
+    for i, a in enumerate([10, 10.5, 9.5, 10, 10.2, 9.8, 10.1, 16, 16]):        # 7일 평소 → 이틀 높음
+        monkeypatch.setattr(config, "today_kst", lambda d=day + timedelta(days=i): d)
+        up(c, {**GOOD, "a_star": a}, headers=h)
+        me = c.get("/api/me", headers=h).json()
+        if i == 6:
+            assert me["today_verdict"]["level"] == "구분 불가" and me["redness_days"] == 7   # 평소 범위를 만드는 중
+    assert me["today_verdict"]["level"] == "신호 있음" and me["recent"][0]["level"] == "신호 있음"
+    assert "바꾸지 않았는데" in me["today_verdict"]["message"]                    # 루틴을 바꾼 적 없으면 '바꾼 시기' 문장을 쓰지 않음
 
 
 def test_photo_consent_is_renewed(env):

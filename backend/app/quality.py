@@ -159,7 +159,7 @@ def evaluate(f: Features):
     redness = round(d["a_star"], 2) if passed and not _missing(d["a_star"]) else None
     if passed:
         message = "좋아요, 이 사진으로 괜찮아요."
-        note = "볼 붉은기는 이 사진에서 잰 값이에요. 아직 내 기록에는 저장하지 않아요."
+        note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 오늘 기록에 볼 색 숫자만 남겨요(사진은 남기지 않아요)."
     else:
         message = "같은 장소·조명에서 정면을 보고 다시 찍어 주세요."
         note = "품질 검사를 통과한 사진만 볼 붉은기를 보여 드려요."

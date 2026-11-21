@@ -218,7 +218,7 @@ def export_account(request: Request, v=Depends(need_user)):
         raise _store_fail("저장소에 연결하지 못했어요.", e)
     return {"email": v["email"], "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "consent": v.get("consent"),
-            "checkins": [{"day": d, "symptoms": s} for d, s in sorted(saved.items())],
+            "checkins": [{"day": d, "symptoms": _split(s)[0], **_split(s)[2]} for d, s in sorted(saved.items())],
             "routine": my_routine.get("versions", []),
             "district": profile.get("district"),
             "note": "얼굴 사진은 서버에 저장하지 않아 내려받을 사진이 없어요."}
@@ -336,12 +336,51 @@ def _my_env(uid, today):
         return None, None
 
 
+# 하루 기록 = checkins.symptoms(jsonb) 한 칸. 증상 4개 + 그날 처음 품질을 통과한 사진의 볼 붉은기(a*)·노란기(b*, 조명 확인용).
+# ponytail: 열을 따로 두지 않고 jsonb에 같이 넣어 DB 패치 없이 배포된다. 값이 늘면 열로 옮길 것.
+MEASURES = ("redness", "b")
+
+
+def _split(entry):
+    """(증상, 붉은기, 측정값 dict)"""
+    entry = dict(entry or {})
+    m = {k: entry.pop(k) for k in MEASURES if k in entry}
+    return (entry or None), m.get("redness"), m
+
+
+def _my_judged(uid, saved, district):
+    """내 기록을 내 루틴 버전으로 묶어 김서연 데모와 같은 판정 엔진에 넣는다."""
+    try:
+        starts = sorted((v["start"], v["id"]) for v in store.load_routine(uid).get("versions", []))
+    except Exception as e:
+        log.warning("my routine failed: %s", store.why(e))
+        starts = []
+    recs = []
+    for d in sorted(saved):
+        symptoms, redness, m = _split(saved[d])
+        recs.append({"date": d, "version": max([i for s, i in starts if s <= d], default=1),
+                     "redness": redness, "b": m.get("b"), "quality_ok": redness is not None,
+                     "quality_note": None if redness is not None else "이날은 사진 기록이 없어요",
+                     "symptoms": symptoms or {}, "env": {}})
+    try:
+        env.attach_env(recs, district, config.ENV_SOURCE)
+    except Exception as e:
+        log.warning("my env failed: %s", store.why(e))
+    return judge.judge_all(recs)
+
+
 def _me_payload(uid):
     saved = _mine(uid)
     today = config.today_kst().isoformat()
-    recent = [{"date": d, "symptoms": saved[d]} for d in sorted(saved, reverse=True)[:7]]
     district, today_env = _my_env(uid, today)
-    return {"today": today, "today_checkin": saved.get(today), "days_recorded": len(saved),
+    judged = _my_judged(uid, saved, district)
+    recent = [{"date": r["date"], "symptoms": r["symptoms"] or None, "redness": r["redness"],
+               "level": r["verdict"]["level"]} for r in reversed(judged[-7:])]
+    last = judged[-1] if judged and judged[-1]["date"] == today else None
+    return {"today": today, "today_checkin": _split(saved.get(today))[0],
+            "today_verdict": last["verdict"] if last and last["redness"] is not None else None,
+            "today_redness": last["redness"] if last else None,
+            "days_recorded": len(judged), "redness_days": sum(1 for r in judged if r["redness"] is not None),
             "needed": BASELINE_DAYS, "recent": recent, "district": district, "env": today_env}
 
 
@@ -381,7 +420,9 @@ def checkin(body: Checkin, request: Request, v=Depends(need_user)):
     """오늘(한국 시간) 증상 체크인을 저장한다. 같은 날 다시 보내면 덮어쓴다."""
     limit("write", request, v)
     try:
-        store.save(v["id"], config.today_kst().isoformat(), body.model_dump())
+        today = config.today_kst().isoformat()
+        kept = _split(store.load_all(v["id"]).get(today))[2]       # 먼저 찍은 측정값은 남긴다
+        store.save(v["id"], today, {**body.model_dump(), **kept})
     except Exception as e:
         raise _store_fail("체크인을 저장하지 못했어요.", e)
     return _me_payload(v["id"])
@@ -389,9 +430,23 @@ def checkin(body: Checkin, request: Request, v=Depends(need_user)):
 
 @app.post("/api/capture")
 def capture(body: quality.Features, request: Request, v=Depends(viewer)):
-    """브라우저가 잰 측정값(숫자)만 받아 품질을 판정합니다. 사진은 서버로 오지 않고, 측정값도 저장하지 않아요."""
+    """브라우저가 잰 측정값(숫자)만 받아 품질을 판정합니다. 사진은 서버로 오지 않아요.
+    로그인했고 바뀐 처리방침(REDNESS_SINCE)에 동의했으면, 그날 처음 통과한 사진의 볼 색 숫자(a*, 조명 확인용 b*)만 오늘 기록에 남깁니다."""
     limit("capture", request, v)
-    return quality.evaluate(body)
+    res = quality.evaluate(body)
+    res["saved"] = False
+    if v and res["passed"] and res["redness"] is not None and ((v.get("consent") or {}).get("version") or "") >= config.REDNESS_SINCE:
+        today = config.today_kst().isoformat()
+        try:
+            entry = store.load_all(v["id"]).get(today) or {}
+            if _split(entry)[1] is None:                              # 하루 1개: 처음 통과한 값만(다시 찍어 고르지 않게)
+                b = None if body.b_L is None or body.b_R is None else round((body.b_L + body.b_R) / 2, 2)
+                store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2), **({"b": b} if b is not None else {})})
+            res["saved"] = True
+            res["note"] = "오늘 기록에 볼 색 숫자를 남겼어요. 하루에 처음 통과한 사진의 값만 남기고, 사진은 남기지 않아요."
+        except Exception as e:
+            raise _store_fail("볼 붉은기를 저장하지 못했어요.", e)
+    return res
 
 
 # ── 내 루틴(제품 등록) ─────────────────────────────────────────
@@ -410,6 +465,7 @@ class RoutineAdd(BaseModel):
     ingredients: list[str] = Field(default_factory=list, max_length=ingredients.MAX_ITEMS + 1)
     families: list[str] = Field(default_factory=list, max_length=20)     # 사용자가 '들어 있어요'라고 체크한 계열
     reason: Optional[str] = Field(None, max_length=60)
+    recent: bool = False                                                 # 처음 등록 때: 최근 2주 안에 쓰기 시작한 제품
 
 
 def _routine_response(data, warnings=()):
@@ -450,7 +506,7 @@ def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     try:
         data = store.load_routine(v["id"])
         warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason,
-                                      body.families)
+                                      body.families, body.recent)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))

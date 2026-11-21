@@ -177,7 +177,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           <li><b>변화</b><span>루틴을 바꾼 날을 기준으로 평소 범위와 비교해요.</span></li>
           <li><b>리포트</b><span>기록에 있는 사실만 문장으로 정리해요. 진단은 하지 않아요.</span></li>
         </ul>
-        <p className="small muted">판정·리포트는 지금 김서연 데모에서 볼 수 있고, 가입하면 증상 체크인부터 기록해요. 얼굴 사진은 검사 후 바로 버리고 저장하지 않아요.</p>
+        <p className="small muted">로그인하지 않아도 김서연 데모는 읽기 전용으로 볼 수 있어요. 가입하면 내 기록으로 판정해요(사진 기록 7일 뒤부터). 얼굴 사진은 검사 후 바로 버리고 저장하지 않아요.</p>
       </aside>
       </div>
     </section>

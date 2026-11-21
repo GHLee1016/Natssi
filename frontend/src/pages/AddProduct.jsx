@@ -20,11 +20,12 @@ function useSuggest(q) {
   return items
 }
 
-export default function AddProduct({ usages, askFamilies = [], ocr, onSaved, onCancel }) {
+export default function AddProduct({ usages, askFamilies = [], ocr, first = false, onSaved, onCancel }) {
   const t = routineCopy(ocr)
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [usage, setUsage] = useState('')
+  const [recent, setRecent] = useState(false)          // 처음 등록 때만: 최근 2주 안에 쓰기 시작했나
   const [text, setText] = useState('')
   const [list, setList] = useState([])                 // [{name, status, ocr, families}]
   const [extra, setExtra] = useState('')
@@ -67,7 +68,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, onSaved, onC
   const togglePick = (f) => setPicked(picked.includes(f) ? picked.filter((x) => x !== f) : [...picked, f])
   const save = async () => {
     setBusy(true); setErr(null)
-    try { onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked })) }
+    try { onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent })) }
     catch (e) { setErr(e.message); setBusy(false) }
   }
   const review = list.filter((i) => i.status === '확인 필요').length
@@ -98,6 +99,12 @@ export default function AddProduct({ usages, askFamilies = [], ocr, onSaved, onC
               </label>
             ))}
           </div>
+          {first && (
+            <label className="row-check">
+              <input type="checkbox" checked={recent} onChange={(e) => setRecent(e.target.checked)} aria-describedby="p-recent-help" /> {t.recent.ask}
+            </label>
+          )}
+          {first && <small id="p-recent-help" className="muted">{t.recent.help}</small>}
           {err && <p className="err" role="alert">{err}</p>}
           <div className="step-actions">
             <button className="btn ghost" onClick={onCancel}>취소</button>

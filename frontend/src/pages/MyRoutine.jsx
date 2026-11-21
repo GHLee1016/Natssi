@@ -48,7 +48,14 @@ export default function MyRoutine({ ocr }) {
         <div className="grid2">
           <div>
             {warn.map((w) => <p className="notice warn-note" role="alert" key={w}>{w}</p>)}
-            {adding && <AddProduct usages={r.usages} askFamilies={r.ask_families} ocr={ocr} onSaved={saved} onCancel={() => setAdding(false)} />}
+            {adding && <AddProduct usages={r.usages} askFamilies={r.ask_families} ocr={ocr} first={!r.current || r.setup_day} onSaved={saved} onCancel={() => setAdding(false)} />}
+            {!adding && r.current?.id === 1 && r.current.items.some((it) => it.recent) && (
+              <div className="card recent-note" role="note">
+                <h2 className="h3">{t.recent.title}</h2>
+                <p>{r.current.items.filter((it) => it.recent).map((it) => it.name).join(', ')}{t.recent.body}</p>
+                <ol><li>{t.recent.rest}</li><li>{t.recent.keep}</li></ol>
+              </div>
+            )}
             {!adding && (r.current ? (
               <div className="card">
                 <h2 className="h3">버전 {r.current.id} · {fmt.md(r.current.start)}부터</h2>

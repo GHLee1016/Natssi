@@ -153,7 +153,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
             <li>고개 각도·표정·선명도·노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
-            <li>서버에는 측정한 숫자만 보내 품질을 판정하고, 저장하지 않아요.</li>
+            <li>서버에는 측정한 숫자만 보내 품질을 판정해요. 로그인했다면 통과한 사진의 <b>볼 색 숫자 2개(붉은기, 조명 확인용 노란기)</b>만 오늘 기록에 남겨요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
           <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})를 읽고 동의해요</label>
@@ -241,7 +241,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   <div className="notice sentences wide">
     <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
     <p>고개 각도·표정·선명도·노출을 확인하고, 통과하면 볼 붉은기를 보여 드려요.</p>
-    <p>측정한 숫자는 품질 판정에만 쓰고 저장하지 않아요.</p>
+    <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기·노란기)만 오늘 기록에 남기고, 다른 측정값과 사진은 남기지 않아요.</p>
     <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
   </div>
     </section>
