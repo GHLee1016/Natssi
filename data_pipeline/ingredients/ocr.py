@@ -13,11 +13,37 @@
   invert : 흑백 반전. 어두운 바탕에 흰 글씨
 첫 실행 때 모델을 내려받는다(약 20MB).
 """
+import os
 from functools import lru_cache
 
 import numpy as np
 
 VARIANTS = ("base", "tight", "invert")
+
+
+def cpu_threads(root: str = "/sys/fs/cgroup") -> int:
+    """OCR 엔진이 쓸 스레드 수. 컨테이너(허깅페이스 Space 등)는 CPU 사용량을 몇 개로 제한해 두는데 os.cpu_count()는
+    서버 전체 수를 보여 줘서, 엔진이 스레드를 너무 많이 만들면 제한 안에서 서로 다투느라 훨씬 느려진다.
+    순서: NATSSI_THREADS 환경변수 > cgroup 제한(v2 cpu.max, v1 cfs_quota) > 이 프로세스가 쓸 수 있는 CPU 수."""
+    if (v := os.environ.get("NATSSI_THREADS", "").strip()).isdigit() and int(v) > 0:
+        return int(v)
+    n = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
+    quota = None
+    try:
+        q, period = open(f"{root}/cpu.max").read().split()[:2]          # cgroup v2: "200000 100000" 또는 "max 100000"
+        if q != "max":
+            quota = int(q) / int(period)
+    except (OSError, ValueError):
+        try:
+            q = int(open(f"{root}/cpu/cpu.cfs_quota_us").read())         # cgroup v1: -1이면 제한 없음
+            period = int(open(f"{root}/cpu/cpu.cfs_period_us").read())
+            if q > 0:
+                quota = q / period
+        except (OSError, ValueError):
+            pass
+    if quota:
+        n = min(n, max(1, int(quota + 0.5)))
+    return max(1, n)
 
 
 @lru_cache(maxsize=2)
@@ -30,6 +56,8 @@ def _engine(unclip: float = 1.6):
         "Rec.model_type": ModelType.MOBILE,
         "Global.max_side_len": 3000,
         "Det.unclip_ratio": unclip,
+        "EngineConfig.onnxruntime.intra_op_num_threads": cpu_threads(),
+        "EngineConfig.onnxruntime.inter_op_num_threads": 1,
     })
 
 

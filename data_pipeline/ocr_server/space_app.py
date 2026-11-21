@@ -33,6 +33,23 @@ if unwarp.available():
     unwarp._session()           # 휜 사진 펴기 모델(약 32MB)도 미리 읽어 둔다
 
 
+def _warm_up():
+    """글자가 있는 작은 그림으로 실제 처리를 한 번 돌려 둔다. 엔진을 만들기만 하면 글자 인식 모델은 첫 요청 때
+    불러와져서, 서버가 뜬 뒤 첫 사용자만 몇 초 더 기다렸다(로컬 CPU 2개: 첫 요청 12.5초, 그다음 5초)."""
+    import cv2
+    import numpy as np
+    img = np.full((260, 900, 3), 255, np.uint8)
+    for k, line in enumerate(("Ingredients: Water, Glycerin,", "Butylene Glycol, Niacinamide")):
+        cv2.putText(img, line, (20, 90 + 110 * k), cv2.FONT_HERSHEY_SIMPLEX, 1.6, (0, 0, 0), 3)
+    try:
+        pipeline.register([cv2.imencode(".jpg", img)[1].tobytes()])
+    except Exception as e:      # 데우기가 실패해도 서버는 뜬다(첫 요청만 조금 느릴 뿐)
+        print("warm-up 실패:", e)
+
+
+_warm_up()
+
+
 def g_ocr(images):
     if not images:
         return {"ingredients": [], "message": "사진을 올려 주세요."}

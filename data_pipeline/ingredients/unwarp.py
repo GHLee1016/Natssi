@@ -31,6 +31,9 @@ def _session():
     import onnxruntime as ort
     so = ort.SessionOptions()
     so.log_severity_level = 3                       # 변환 때 남은 안 쓰는 값 경고는 숨긴다
+    from .ocr import cpu_threads
+    so.intra_op_num_threads = cpu_threads()       # 컨테이너 CPU 제한에 맞춘다(ocr.cpu_threads 참고)
+    so.inter_op_num_threads = 1
     s = ort.InferenceSession(str(MODEL), so, providers=["CPUExecutionProvider"])
     return s, s.get_inputs()[0].name
 
