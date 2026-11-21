@@ -64,8 +64,7 @@ def _shape(res: dict, source: str, seconds: float, debug: bool = False) -> dict:
         "seconds": round(seconds, 1),
     }
     if not items:
-        out["message"] = ("전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게, 평평한 면(상자)을 찍어 주세요. "
-                          "둥근 병이면 핵심 성분을 직접 입력할 수 있어요.") if source == "ocr" else "성분을 찾지 못했어요."
+        out["message"] = ("전성분을 찾지 못했어요. 전성분 부분이 화면을 가득 채우게 다시 찍거나, 쇼핑몰 상세 화면을 캡처해서 올려 주세요. 글자를 붙여 넣어도 돼요.") if source == "ocr" else "성분을 찾지 못했어요."
     if debug and "raw_text" in res:
         out["raw_text"] = res["raw_text"]
         out["variants"] = res.get("variants")

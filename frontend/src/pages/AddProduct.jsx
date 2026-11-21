@@ -18,6 +18,7 @@ const josa = (w) => {
 // 같은 성분이 두 번 오면 처음 것만(사진 여러 장이 겹칠 때)
 const uniq = (items) => { const seen = new Set(); return items.filter((i) => !seen.has(key(i.name)) && seen.add(key(i.name))) }
 const MAX_PHOTOS = 3
+const NOT_FOUND = '전성분을 찾지 못했어요. 전성분 부분이 화면을 가득 채우게 다시 찍거나, 쇼핑몰 상세 화면을 캡처해서 올려 주세요. 글자를 붙여 넣어도 돼요.'
 // 둥근 통 찍는 법: 가장자리 글자는 눌려서 잘 못 읽으니, 통을 돌려 가며 가운데에 오게 여러 장
 function RoundTip() {
   return (
@@ -102,7 +103,8 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
       }
       const r = await readIngredientPhotos(files)
       setOcrFiles(files)
-      if (!r.ingredients.length) return setErr(r.message || '전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게 다시 찍거나, 글자를 붙여 넣어 주세요.')
+      // 전성분을 못 찾았을 때는 앱 문구로(쇼핑몰 캡처 안내 포함). 사진을 못 연 경우 같은 다른 안내는 서버 문구 그대로
+      if (!r.ingredients.length) return setErr(!r.message || r.message.startsWith('전성분을 찾지') ? NOT_FOUND : r.message)
       setList(uniq(r.ingredients)); setAsk(r.ask_families); setPicked([]); setEditing(null); setNote(null); setFromPhotos(true)
       setStep(2)
     } catch (e) { setErr(e.message) } finally { setReading(false) }
@@ -243,7 +245,12 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                 {pickInput((f) => readPhotos(f))}
               </label>
               {blurBox}
-              <p className="muted small" aria-live="polite">{reading ? '처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.' : '상자나 용기 뒷면의 전성분 부분을 화면 가득 찍어 주세요. 얼굴이 나오지 않게 해 주세요.'}</p>
+              {reading
+                ? <p className="muted small" aria-live="polite">처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.</p>
+                : <div className="muted small" aria-live="polite">
+                    <p>전성분은 보통 상자 뒷면에 있어요. 얼굴이 나오지 않게, 전성분 부분을 화면 가득 찍어 주세요.</p>
+                    <p>상자가 없으면 쇼핑몰 상세 화면을 캡처해서 올려도 돼요.</p>
+                  </div>}
               {!reading && <RoundTip />}
               <p className="or"><span>또는 글자 붙여넣기</span></p>
             </div>
