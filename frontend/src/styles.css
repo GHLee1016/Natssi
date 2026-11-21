@@ -357,3 +357,21 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .countdown .btn{pointer-events:auto;min-height:40px;background:rgba(255,255,255,.92)}
 .auto-shot{margin-top:0}
 @media (prefers-reduced-motion:reduce){.view .oval{transition:none}}
+
+/* 리포트: 근거 질문의 답 */
+.bubble.evidence ol{margin:8px 0 8px 18px;display:grid;gap:8px}
+.bubble.evidence li .ev-text{display:block}
+.bubble.evidence li .cite,.bubble.evidence li .muted{display:inline-block;margin-top:2px}
+
+/* 성분 확인: 자동으로 고친 이름·확인 필요·계열 체크 */
+.ing li.fix{box-shadow:inset 0 0 0 1px #c9bfb6}
+.ing li button.edit{width:auto;padding:0 10px;border-radius:999px;font-size:12.500px;font-weight:700;color:#a8402a}
+.ing li.editing{padding:4px}.ing li.editing input{min-height:34px;border:1px solid #d6c8bd;border-radius:999px;padding:0 12px;font-size:14px;width:12em}
+.ing li.editing button.ok{width:auto;padding:0 12px;font-size:13px;font-weight:700;color:var(--accent-ink)}
+.fixed-list ul{list-style:none;margin:4px 0 6px;display:grid;gap:2px;font-size:13px}.fixed-list s{color:var(--sub)}
+.ask-fam{border:0;margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}.ask-fam legend{margin-bottom:8px;color:var(--ink)}
+.fam-check{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #e9e2dc;background:#fff;font-size:13.500px;cursor:pointer}
+.fam-check input{width:18px;height:18px;accent-color:var(--accent)}
+.fam-check.on{background:var(--tint);border-color:var(--accent);font-weight:700}
+.add-ing input{min-height:44px;border:1px solid #e3dcd5;border-radius:14px;padding:0 14px;background:#fff;font-size:15px}
+.add-ing input:focus-visible{outline:2px solid var(--ink);outline-offset:1px}

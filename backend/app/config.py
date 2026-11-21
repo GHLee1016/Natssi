@@ -46,5 +46,6 @@ LIMITS = {
     "report": (6, 60),
     "capture": (12, 60),
     "write": (30, 60),
+    "suggest": (90, 60),
     "account": (6, 60),
 }

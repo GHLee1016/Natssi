@@ -48,7 +48,7 @@ export default function MyRoutine({ ocr }) {
         <div className="grid2">
           <div>
             {warn.map((w) => <p className="notice warn-note" role="alert" key={w}>{w}</p>)}
-            {adding && <AddProduct usages={r.usages} ocr={ocr} onSaved={saved} onCancel={() => setAdding(false)} />}
+            {adding && <AddProduct usages={r.usages} askFamilies={r.ask_families} ocr={ocr} onSaved={saved} onCancel={() => setAdding(false)} />}
             {!adding && (r.current ? (
               <div className="card">
                 <h2 className="h3">버전 {r.current.id} · {fmt.md(r.current.start)}부터</h2>

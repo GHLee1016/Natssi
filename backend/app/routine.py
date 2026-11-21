@@ -45,7 +45,8 @@ def _commit(data: dict, today: date, items: list, op: str, reason: str | None) -
     return warnings
 
 
-def add_item(data: dict, today: date, name: str, usage: str, names: list[str], reason: str | None = None) -> list[str]:
+def add_item(data: dict, today: date, name: str, usage: str, names: list[str], reason: str | None = None,
+             extra_families: list[str] = ()) -> list[str]:
     name = name.strip()
     if not name:
         raise RoutineError("제품 이름을 입력해 주세요.")
@@ -63,7 +64,11 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
             clean.append(c)
     if len(clean) > ingredients.MAX_ITEMS:
         raise RoutineError("성분이 너무 많아요. 전성분 부분만 넣어 주세요.")
-    fams = sorted({f for n in clean for f in ingredients.families_of(n)})
+    bad = [f for f in extra_families if f not in ingredients.FAMILY_NAMES]
+    if bad:
+        raise RoutineError("알 수 없는 성분 계열이에요.")
+    # 성분에서 찾은 계열 + 사용자가 '들어 있어요'라고 체크한 계열(글자·OCR이 뒤쪽 성분을 놓치는 경우가 많아서)
+    fams = sorted({f for n in clean for f in ingredients.families_of(n)} | set(extra_families))
     item = {"key": uuid.uuid4().hex[:8], "name": name, "usage": usage, "kind": "cosmetic",
             "family": fams[0] if fams else "", "families": fams, "ingredients": clean}
     return _commit(data, today, [*items, item], f"{name} 추가 ({usage})", reason)

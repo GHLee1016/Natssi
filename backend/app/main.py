@@ -364,12 +364,13 @@ class RoutineAdd(BaseModel):
     name: str = Field(..., min_length=1, max_length=40)
     usage: str = Field(..., max_length=20)
     ingredients: list[str] = Field(default_factory=list, max_length=ingredients.MAX_ITEMS + 1)
+    families: list[str] = Field(default_factory=list, max_length=20)     # 사용자가 '들어 있어요'라고 체크한 계열
     reason: Optional[str] = Field(None, max_length=60)
 
 
 def _routine_response(data, warnings=()):
     return {**myroutine.payload(data), "warnings": list(warnings),
-            "setup_day": myroutine.is_setup_day(data, config.today_kst())}
+            "setup_day": myroutine.is_setup_day(data, config.today_kst()), "ask_families": ingredients.ASK_FAMILIES}
 
 
 @app.get("/api/me/routine")
@@ -391,13 +392,21 @@ def analyze_ingredients(body: AnalyzeBody, request: Request, v=Depends(need_user
         raise HTTPException(400, str(e))
 
 
+@app.get("/api/me/routine/suggest")
+def suggest_ingredients(q: str, request: Request, v=Depends(need_user)):
+    """성분 이름 자동완성(식약처 사전). 글자를 칠 때마다 불리므로 제한을 넉넉히 둔다."""
+    limit("suggest", request, v)
+    return {"items": ingredients.suggest(q)} if q.strip() else {"items": []}
+
+
 @app.post("/api/me/routine/items")
 def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     """제품을 루틴에 추가한다. 다른 날 바꾸면 새 버전이 생기고, 직전 변경이 7일 안이면 경고를 함께 돌려준다."""
     limit("write", request, v)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason)
+        warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason,
+                                      body.families)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))

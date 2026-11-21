@@ -13,18 +13,45 @@ def test_analyze_cuts_section_and_tags_families():
     names = [i["name"] for i in r["ingredients"]]
     assert names == ["정제수", "글리세린", "레티놀", "1,2-헥산다이올", "향료", "나이아신아마이드", "병풀추출물"]
     assert r["families"] == ["나이아신아마이드", "레티노이드", "시카", "향료"]
-    assert r["needs_review"] == []
+    assert r["needs_review"] == 0 and all(i["status"] == "일치" for i in r["ingredients"])
+    assert "레티노이드" not in r["ask_families"] and "향료" not in r["ask_families"]          # 이미 찾은 계열은 다시 묻지 않음
 
 
-def test_analyze_flags_garbage_and_dedupes():
-    r = ingredients.analyze("정제수, 정제수, 1, ##, 글리세린")
-    assert [i["name"] for i in r["ingredients"]] == ["정제수", "1", "##", "글리세린"]   # 같은 이름은 한 번만
-    assert r["needs_review"] == ["1", "##"]                                          # 숫자뿐이거나 글자가 아닌 조각은 확인 필요
+def test_analyze_fixes_typos_and_flags_unknown():
+    r = ingredients.analyze("정제수, 정제수, 판테늘, 리모넷, 쀍쀍쀍, 1, 글리세린")
+    by = {i["ocr"]: i for i in r["ingredients"]}
+    assert [i["name"] for i in r["ingredients"]] == ["정제수", "판테놀", "리모넨", "쀍쀍쀍", "글리세린"]   # 같은 이름은 한 번, 숫자 조각은 버림
+    assert by["판테늘"]["status"] == "보정" and by["판테늘"]["name"] == "판테놀"                       # 오타는 표준 이름으로(입력한 글자도 남김)
+    assert by["리모넷"]["families"] == ["향료"]
+    assert by["쀍쀍쀍"]["status"] == "확인 필요"                                                      # 사전에 없으면 지어내지 않음
+    assert r["needs_review"] == 3
     try:
         ingredients.analyze("가" * (ingredients.MAX_TEXT + 1))
         assert False
     except ValueError:
         pass
+
+
+def test_suggest_and_extra_families():
+    assert ingredients.suggest("레티")[0]["name"] == "레티놀"
+    d = {"versions": []}
+    routine.add_item(d, date(2026, 11, 1), "크림", "매일 저녁", ["정제수"], extra_families=["향료"])
+    assert d["versions"][0]["items"][0]["families"] == ["향료"]                    # 성분에는 없어도 사용자가 체크한 계열
+    try:
+        routine.add_item(d, date(2026, 11, 1), "세럼", "매일 저녁", [], extra_families=["아무계열"])
+        assert False
+    except routine.RoutineError:
+        pass
+
+
+def test_suggest_api_needs_login(env):
+    _, c = env
+    assert c.get("/api/me/routine/suggest", params={"q": "레티"}).status_code == 401
+    h = join(c, "a@test.kr")
+    items = c.get("/api/me/routine/suggest", params={"q": "레티"}, headers=h).json()["items"]
+    assert items and items[0]["name"] == "레티놀" and "레티노이드" in items[0]["families"]
+    r = c.post("/api/me/routine/items", headers=h, json={"name": "크림", "usage": "매일 저녁", "ingredients": ["정제수"], "families": ["알코올"]})
+    assert r.status_code == 200 and r.json()["current"]["items"][0]["families"] == ["알코올"]
 
 
 def test_first_day_items_share_version_and_later_change_makes_new_one():

@@ -80,6 +80,7 @@ export const api = {
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
   myRoutine: () => req('/api/me/routine'),
+  suggestIngredients: (q) => req(`/api/me/routine/suggest?q=${encodeURIComponent(q)}`),
   analyzeIngredients: (text) => req('/api/me/routine/analyze', json('POST', { text })),
   addRoutineItem: (body) => req('/api/me/routine/items', json('POST', body)),
   changeRoutineUsage: (key, usage, reason) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, json('PATCH', { usage, reason: reason || null })),
