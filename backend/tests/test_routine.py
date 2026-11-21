@@ -254,3 +254,10 @@ def test_english_ingredient_names():
     assert by["Hzikia Fusitorme Extract"]["name"] == "톳추출물" and by["Hzikia Fusitorme Extract"]["status"] == "보정"
     assert by["Cinc"]["status"] == "확인 필요"             # 'Zinc'(아연)로 고치지 않음
     assert by["aFrut Extract"]["status"] == "확인 필요"    # 'Heart Extract'(동물심장추출물)로 고치지 않음
+
+
+def test_misread_header_is_not_an_ingredient():
+    """OCR이 '전성분'을 '전성부'처럼 잘못 읽어도 머리말로 걸러, 성분 1번으로 들어가지 않는다."""
+    for head in ("전성부", "전섬분", "전성분"):
+        r = ingredients.analyze(f"{head} 정제수, 글리세린, 부틸렌글라이콜")
+        assert [i["name"] for i in r["ingredients"]] == ["정제수", "글리세린", "부틸렌글라이콜"], head
