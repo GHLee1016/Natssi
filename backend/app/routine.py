@@ -59,10 +59,12 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
         raise RoutineError(f"제품은 {MAX_ITEMS}개까지 등록할 수 있어요.")
     if any(i["name"] == name for i in items):
         raise RoutineError("같은 이름의 제품이 이미 있어요.")
-    clean = []
+    clean, seen = [], set()
     for n in names:                                           # 서버가 한 번 더 정리한다(브라우저에서 고친 값도 믿지 않음)
-        c = ingredients.clean(n)
-        if c and c not in clean:
+        c = ingredients.canonical(n)                          # 'Glycerin'·'글리 세린'도 '글리세린' 하나로
+        k = ingredients.same_key(c)
+        if c and k not in seen:
+            seen.add(k)
             clean.append(c)
     if len(clean) > ingredients.MAX_ITEMS:
         raise RoutineError("성분이 너무 많아요. 전성분 부분만 넣어 주세요.")
