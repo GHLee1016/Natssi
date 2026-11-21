@@ -53,6 +53,42 @@ CONFUSE = {"을": "올", "를": "롤올콜", "듬": "듐", "둥": "듐", "둠": 
            "헬": "헥", "펠": "펩", "펙": "펩", "는": "논", "클": "콜글", "플": "폴"}
 
 
+def split_names(s: str) -> list[str]:
+    """사전의 '이름,이름,…' 칸을 나눈다. 숫자 사이 쉼표('1,2-')와 한 글자 영문 사이 쉼표('N,N-')는 이름의 일부라 남긴다."""
+    out, buf = [], ""
+    for i, ch in enumerate(s):
+        if ch == ",":
+            a, b = s[i - 1] if i else "", s[i + 1] if i + 1 < len(s) else ""
+            a2, b2 = s[i - 2] if i > 1 else "", s[i + 2] if i + 2 < len(s) else ""
+            locant = (a.isdigit() and b.isdigit()) or (a.isascii() and a.isalpha() and not (a2.isascii() and a2.isalpha())
+                                                        and b.isascii() and b.isalpha() and not (b2.isascii() and b2.isalpha()))
+            if locant:
+                buf += ch
+                continue
+        if ch in ",;":
+            out.append(buf.strip()); buf = ""
+        else:
+            buf += ch
+    out.append(buf.strip())
+    return [x for x in out if x]
+
+
+LATIN = re.compile(r"[a-z0-9]+")
+GENERIC = ("extract", "filtrate", "ferment", "powder", "protein", "water", "oil", "acid", "glycol", "seed", "leaf",
+           "root", "fruit", "flower", "stem", "bark", "peel", "callus", "culture")
+
+
+def _strip_generic(k: str) -> str:
+    """영문 이름 끝의 흔한 꼬리말을 떼어 원료 이름만 남긴다('morindacitrifoliafruitextract' → 'morindacitrifolia')."""
+    changed = True
+    while changed:
+        changed = False
+        for g in GENERIC:
+            if k.endswith(g) and len(k) > len(g):
+                k, changed = k[: -len(g)], True
+    return k
+
+
 class Matcher:
     def __init__(self, path: Path = DICT_PATH, cutoff: int = 80):
         self.cutoff = cutoff
@@ -60,10 +96,9 @@ class Matcher:
         if Path(path).exists():
             with open(path, encoding="utf-8-sig", newline="") as f:
                 rows = [{k: (v or "") for k, v in r.items()} for r in csv.DictReader(f)]
-            # 동의어는 쉼표로 이어져 있는데 'N,N-비스…'처럼 이름 안에도 쉼표가 있어, 양옆이 영숫자인 쉼표는 나누지 않는다.
-            # 영문명도 'Water,Aqua'처럼 여럿일 수 있어 같은 규칙으로 나눈다('Water'만 쓴 탄산수보다 정제수가 먼저).
-            sep = r";|(?<![0-9A-Za-z]),|,(?![0-9A-Za-z])|(?<=[a-z]),(?=[A-Z])"
-            names = [(r, [r["kor"]], re.split(sep, r.get("inci", "")), re.split(sep, r.get("synonyms", ""))) for r in rows]
+            # 영문명·동의어는 쉼표로 여럿 이어져 있다('Water,Aqua', 'Flavor,Fragrance,perfume,Parfum,Aroma').
+            # 이름 안의 쉼표('1,2-헥산다이올', 'N,N-비스…')만 남기고 나눈다(split_names).
+            names = [(r, [r["kor"]], split_names(r.get("inci", "")), split_names(r.get("synonyms", ""))) for r in rows]
             # 한글 표준명 > 영문명 > 동의어 순으로 자리를 잡는다(다른 성분의 동의어가 표준명을 가로채지 않게)
             for level in (1, 2, 3):
                 for r, *groups in names:
@@ -135,6 +170,8 @@ class Matcher:
         if len(k) < 3 or not self.keys:
             return None
         from rapidfuzz import fuzz, process
+        if LATIN.fullmatch(k):
+            return self._fuzzy_latin(token, k)
         if len(k) >= 5:
             best = process.extractOne(jamo(k), self.jkeys, scorer=fuzz.ratio, score_cutoff=self.cutoff)
             if best:
@@ -146,6 +183,20 @@ class Matcher:
             cand = self.keys[i]
             if len(cand) == len(k) and _one_jamo_apart(jamo(k), self.jkeys[i]):
                 return {"ocr": token, **self.index[cand], "status": "보정", "score": round(score)}
+        return None
+
+    def _fuzzy_latin(self, token: str, k: str) -> dict | None:
+        """영문 이름(INCI) 오타 보정. 한글보다 엄격하게:
+        - 5글자 이하는 고치지 않는다('Cinc'(Citric)→'Zinc'(아연) 같은 엉뚱한 보정)
+        - 'Extract'·'Oil'처럼 흔한 꼬리말이 같아서 비슷해 보이는 것은 앞부분(원료 이름)도 비슷해야 한다
+          ('aFrut Extract'→'Heart Extract'(동물심장추출물) X, 'Hzikia Fusitorme Extract'→'Hizikia Fusiforme Extract' O)"""
+        if len(k) <= 5:
+            return None
+        from rapidfuzz import fuzz, process
+        for _, score, i in process.extract(k, self.jkeys, scorer=fuzz.ratio, limit=5, score_cutoff=self.cutoff):
+            a, b = _strip_generic(k), _strip_generic(self.keys[i])
+            if a and b and fuzz.ratio(a, b) >= 70:
+                return {"ocr": token, **self.index[self.keys[i]], "status": "보정", "score": round(score)}
         return None
 
     def match(self, token: str) -> dict:

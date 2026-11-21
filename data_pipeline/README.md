@@ -41,6 +41,16 @@ python -m ingredients.dictionary              # 식약처 성분사전 1회 다�
 python scripts/ocr_eval.py photos/ocr         # 제품명_1.jpg … + 정답 제품명.txt → 일치율·정밀도·소요 시간
 ```
 
+**정답 평가 세트** (`data/ocr_truth.csv` + `scripts/ocr_truth_eval.py`): 사진마다 '보이는' 전성분을 정답으로 적어 두고,
+앱과 같은 경로(`register`)로 읽어 재현율·정밀도·놓친 성분·틀린 성분을 낸다. 사진은 올리지 않고 정답 글자만 올린다.
+```powershell
+python scripts/ocr_truth_eval.py photos/truth                    # → build/ocr_truth/report.md
+python scripts/ocr_truth_eval.py photos/truth --compare-unwarp   # 휜 사진 펴기 끔 vs 켬
+python scripts/ocr_truth_eval.py photos/truth --cached           # OCR 원문 재사용: 후처리만 바꿨을 때 몇 초
+```
+정답 추가: 사진을 `photos/truth/`에 두고 csv에 한 줄(사진 이름, 제품, 모양, 범위, 확인 여부, 메모, 성분). 같은 제품을 돌려 찍은
+여러 장은 `photos` 칸에 공백으로 이어 적는다. 정답을 사진과 대조해 확인했으면 `checked`를 `예`로.
+
 ```python
 from ingredients.pipeline import register
 register(["제품_1.jpg", "제품_2.jpg"])   # {"ingredients": [...], "families": [...], "needs_review": [...], "seconds": ...}

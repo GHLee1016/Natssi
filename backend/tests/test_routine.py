@@ -244,3 +244,13 @@ def test_product_photo_is_small_jpeg_and_kept_on_changes(env):
     c.post("/api/me/routine/items", json={"name": "크림", "usage": "매일 아침", "ingredients": []}, headers=h)
     r = c.patch(f"/api/me/routine/items/{item['key']}", json={"usage": "주 2~3회"}, headers=h).json()
     assert [i["photo"] is not None for i in r["current"]["items"]] == [True, False]          # 빈도를 바꿔도 사진 유지
+
+
+def test_english_ingredient_names():
+    """영문 전성분: 사전의 '이름,이름' 칸을 제대로 나눠 찾고, 짧거나 꼬리말만 같은 영문 오타는 엉뚱하게 고치지 않는다."""
+    r = ingredients.analyze("Water, Fragrance, CI 42090, 1,2-Hexanediol, Hzikia Fusitorme Extract, Cinc, aFrut Extract")
+    by = {i["ocr"]: i for i in r["ingredients"]}
+    assert [by[k]["name"] for k in ("Water", "Fragrance", "CI 42090", "1,2-Hexanediol")] == ["정제수", "향료", "청색1호", "1,2-헥산다이올"]
+    assert by["Hzikia Fusitorme Extract"]["name"] == "톳추출물" and by["Hzikia Fusitorme Extract"]["status"] == "보정"
+    assert by["Cinc"]["status"] == "확인 필요"             # 'Zinc'(아연)로 고치지 않음
+    assert by["aFrut Extract"]["status"] == "확인 필요"    # 'Heart Extract'(동물심장추출물)로 고치지 않음
