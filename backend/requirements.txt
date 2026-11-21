@@ -2,6 +2,6 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 pillow>=10
 python-multipart>=0.0.9
-pytest>=8
+pytest>=9.2.0
 httpx>=0.28.1
 rapidfuzz>=3.0
