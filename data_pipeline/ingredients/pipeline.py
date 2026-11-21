@@ -97,6 +97,43 @@ def from_text(text: str, select_lines: bool = True) -> dict:
     return {"ingredients": items, "families": fams, "needs_review": need}
 
 
+def label_order(items: list[dict], base: list[dict], flat: list[dict]) -> list[dict]:
+    """items(최종 목록)를 라벨 순서로. 원래 사진에서 읽은 순서(base)를 뼈대로 삼고, 편 사진(flat)에서만 찾은 성분은
+    편 사진 목록에서 바로 앞에 있던 성분 뒤에 끼운다. 어디에도 없는 성분(합쳐 읽어서 생긴 것)은 원래 자리 순서대로 맨 뒤."""
+    key = lambda it: norm(it["kor"])
+    order = []
+    for it in base:
+        if key(it) not in order:
+            order.append(key(it))
+    # 편 사진에서만 찾은 성분을 한 덩어리씩: 앞에 겹친 성분이 있으면 그 뒤, 없으면 뒤에 오는 겹친 성분 앞,
+    # 겹친 성분이 하나도 없으면 맨 뒤(원래 사진이 보통 라벨 앞부분을 읽는다)
+    fk = []
+    for it in flat:
+        if key(it) not in fk:
+            fk.append(key(it))
+    known = set(order)
+    i = 0
+    while i < len(fk):
+        if fk[i] in known:
+            i += 1
+            continue
+        j = i
+        while j < len(fk) and fk[j] not in known:
+            j += 1
+        run = [k for k in fk[i:j] if k not in order]
+        if i > 0:
+            at = order.index(fk[i - 1]) + 1
+        elif j < len(fk):
+            at = order.index(fk[j])
+        else:
+            at = len(order)
+        order[at:at] = run
+        known.update(run)
+        i = j
+    pos = {k: i for i, k in enumerate(order)}
+    return sorted(items, key=lambda it: (pos.get(key(it), len(order)), items.index(it)))
+
+
 def register(image_paths: list) -> dict:
     """전성분표 사진 여러 장(원통형 용기는 돌려 가며 2~3장) → 성분 목록.
 
@@ -127,8 +164,10 @@ def register(image_paths: list) -> dict:
             best_v += "+unwarp"
         used.append(best_v)
     every = [ln for v in views + flat_views for ln in v]
+    base_lines = stitch.stitch(views) if multi else [ln for v in views for ln in v]
+    flat_lines = stitch.stitch(flat_views) if multi else [ln for v in flat_views for ln in v]
     if multi:
-        text = "\n".join(stitch.stitch(views) + stitch.stitch(flat_views))
+        text = "\n".join(base_lines + flat_lines)
         out = from_text(text)
         if os.environ.get("NATSSI_STITCH_EXACT", "0") == "1":
             # 이어 붙이면 같은 줄을 한 번만 읽게 된다. 사진마다 따로 읽은 글자에서 사전과 '그대로' 맞은 성분은
@@ -142,6 +181,10 @@ def register(image_paths: list) -> dict:
     else:
         text = "\n".join(every)
         out = from_text(text)
+    if flat_lines:
+        # 편 사진에서만 찾은 성분이 목록 끝에 붙지 않게, 라벨에서 있어야 할 자리로 옮긴다(확인 화면에서 라벨과 맞춰 보기 쉽게)
+        out["ingredients"] = label_order(out["ingredients"], from_text("\n".join(base_lines))["ingredients"],
+                                         from_text("\n".join(flat_lines))["ingredients"])
     out["variants"] = used
     out["raw_text"] = text
     out["seconds"] = round(time.perf_counter() - t0, 1)

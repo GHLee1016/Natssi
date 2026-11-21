@@ -7,7 +7,7 @@ from ingredients import ocr, pipeline, unwarp
 
 def fake_read(img, variant="base"):
     # 편 사진(값을 바꿔 표시)에서는 뒷부분 성분을, 원래 사진에서는 앞부분을 읽었다고 친다
-    return "전성분: 정제수, 글리세린" if img[0, 0, 0] == 0 else "나이아신아마이드, 판테놀, 글리세린"
+    return "전성분: 정제수, 글리세린" if img[0, 0, 0] == 0 else "글리세린, 나이아신아마이드, 판테놀"
 
 
 @pytest.fixture

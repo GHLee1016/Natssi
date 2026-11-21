@@ -83,11 +83,37 @@ def invert_img(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)
 
 
+def sideways_order(r) -> list[str] | None:
+    """옆으로 누운 사진(글자가 세로로 놓임)이면 읽는 순서의 줄 목록, 아니면 None.
+    엔진은 상자를 위에서 아래로 늘어놓는데, 누운 사진에서는 줄이 왼쪽에서 오른쪽(또는 반대)으로 이어져서
+    그대로 두면 줄 순서가 뒤섞인다(메디힐 상자 사진: 라벨 순서와 맞는 성분 21%). 글자 인식은 엔진이 상자마다 돌려서 한다.
+    방향: '전성분' 줄이 '주의사항' 같은 줄보다 앞에 오는 쪽. 단서가 없으면 오른쪽부터(시계 방향으로 누운 사진)."""
+    txts = list(r.txts or [])
+    if r.boxes is None or len(txts) < 3:
+        return None
+    b = np.asarray(r.boxes, dtype=float)
+    w = np.linalg.norm(b[:, 1] - b[:, 0], axis=1)
+    h = np.linalg.norm(b[:, 3] - b[:, 0], axis=1)
+    if (h > 2 * w).mean() < 0.6:
+        return None
+    asc = [txts[i] for i in np.argsort(b[:, :, 0].mean(axis=1), kind="stable")]
+    desc = asc[::-1]
+    from .parse import START, STOP
+
+    def score(lines):
+        st = next((i for i, t in enumerate(lines) if START.search(t)), None)
+        sp = [i for i, t in enumerate(lines) if STOP.search(t)]
+        if st is None or not sp:
+            return 0
+        return sum(1 if st < i else -1 for i in sp)
+    return desc if score(desc) >= score(asc) else asc
+
+
 def read_image(img: np.ndarray, variant: str = "base") -> str:
     """이미 연 사진(BGR) → 글자. 같은 사진을 여러 설정·편 사진으로 읽을 때 다시 열지 않게."""
     eng = _engine(1.3 if variant == "tight" else 1.6)
     r = eng(invert_img(img) if variant == "invert" else img)
-    return "\n".join(r.txts or [])
+    return "\n".join(sideways_order(r) or r.txts or [])
 
 
 def read_rows(img: np.ndarray, variant: str = "base") -> list[str]:
@@ -98,6 +124,8 @@ def read_rows(img: np.ndarray, variant: str = "base") -> list[str]:
     r = eng(invert_img(img) if variant == "invert" else img)
     if r.boxes is None or not len(r.txts or []):
         return []
+    if (side := sideways_order(r)):
+        return side
     order = sorted(range(len(r.txts)), key=lambda i: (float(r.boxes[i][:, 1].mean()), float(r.boxes[i][:, 0].min())))
     return [r.txts[i] for i in order]
 
