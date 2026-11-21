@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, reportStore } from '../api.js'
 import { useLoad, useSlow, Status } from '../useLoad.jsx'
 import StartCard from './StartCard.jsx'
+import { WEATHER } from '../weather.jsx'
 
 // 리포트가 바로 나오면 이 표시는 보이지 않고, 0.4초 넘게 걸릴 때만 나타난다(AI가 문장을 쓰는 동안).
 function Writing() {
@@ -41,11 +42,48 @@ function Cite({ item, dateOf, open }) {
 
 const EVIDENCE_Q = '이 내용의 근거가 뭔가요?'
 
+// 근거를 짧게 풀어 보여 준다: 같은 근거는 한 번만, 날짜 범위와 그 기간 기록의 요약(날씨·붉은기·증상·공기).
+// 요약은 판정 기록 숫자에서 바로 만든다(AI 문장이 아님).
+const md = (iso) => `${+iso.slice(5, 7)}/${+iso.slice(8)}`
+const sgn = (v) => (v > 0 ? '+' : '') + v
+function summarize(recs) {
+  const out = []
+  const counts = {}
+  for (const r of recs) { const n = WEATHER[r.verdict.level]?.name; if (n) counts[n] = (counts[n] || 0) + 1 }
+  out.push(Object.entries(counts).map(([n, c]) => `${n} ${c}일`).join(', '))
+  const red = recs.filter((r) => r.redness != null)
+  const base = red.find((r) => r.verdict.baseline)?.verdict.baseline
+  if (red.length && base) {
+    const top = red.reduce((a, r) => (r.redness > a.redness ? r : a))
+    out.push(top.redness > base.high ? `붉은기 최고 ${sgn(top.redness.toFixed(1))} (평소 ${base.low.toFixed(1)}~${base.high.toFixed(1)})` : '붉은기 평소 범위 안')
+  }
+  const sym = {}
+  for (const r of recs) for (const [k, v] of Object.entries(r.symptoms || {})) sym[k] = Math.max(sym[k] || 0, v)
+  const [sk, sv] = Object.entries(sym).sort((a, b) => b[1] - a[1])[0] || []
+  out.push(sv ? `${sk} 최고 ${sv}점` : '증상 없음')
+  if (recs.some((r) => r.env?.measured_on)) out.push(recs.some((r) => r.env?.unusual) ? '공기가 평소와 달랐던 날 있음' : '공기는 평소와 비슷')
+  return out.filter(Boolean).join(' · ')
+}
+function evidenceLinks(items, recById) {
+  const seen = new Set(), out = []
+  for (const e of items) {
+    if (!e.cite_label || seen.has(e.cite_label)) continue
+    seen.add(e.cite_label)
+    const recs = (e.cites || []).map((id) => recById[id]).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))
+    if (!recs.length) continue
+    const first = recs[0].date, last = recs[recs.length - 1].date
+    out.push({ key: e.cite_label, date: first, label: e.cite_label.replace(/^근거: /, ''),
+               range: first === last ? md(first) : `${md(first)}~${md(last)}`, summary: summarize(recs) })
+  }
+  return out
+}
+
 export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
   const q = useLoad(() => reportStore.load(cacheKey, api.report), [cacheKey], reportStore.data(cacheKey))
   const writing = useSlow(q.loading, 400)
   const tl = useLoad(() => api.timeline(), [])
   const dateOf = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r.date]))
+  const recById = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r]))
   const [thread, setThreadState] = useState(() => reportStore.thread(cacheKey))
   const setThread = (fn) => setThreadState((prev) => { const next = fn(prev); reportStore.setThread(cacheKey, next); return next })
   const [busy, setBusy] = useState(null)
@@ -78,13 +116,16 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
             : m.evidence
               ? (
                 <div className="bubble ai evidence" key={i}>
-                  <p>리포트의 문장마다 이 기록을 보고 썼어요. 근거를 누르면 그날 기록으로 가요.</p>
-                  <ol>
-                    {m.evidence.map((e, j) => (
-                      <li key={j}><span className="ev-text">{e.text}</span>
-                        {e.cite_label ? <Cite item={e} dateOf={dateOf} open={onOpenDay} /> : <span className="muted small">기록이 아니라 낯씨의 안내 문장이에요</span>}</li>
+                  <p>이 리포트는 아래 기간의 기록을 보고 썼어요.</p>
+                  <ul className="ev-links">
+                    {evidenceLinks(m.evidence, recById).map((e) => (
+                      <li key={e.key}>
+                        <b>{e.range}</b>
+                        <p>{e.summary}</p>
+                        <button className="link ev-open" onClick={() => onOpenDay(e.date)} aria-label={`${e.range} ${e.range.includes('~') ? '첫날' : ''} 기록 보기 (${e.label})`}>{e.range.includes('~') ? '첫날' : '그날'} 기록 보기 <span className="muted small">({e.label})</span></button>
+                      </li>
                     ))}
-                  </ol>
+                  </ul>
                   <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 번호는 판정 기록과 하나하나 대조했어요.</p>
                 </div>
               )
