@@ -5,6 +5,7 @@ import { WEATHER, WeatherIcon } from '../weather.jsx'
 import Calendar from './Calendar.jsx'
 import Gauge from '../gauge.jsx'
 import StartCard from './StartCard.jsx'
+import FaceMap from './FaceMap.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
@@ -61,6 +62,8 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
               {d.record.env.facts?.length > 0 && <><br />{d.record.env.facts.join(' ')}</>}
             </p>
           </div>
+
+          <FaceMap record={d.record} />
 
           <div className="week">
             <button className="week-nav" onClick={() => moveWeek(-1)} disabled={d.week[0].date <= meta.first} aria-label="이전 주 보기">‹</button>
