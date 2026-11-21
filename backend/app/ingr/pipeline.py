@@ -10,8 +10,9 @@ _matcher = None
 def ingredient_lines(text: str, m: Matcher) -> str:
     """OCR 줄 가운데 성분 목록 줄만 고른다.
 
-    '전성분' 머리말은 OCR이 자주 못 읽어서 기대지 않는다. 대신 줄을 쉼표로 나눈 조각이
-    사전에 많이 있으면(40% 이상, 2개 이상) 성분 줄로 본다. 광고 문구·주의사항은 여기서 빠진다.
+    '전성분' 머리말은 OCR이 자주 못 읽어서 기대지 않는다. 대신 줄 글자의 절반 이상이 사전 이름으로 덮이고
+    이름이 2개 이상이면 성분 줄로 본다(쉼표를 못 읽은 줄 '정제수에탄을에이엠피…'도 segment가 나눠서 센다).
+    광고 문구·주의사항은 여기서 빠진다. '전성분' 표시가 있는 줄은 이름 하나만 맞아도 남긴다.
     """
     keep, skip, prev = [], 0, False
     for line in text.splitlines():
@@ -31,15 +32,23 @@ def ingredient_lines(text: str, m: Matcher) -> str:
         if st:
             line = line[: st.start()]
         toks = [parse.clean(t) for t in parse.SPLIT.split(line)]
-        toks = [t for t in toks if len(t) >= 2]
+        toks = [t for t in toks if len(norm(t)) >= 2]
         if not toks:
             prev = False
             continue
-        hits = sum(1 for t in toks if m.exact(t) or m.fuzzy(t))
+        total = sum(len(norm(t)) for t in toks)
+        hits = covered = 0
+        for t in toks:     # 빠른 나누기로 세고, 하나도 못 찾은 덩어리만 통째로 오타 보정을 해 본다(느려서)
+            found = [r for r in segment(t, m, fuzzy=False) if r["status"] != "확인 필요"]
+            if not found and m.fuzzy(t):
+                found = [{"ocr": t}]
+            hits += len(found)
+            covered += sum(len(norm(r["ocr"])) for r in found)
+        cover = covered / total
         # 성분 줄 바로 다음 줄은 기준을 낮춘다: 목록 끝('…, 향료')이나 줄바꿈에서 잘린 이름 뒷부분('탄검')만 있는 줄
-        cont = prev and (hits >= 1 and hits / len(toks) >= 0.3
+        cont = prev and (hits >= 1 and cover >= 0.3
                          or (len(toks) == 1 and m.exact(keep[-1].rsplit(",", 1)[-1].strip() + toks[0])))
-        prev = (hits >= 2 and hits / len(toks) >= 0.4) or bool(cont)
+        prev = (hits >= 2 and cover >= 0.5) or (bool(s) and hits >= 1) or bool(cont)
         if prev:
             keep.append(line)
     return "\n".join(keep)
