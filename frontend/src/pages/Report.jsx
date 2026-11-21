@@ -39,6 +39,8 @@ function Cite({ item, dateOf, open }) {
     : <span className="cite">[{item.cite_label}]</span>
 }
 
+const EVIDENCE_Q = '이 내용의 근거가 뭔가요?'
+
 export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
   const q = useLoad(() => reportStore.load(cacheKey, api.report), [cacheKey], reportStore.data(cacheKey))
   const writing = useSlow(q.loading, 400)
@@ -56,6 +58,8 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
     } catch (e) { setError(e.message) } finally { setBusy(null) }
   }
   const r = q.data
+  const askedEvidence = thread.some((m) => m.evidence)
+  const showEvidence = () => setThread((t) => [...t, { me: EVIDENCE_Q }, { evidence: r.sentences.map((x) => ({ text: x.text, cites: x.cites, cite_label: x.cite_label })) }])
   return (
     <section className="report">
       <header className="page-head">
@@ -67,15 +71,27 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
       {r && (
         <div className="chat">
           <div className="bubble ai">
-            {r.sentences.map((s, i) => (
-              <p key={i}>{s.text} <Cite item={s} dateOf={dateOf} open={onOpenDay} /></p>
-            ))}
+            {r.sentences.map((s, i) => <p key={i}>{s.text}</p>)}
           </div>
           {thread.map((m, i) => m.me
             ? <div className="bubble me" key={i}>{m.me}</div>
-            : <div className="bubble ai" key={i}><p>{m.text} <Cite item={m} dateOf={dateOf} open={onOpenDay} /></p></div>)}
+            : m.evidence
+              ? (
+                <div className="bubble ai evidence" key={i}>
+                  <p>리포트의 문장마다 이 기록을 보고 썼어요. 근거를 누르면 그날 기록으로 가요.</p>
+                  <ol>
+                    {m.evidence.map((e, j) => (
+                      <li key={j}><span className="ev-text">{e.text}</span>
+                        {e.cite_label ? <Cite item={e} dateOf={dateOf} open={onOpenDay} /> : <span className="muted small">기록이 아니라 낯씨의 안내 문장이에요</span>}</li>
+                    ))}
+                  </ol>
+                  <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 번호는 판정 기록과 하나하나 대조했어요.</p>
+                </div>
+              )
+              : <div className="bubble ai" key={i}><p>{m.text} <Cite item={m} dateOf={dateOf} open={onOpenDay} /></p></div>)}
           <p className="muted small">이어서 물어보기</p>
           <div className="chips">
+            {!askedEvidence && <button onClick={showEvidence} disabled={busy !== null}>{EVIDENCE_Q}</button>}
             {r.questions.map((item) => (
               <button key={item.id} onClick={() => ask(item)} disabled={busy !== null}>
                 {busy === item.id ? '답을 찾는 중…' : item.q}
