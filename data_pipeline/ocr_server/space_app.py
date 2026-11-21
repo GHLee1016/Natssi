@@ -50,6 +50,21 @@ def _warm_up():
 _warm_up()
 
 
+def _cpu_report():
+    """Space 로그(Logs 탭)에 이 컨테이너가 쓰는 CPU를 남긴다. ZeroGPU·CPU basic에서 속도가 이상할 때 원인을 가리려고."""
+    import os
+    try:
+        quota = open("/sys/fs/cgroup/cpu.max").read().strip()
+    except OSError:
+        quota = "없음"
+    aff = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else "?"
+    print(f"[natssi] CPU: os.cpu_count={os.cpu_count()} 쓸 수 있는 CPU={aff} cgroup cpu.max={quota} "
+          f"→ OCR 엔진 스레드={ocr.cpu_threads()} (NATSSI_THREADS={os.environ.get('NATSSI_THREADS', '없음')})", flush=True)
+
+
+_cpu_report()
+
+
 def g_ocr(images):
     if not images:
         return {"ingredients": [], "message": "사진을 올려 주세요."}
