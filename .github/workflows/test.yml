@@ -1,0 +1,66 @@
+# main에 올리거나 PR을 열면 세 부분의 테스트를 돌린다. 하나라도 실패하면 PR에 빨간 표시가 뜬다.
+# 비밀값을 쓰지 않는다(서버 테스트는 함께 배포한 CSV만 읽고, OCR 테스트는 사진 없이 돈다).
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0   # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test             # 기기 안 측정 식이 파이썬 기준값과 맞는지
+      - run: npm run build        # Vercel과 같은 빌드가 되는지
+
+  ocr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: data_pipeline
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0   # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: data_pipeline/requirements.txt
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest tests -q   # 휜 사진 펴기 모델(models/uvdoc.onnx)은 저장소에 없어 그 테스트 1개는 건너뜀
