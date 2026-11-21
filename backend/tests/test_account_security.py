@@ -237,7 +237,9 @@ def test_only_one_redness_number_is_stored_per_day(env, monkeypatch):
     h = join(c, "a@test.kr")
     r = up(c, headers=h).json()
     assert r["saved"] and c.get("/api/me", headers=h).json()["today_redness"] == 11.0
-    up(c, {**GOOD, "a_star": 5.0}, headers=h)                                   # 다시 찍어도 처음 값 유지
+    assert r["already"] is False
+    again = up(c, {**GOOD, "a_star": 5.0}, headers=h).json()                   # 다시 찍어도 처음 값 유지
+    assert again["already"] is True and "이미 기록" in again["note"]
     c.post("/api/me/checkin", json={"따가움": 2}, headers=h)                     # 체크인이 붉은기를 지우지 않음
     me = c.get("/api/me", headers=h).json()
     assert me["today_redness"] == 11.0 and me["today_checkin"] == {"따가움": 2, "화끈": 0, "가려움": 0, "당김": 0}

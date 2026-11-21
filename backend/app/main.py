@@ -520,7 +520,9 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
                                             **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {})})
                 res["saved_on"] = today                              # 브라우저가 볼 조각을 이 날짜로 기기에 남길 때 쓴다
             res["saved"] = True
-            res["note"] = "오늘 기록에 볼 색 숫자를 남겼어요. 하루에 처음 통과한 사진의 값만 남기고, 사진은 남기지 않아요."
+            res["already"] = _split(entry)[1] is not None          # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
+            res["note"] = ("오늘은 앞서 통과한 사진의 값이 이미 기록돼 있어요(하루에 처음 통과한 사진 하나만 써요)." if res["already"] else
+                           "오늘 기록에 볼 색 숫자를 남겼어요. 하루에 처음 통과한 사진의 값만 남기고, 사진은 남기지 않아요.")
         except Exception as e:
             raise _store_fail("볼 붉은기를 저장하지 못했어요.", e)
     return res

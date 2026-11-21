@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
+import CheckinSteps from './CheckinSteps.jsx'
 import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame } from '../measure/browser.js'
 import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 
@@ -53,7 +54,49 @@ function Face({ kind }) {
   )
 }
 
-export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsented }) {
+const SYMPTOM_LINE = (s) => {
+  const on = Object.entries(s || {}).filter(([, v]) => v > 0)
+  return on.length ? on.map(([k, v]) => `${k} ${v}점`).join(' · ') : '증상 없음'
+}
+
+// 하루 기록 2단계 중 두 번째: 사진 결과 바로 아래에서 증상 4개를 이어서 묻는다(로그인한 사람만).
+function TodaySymptoms({ photoDone, go }) {
+  const [today, setToday] = useState(undefined)        // undefined: 불러오는 중, null: 아직 없음, {...}: 남긴 증상
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+  useEffect(() => { api.me().then((d) => setToday(d.today_checkin || null)).catch(() => setToday(null)) }, [])
+  if (today === undefined) return null
+  const save = async (vals) => {
+    setSaving(true); setErr(null)
+    try { const d = await api.checkin(vals); setToday(d.today_checkin); setEditing(false) } catch (e) { setErr(e.message) } finally { setSaving(false) }
+  }
+  const done = today && !editing
+  return (
+    <div className="card today-step" aria-live="polite">
+      <p className="eyebrow">{done ? '오늘 기록 완료' : '2 / 2 · 오늘 증상'}</p>
+      {done ? (
+        <>
+          <h2 className="h3">{photoDone ? '오늘 기록을 마쳤어요' : '오늘 증상을 남겼어요'}</h2>
+          <p className="muted small">{photoDone ? '사진 ✓ · ' : ''}증상: {SYMPTOM_LINE(today)}</p>
+          <div className="actions left">
+            <button className="btn" onClick={() => go('diary')}>오늘의 얼굴 날씨 보기</button>
+            <button className="btn ghost" onClick={() => setEditing(true)}>증상 고치기</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="h3">오늘 얼굴은 어땠나요?</h2>
+          <p className="muted small">네 가지만 물어요. 사진과 함께 보면 붉은기가 증상과 겹치는지 알 수 있어요.</p>
+          <CheckinSteps initial={today || {}} saving={saving} error={err} onSave={save}
+            onCancel={() => (today ? setEditing(false) : go('diary'))} />
+        </>
+      )}
+    </div>
+  )
+}
+
+export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsented, go }) {
   const video = useRef(null)
   const stream = useRef(null)
   const [cam, setCam] = useState('idle')   // idle | on | blocked
@@ -64,6 +107,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [guide, setGuide] = useState(null)   // 실시간 정렬 가이드 {ok, key, hint}. 못 쓰면 null(직접 찍기)
   const [auto, setAuto] = useState(true)     // 정렬이 맞으면 자동으로 찍기
   const [kept, setKept] = useState(false)    // [선택 동의] 볼 조각을 서버에 보관했는가
+  const [symptomsOnly, setSymptomsOnly] = useState(false)   // 사진이 계속 안 될 때 증상만 먼저 남기기
   const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3·2·1
   const streak = useRef(0)                   // 맞는 프레임이 이어진 수
   const armed = useRef(true)                 // 자동 촬영을 할 수 있는 상태(한 번 찍으면 내려감)
@@ -173,7 +217,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
 
   return (
     <section className="capture">
-      <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
+      <header className="page-head"><div>{viewer && <p className="eyebrow">1 / 2 · 사진 → 2 / 2 · 증상</p>}<h1>{viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'}</h1></div></header>
       <div className="grid2">
         <div className={'view' + (cam === 'on' ? ' on' : '')}>
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
@@ -231,18 +275,22 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
                   <b>{result.redness.toFixed(1)}</b>
                 </div>
               )}
-              {result.checks.map((c) => (
-                <div className="row" key={c.name}>
-                  <div><b>{c.name}</b><p className="muted small">{c.detail}</p></div>
-                  <span className={c.ok === null ? 'muted small' : c.ok ? 'done' : 'warn'}>{c.ok === null ? '확인 못 함' : c.ok ? '좋아요 ✓' : '아쉬워요'}</span>
-                </div>
-              ))}
-              <details className="tech"><summary>측정 값 보기</summary>
-                {result.checks.map((c) => <p key={c.name}>{c.name} · {c.tech}</p>)}
-              </details>
               <p className="muted small">{result.note}{kept ? ' 볼 부분 사진(양 볼 네모)도 함께 보관했어요.' : ''}</p>
+              {!result.passed && viewer && !symptomsOnly && (
+                <button className="link" onClick={() => setSymptomsOnly(true)}>사진은 나중에 하고 증상만 먼저 남기기</button>
+              )}
+              <details className="tech checks-more"><summary>검사 항목 {result.checks.length}개 자세히</summary>
+                {result.checks.map((c) => (
+                  <div className="row" key={c.name}>
+                    <div><b>{c.name}</b><p className="muted small">{c.detail}</p></div>
+                    <span className={c.ok === null ? 'muted small' : c.ok ? 'done' : 'warn'}>{c.ok === null ? '확인 못 함' : c.ok ? '좋아요 ✓' : '아쉬워요'}</span>
+                  </div>
+                ))}
+                {result.checks.map((c) => <p key={c.name + 't'}>{c.name} · {c.tech}</p>)}
+              </details>
             </div>
           )}
+          {viewer && go && ((result?.passed && result.saved) || symptomsOnly) && <TodaySymptoms photoDone={!!result?.saved} go={go} />}
         </div>
       </div>
   <div className="notice sentences wide">

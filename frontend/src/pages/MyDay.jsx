@@ -4,6 +4,7 @@ import { WEATHER, WeatherIcon } from '../weather.jsx'
 import Gauge from '../gauge.jsx'
 import { useLoad, Status } from '../useLoad.jsx'
 import CheckinSteps from './CheckinSteps.jsx'
+import { InstallHint } from '../install.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
@@ -97,13 +98,20 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
         <div className="rec rec-wide">
           <div className="rec-row">
             <span className="rec-k">셀카</span>
-            <div className="rec-v"><div>{d.today_redness != null ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요.` : '고개 각도·표정·노출을 확인하고 볼 붉은기를 재요. 사진은 이 기기 안에서만 분석하고 남기지 않아요.'}</div></div>
+            <div className="rec-v"><div>{
+              d.today_redness == null ? '사진 한 장과 증상 네 가지로 오늘 기록을 남겨요. 1분이면 돼요.'
+                : !d.today_checkin ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요. 증상도 남기면 오늘 기록이 끝나요.`
+                  : `오늘 기록을 마쳤어요. 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}`}</div></div>
             {d.today_cheeks && (
               <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
             )}
-            {d.today_redness == null && <button className="link" onClick={() => go('capture')}>기록하기</button>}
+            {d.today_redness == null && <button className="btn" onClick={() => go('capture')}>오늘 기록하기</button>}
+            {d.today_redness != null && !d.today_checkin && !draft && (
+              <button className="btn" onClick={() => { setDraft({}); setTimeout(() => document.getElementById('today-checkin')?.scrollIntoView({ block: 'center' }), 0) }}>증상 남기기</button>
+            )}
           </div>
         </div>
+        {d.days_recorded > 0 && <InstallHint />}
         <div className="grid2">
           <div>
             <div className="card">
@@ -116,7 +124,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
               <p className="muted small">같은 폰·같은 장소·같은 시간대에 찍어야 비교할 수 있어요. 품질 검사를 통과한 사진의 볼 색 숫자만 남기고, 사진은 서버에 남기지 않아요.</p>
             </div>
 
-            <div className="card">
+            <div className="card" id="today-checkin">
               <h2 className="h3">오늘의 증상 체크인</h2>
               {draft ? (
                 <CheckinSteps initial={draft} saving={saving} error={error}

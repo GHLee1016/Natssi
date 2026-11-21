@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "낯씨 · 매일의 얼굴 날씨",
+  "short_name": "낯씨",
+  "description": "루틴을 한 번에 하나씩 바꾸고, 매일 셀카와 증상으로 얼굴 날씨를 기록해요.",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf8f5",
+  "theme_color": "#fbf8f5",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

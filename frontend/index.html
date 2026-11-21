@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#fbf8f5" />
     <link rel="icon" href="/icon.svg" />
+    <!-- 홈 화면에 추가(PWA): 오프라인 캐시(서비스 워커)는 일부러 두지 않는다 — 건강 기록 앱이라 오래된 화면·데이터가 남지 않게 -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="낯씨" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <title>낯씨 · 매일의 얼굴 날씨</title>
   </head>
