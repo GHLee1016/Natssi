@@ -86,8 +86,6 @@
 
 ![낯씨 구조도](docs/readme/architecture.png)
 
-그림 원본은 [docs/readme/architecture.excalidraw](docs/readme/architecture.excalidraw)예요. [excalidraw.com](https://excalidraw.com)에서 열어 고칠 수 있어요.
-
 | 무엇 | 어디서 | 왜 |
 |---|---|---|
 | 얼굴 사진 검사 | 사용자 기기 | 얼굴 사진을 서버에 보내지 않으려고 |
