@@ -58,7 +58,7 @@ def segment(token: str, m: Matcher, fuzzy: bool = True) -> list[dict]:
             sub = s[i:j]
             if sub in m.index:
                 found[(i, j)] = (EXACT, {**m.index[sub], "status": "일치", "score": 100})
-            elif j - i >= 4 and any(m._candidates(c) for c in sub) and (r := m.repair(sub)):
+            elif j - i >= 3 and any(m._candidates(c) for c in sub) and (r := m.repair(sub)):
                 found[(i, j)] = (REPAIRED, r)
 
     # 2) 끊을 수 있는 자리: 공백, 덩어리 처음·끝, 사전 이름의 처음·끝
