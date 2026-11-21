@@ -47,6 +47,12 @@ def _one_jamo_apart(a: str, b: str) -> bool:
     return False
 
 
+# OCR이 자주 헷갈리는 글자 → 사전에 많은 글자. 사전에도 쓰이는 글자(륨·헬·펠…)라 자동으로는 못 찾아 따로 적는다.
+# (사전에 거의 없는 글자 '을'·'듬'·'를' 같은 것은 아래 Matcher가 자모 하나 차이 후보를 스스로 찾는다)
+CONFUSE = {"을": "올", "를": "롤올콜", "듬": "듐", "둥": "듐", "둠": "듐", "륨": "듐", "튬": "듐", "들": "듐",
+           "헬": "헥", "펠": "펩", "펙": "펩", "는": "논", "클": "콜글", "플": "폴"}
+
+
 class Matcher:
     def __init__(self, path: Path = DICT_PATH, cutoff: int = 80):
         self.cutoff = cutoff
@@ -54,16 +60,27 @@ class Matcher:
         if Path(path).exists():
             with open(path, encoding="utf-8-sig", newline="") as f:
                 rows = [{k: (v or "") for k, v in r.items()} for r in csv.DictReader(f)]
-            for r in rows:
-                entry = {"kor": r["kor"], "inci": r.get("inci", "")}
-                # 동의어는 쉼표로 이어져 있는데 'N,N-비스…'처럼 이름 안에도 쉼표가 있어, 양옆이 영숫자인 쉼표는 나누지 않는다
-                syns = re.split(r";|(?<![0-9A-Za-z]),|,(?![0-9A-Za-z])", r.get("synonyms", ""))
-                for name in [r["kor"], r.get("inci", ""), *syns]:
-                    k = norm(name)
-                    if len(k) >= 2:
-                        self.index.setdefault(k, entry)
+            # 동의어는 쉼표로 이어져 있는데 'N,N-비스…'처럼 이름 안에도 쉼표가 있어, 양옆이 영숫자인 쉼표는 나누지 않는다.
+            # 영문명도 'Water,Aqua'처럼 여럿일 수 있어 같은 규칙으로 나눈다('Water'만 쓴 탄산수보다 정제수가 먼저).
+            sep = r";|(?<![0-9A-Za-z]),|,(?![0-9A-Za-z])|(?<=[a-z]),(?=[A-Z])"
+            names = [(r, [r["kor"]], re.split(sep, r.get("inci", "")), re.split(sep, r.get("synonyms", ""))) for r in rows]
+            # 한글 표준명 > 영문명 > 동의어 순으로 자리를 잡는다(다른 성분의 동의어가 표준명을 가로채지 않게)
+            for level in (1, 2, 3):
+                for r, *groups in names:
+                    entry = {"kor": r["kor"], "inci": r.get("inci", "")}
+                    for name in groups[level - 1]:
+                        k = norm(name)
+                        if len(k) >= 2:
+                            self.index.setdefault(k, entry)
         self.keys = list(self.index)
         self.jkeys = [jamo(k) for k in self.keys]
+        self.syl = {}
+        for k in self.keys:
+            for ch in k:
+                if "가" <= ch <= "힣":
+                    self.syl[ch] = self.syl.get(ch, 0) + 1
+        self._cand: dict[str, str] = {}
+        self._fz: dict[str, dict | None] = {}
 
     @property
     def has_dict(self) -> bool:
@@ -75,8 +92,46 @@ class Matcher:
             return {"ocr": token, **self.index[k], "status": "일치", "score": 100}
         return None
 
+    def _candidates(self, ch: str) -> str:
+        """이 글자 대신 와야 했을 글자 후보. 사전에 흔한 글자면 바꾸지 않는다(빈 문자열)."""
+        if ch in self._cand:
+            return self._cand[ch]
+        out = CONFUSE.get(ch, "")
+        if not out and "가" <= ch <= "힣" and self.syl.get(ch, 0) <= 2:
+            j = jamo(ch)
+            near = [c for c, n in self.syl.items() if n >= 20 and _one_jamo_apart(j, jamo(c))]
+            out = "".join(sorted(near, key=lambda c: -self.syl[c])[:6])
+        self._cand[ch] = out
+        return out
+
+    def repair(self, token: str) -> dict | None:
+        """헷갈리는 글자 한두 개만 바꿔서 사전에 그대로 있으면 그 이름('프로판다이을'→'프로판다이올', '소듬'→'소듐')."""
+        k = norm(token)
+        spots = [(i, c) for i, ch in enumerate(k) if (c := self._candidates(ch))]
+        if not spots or len(spots) > 4 or len(k) < 3:
+            return None
+        tries = [k]
+        for i, cands in spots:
+            tries = [t[:i] + c + t[i + 1:] for t in tries for c in (t[i], *cands)][:200]
+        for t in tries[1:]:
+            if t in self.index:
+                return {"ocr": token, **self.index[t], "status": "보정", "score": 99}
+        return None
+
     def fuzzy(self, token: str) -> dict | None:
         k = norm(token)
+        if k in self._fz:
+            r = self._fz[k]
+            return r and {**r, "ocr": token}
+        r = self._fuzzy(token)
+        if len(self._fz) < 50000:
+            self._fz[k] = r
+        return r
+
+    def _fuzzy(self, token: str) -> dict | None:
+        k = norm(token)
+        if (r := self.repair(token)):
+            return r
         if len(k) < 3 or not self.keys:
             return None
         from rapidfuzz import fuzz, process

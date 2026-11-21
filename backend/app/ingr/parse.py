@@ -7,7 +7,7 @@ STOP = re.compile(
     r"(\[[^\]\d,]{1,15}\]|"   # [용량], [사용할 때의 주의사항] 같은 대괄호 머리말
     r"사용\s*할?\s*때?\s*의?\s*주\s*의\s*사\s*항|사용\s*시?\s*의?\s*주\s*의\s*사\s*항|주\s*의\s*사\s*항|사용\s*방법|사용\s*법|"
     r"제조\s*번호|사용\s*기한|개봉\s*후|내\s*용\s*량|용\s*량|제조\s*(판매)?\s*업자|"
-    r"책임\s*판매\s*업자|보관\s*방법|기능성\s*화장품|고객\s*(상담|센터)|made\s*in|원산지)",
+    r"책임\s*판매\s*업자|보관\s*방법|기능성\s*화장품|효\s*능\s*[·/]?\s*효\s*과|고객\s*(상담|센터)|made\s*in|원산지)",
     re.I,
 )
 # '무첨가·FREE' 목록 줄: 들어 있지 않은 성분이라 등록하면 안 된다
@@ -63,6 +63,12 @@ def split_chunks(text: str) -> list[list[str]]:
         if frags:
             out.append(frags)
     return out
+
+
+def split_tokens(text: str) -> list[str]:
+    """쉼표 단위 덩어리(공백 포함). 덩어리 안에서 어디를 끊을지는 segment가 사전을 보고 정한다."""
+    toks = (clean(tok) for tok in SPLIT.split(cut_section(text)))
+    return [t for t in toks if t and not t.replace(" ", "").isdigit()]
 
 
 def split_list(text: str) -> list[str]:
