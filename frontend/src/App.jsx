@@ -22,12 +22,16 @@ const TABS = [
   { id: 'report', label: '리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
 ]
 
-// 로그인한 사용자에게는 판정·리포트를 아직 열지 않는다(내 기록이 7일 이상 쌓인 뒤). 김서연 데모에서만 보여준다.
-function Locked({ title, need }) {
+// 로그인한 사용자의 변화·리포트 화면은 아직 내 기록으로 만들지 않는다. 김서연 데모에서만 보여 준다.
+function Locked({ title, go }) {
   return (
     <section>
       <header className="page-head"><div><h1>{title}</h1></div></header>
-      <div className="card"><p>내 기록이 {need}일 이상 쌓이면 이 화면이 열려요. 지금은 로그아웃하면 볼 수 있는 김서연 가상 데모에서 미리 볼 수 있어요.</p></div>
+      <div className="card">
+        <p>내 기록으로 보는 {title} 화면은 준비 중이에요. 어떤 화면인지는 로그아웃하면 김서연 가상 예시로 볼 수 있어요.</p>
+        <p className="muted small">그동안 매일 남긴 기록은 그대로 쌓여요. 화면이 열리면 지난 기록까지 함께 보여 드려요.</p>
+        <div className="actions left"><button className="btn" onClick={() => go('diary')}>오늘 기록 남기러 가기</button></div>
+      </div>
     </section>
   )
 }
@@ -104,7 +108,7 @@ export default function App() {
         {meta.data && (
           <div className="topline">
             <div className="demo-bar">
-              {viewer ? `${viewer.email} · 내 기록 · 김서연 데모는 로그아웃하면 볼 수 있어요` : `${meta.data.persona.name} 님 · ${meta.data.persona.note} · 읽기 전용`}
+              {viewer ? `${viewer.email} · 내 기록` : <><span className="demo-badge">예시 화면</span> {meta.data.persona.name}(가상 인물)의 기록이에요 · 읽기 전용</>}
             </div>
             <div className="top-actions">
               <button className="link" onClick={() => setGuide(true)}>사용법</button>
@@ -120,11 +124,11 @@ export default function App() {
         {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
         {meta.data && !page && (
           <div key={epoch}>
-            {tab === 'diary' && (viewer ? <MyDay go={setTab} onAccount={() => setPage('account')} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
-            {tab === 'change' && (viewer ? <Locked title="변화" need={7} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
-            {tab === 'capture' && <Capture onLegal={goLegal} viewer={viewer} consentVersion={meta.data.consent_version} mdc95={meta.data.mdc95} onConsented={refreshAll} />}
+            {tab === 'diary' && (viewer ? <MyDay go={setTab} onAccount={() => setPage('account')} viewer={viewer} policyVersion={meta.data.consent_version} onLegal={goLegal} onConsented={refreshAll} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
+            {tab === 'change' && (viewer ? <Locked title="변화" go={setTab} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
+            {tab === 'capture' && <Capture onLegal={goLegal} viewer={viewer} photoVersion={meta.data.photo_notice_version} mdc95={meta.data.mdc95} onConsented={refreshAll} />}
             {tab === 'routine' && (viewer ? <MyRoutine ocr={!!meta.data.ocr} /> : <Routine />)}
-            {tab === 'report' && (viewer ? <Locked title="리포트" need={7} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
+            {tab === 'report' && (viewer ? <Locked title="리포트" go={setTab} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
           </div>
         )}
       </main>

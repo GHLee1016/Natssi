@@ -31,14 +31,14 @@ function TechDetails({ text }) {
   )
 }
 
-// 근거 라벨: 기록 번호 대신 날짜로 보여 주고, 누르면 근거가 된 첫 기록의 날짜로 이동한다.
+// 답 아래 '그 기간 기록 보기' 버튼: 기록 번호 대신 날짜로 보여 주고, 누르면 근거가 된 첫 기록의 날짜로 이동한다.
 function Cite({ item, dateOf, open }) {
   if (!item.cite_label) return null
   const dates = (item.cites || []).map((id) => dateOf[id]).filter(Boolean).sort()
   if (!dates.length) return null
   const md = (iso) => `${+iso.slice(5, 7)}/${+iso.slice(8)}`
   const range = dates.length > 1 ? `${md(dates[0])}~${md(dates[dates.length - 1])}` : md(dates[0])
-  return <button className="cite" onClick={() => open(dates[0])} aria-label={`근거: ${range} 기록 보기`}>근거: {range} 기록</button>
+  return <button className="link ev-open" onClick={() => open(dates[0])}>{range} 기록 보기</button>
 }
 
 const EVIDENCE_Q = '이 내용의 근거가 뭔가요?'
@@ -106,7 +106,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
     <section className="report">
       <header className="page-head">
         <div><p className="eyebrow">기록을 근거로 설명해요</p><h1>리포트</h1></div>
-        {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `근거 대조 실패 ${r.problems.length}건` : '모든 문장 근거 대조 통과'}</span>}
+        {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `기록과 맞지 않는 문장 ${r.problems.length}개` : '기록에서 확인한 내용만 썼어요'}</span>}
       </header>
       {!q.loading && <Status {...q} />}
       {q.loading && writing && <Writing />}
@@ -133,7 +133,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
                   <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 기록은 판정 기록과 하나하나 대조했어요.</p>
                 </div>
               )
-              : <div className="bubble ai" key={i}><p>{m.text} <Cite item={m} dateOf={dateOf} open={onOpenDay} /></p></div>)}
+              : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
           <p className="muted small">이어서 물어보기</p>
           <div className="chips">
             {!askedEvidence && <button onClick={showEvidence} disabled={busy !== null}>{EVIDENCE_Q}</button>}

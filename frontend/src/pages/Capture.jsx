@@ -53,7 +53,7 @@ function Face({ kind }) {
   )
 }
 
-export default function Capture({ onLegal, viewer, consentVersion, mdc95, onConsented }) {
+export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsented }) {
   const video = useRef(null)
   const stream = useRef(null)
   const [cam, setCam] = useState('idle')   // idle | on | blocked
@@ -68,7 +68,10 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
   const armed = useRef(true)                 // 자동 촬영을 할 수 있는 상태(한 번 찍으면 내려감)
   const flags = useRef({ busy: false, auto: true, passed: false })
   const [seenLocal, setSeenLocal] = useState(() => { try { return localStorage.getItem(NOTICE_KEY) } catch { return null } })
-  const needConsent = viewer ? viewer.consent_version !== consentVersion : seenLocal !== consentVersion
+  // 사진 처리 방식이 바뀐 날(photoVersion) 이후에 동의했으면 다시 묻지 않는다. 날짜 꼴(YYYY-MM-DD)이라 글자 비교로 충분.
+  const agreed = viewer ? viewer.consent_version : seenLocal
+  const needConsent = !(agreed && agreed >= photoVersion)
+  const firstTime = !agreed
 
   const stop = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null }
   useEffect(() => stop, [])
@@ -109,7 +112,7 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
     setError(null)
     try {
       if (viewer) { await api.consent(); onConsented?.() }
-      else { try { localStorage.setItem(NOTICE_KEY, consentVersion) } catch { /* 무시 */ } setSeenLocal(consentVersion) }
+      else { try { localStorage.setItem(NOTICE_KEY, photoVersion) } catch { /* 무시 */ } setSeenLocal(photoVersion) }
     } catch (e) { setError(e.message) }
   }
 
@@ -146,14 +149,14 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
       <section className="capture">
         <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
         <div className="card">
-          <h2 className="h3">처리 안내가 바뀌었어요</h2>
+          <h2 className="h3">{firstTime ? '촬영 전에 확인해 주세요' : '사진 처리 방식이 바뀌었어요'}</h2>
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
             <li>고개 각도·표정·선명도·노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
             <li>서버에는 측정한 숫자만 보내 품질을 판정하고, 저장하지 않아요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
-          <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> 바뀐 얼굴 사진 처리 안내({consentVersion})를 읽고 동의해요</label>
+          <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})를 읽고 동의해요</label>
           <div className="actions left"><button className="btn" disabled={!agree} onClick={acceptNotice}>동의하고 촬영하기</button></div>
           {error && <p className="err" role="alert">{error}</p>}
         </div>
@@ -165,7 +168,7 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
     <section className="capture">
       <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
       <div className="grid2">
-        <div className="view">
+        <div className={'view' + (cam === 'on' ? ' on' : '')}>
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
           {cam === 'on' && <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />}
           {cam === 'on' && guide && !count && <p className={'guide-hint' + (guide.ok ? ' ok' : '')} role="status">{guide.hint}</p>}
@@ -210,7 +213,11 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
           {result && (
             <div className="card">
               <h2 className="h3">{result.passed ? '사진이 잘 찍혔어요' : '한 번 더 찍어 볼까요?'}</h2>
-              <p className="muted small">{result.message}</p>
+              {result.passed ? <p className="muted small">{result.message}</p> : (
+                <ul className="fix-list" aria-label="다시 찍을 때 고칠 점">
+                  {result.checks.filter((c) => c.ok === false).map((c) => <li key={c.name}><b>{c.name}</b> {c.detail}</li>)}
+                </ul>
+              )}
               {result.redness !== null && (
                 <div className="row">
                   <div><b>볼 붉은기 (a*)</b><p className="muted small">측정 오차 ±{mdc95} · 같은 폰·같은 장소에서 찍은 날끼리 비교해요</p></div>

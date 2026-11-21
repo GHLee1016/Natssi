@@ -101,7 +101,7 @@ def meta(v=Depends(viewer)):
     return {"persona": demo_data.PERSONA, "today": config.demo_today().isoformat(),
             "first": demo_data.versions(config.demo_shift())[0]["start"].isoformat(), "mdc95": config.MDC95_A_STAR,
             "mdc95_is_example": False, "storage": store.backend_name(), "llm": llm.enabled(),
-            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "env_district": config.DEMO_ENV_DISTRICT, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION,
+            "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "env_district": config.DEMO_ENV_DISTRICT, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION, "photo_notice_version": config.PHOTO_NOTICE_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version")} if v else None}
 

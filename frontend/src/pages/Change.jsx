@@ -44,6 +44,7 @@ function Chart({ records, versions, onPick, picked }) {
   const x = (i) => PAD.l + (i / (records.length - 1)) * (W - PAD.l - PAD.r)
   const y = (v) => PAD.t + (1 - (v - min) / (max - min)) * (H - PAD.t - PAD.b)
   const idx = (r) => records.indexOf(r)
+  const step = (W - PAD.l - PAD.r) / Math.max(records.length - 1, 1)
   const xy = pts.map((r) => [x(idx(r)), y(r.redness)])
   const line = smooth(xy)
   const floor = H - PAD.b
@@ -79,7 +80,8 @@ function Chart({ records, versions, onPick, picked }) {
         return (
           <g key={r.id}>
             {(sig || on) && <circle cx={x(idx(r))} cy={y(r.redness)} r={on ? 12 : 10} fill={sig ? '#ff8a65' : '#1f2a37'} opacity=".2" pointerEvents="none" />}
-            <circle cx={x(idx(r))} cy={y(r.redness)} r="11" fill="transparent" className="hit" tabIndex="0" role="button"
+            {/* 누르는 곳은 점이 아니라 그날 세로 한 줄 전체(점이 작고 촘촘해서 손가락으로 맞히기 어려움) */}
+            <rect x={x(idx(r)) - step / 2} y={PAD.t - 12} width={step} height={floor - PAD.t + 12} fill="transparent" className="hit" tabIndex="0" role="button"
               aria-label={`${fmt.md(r.date)} 붉은기 ${r.redness} ${WEATHER[r.verdict.level].name}`} aria-pressed={on}
               onClick={() => onPick(r)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onPick(r))} />
             <circle cx={x(idx(r))} cy={y(r.redness)} r={on ? 6.500 : sig ? 5.500 : 3.600}
@@ -106,8 +108,11 @@ function Chart({ records, versions, onPick, picked }) {
 
 function Compare({ records }) {
   const dated = records.filter((r) => r.redness !== null)
-  const [a, setA] = useState('2026-11-02')
-  const [b, setB] = useState('2026-11-09')
+  // 기본: 처음 루틴의 마지막 측정일 ↔ 붉은기가 가장 높았던 날. 측정 보류한 날은 고르지 않는다(선택 목록에 없음).
+  const peak = dated.reduce((m, r) => (r.redness > m.redness ? r : m), dated[0])
+  const before = [...dated].reverse().find((r) => r.version < peak.version) || dated[0]
+  const [a, setA] = useState(before.date)
+  const [b, setB] = useState(peak.date)
   const [pos, setPos] = useState(50)
   const q = useLoad(() => api.compare(a, b), [a, b])
   const c = q.data
@@ -176,6 +181,7 @@ export default function Change({ onOpenDay }) {
               <span><i className="sw band" />내 평소 범위</span>
               {Object.values(WEATHER).map((w) => <span key={w.name}><i className={'sw dotsw ' + w.cls} />{w.name}</span>)}
             </div>
+            <p className="muted small">세로는 볼 붉은기(a*)예요. 0보다 클수록 붉어요. 안개는 사진 품질 때문에 측정을 보류했거나 아직 평소 범위가 없어 판단하지 않은 날이에요.</p>
             {picked ? (
               <div className={'picked ' + LEVEL_CLASS[picked.verdict.level]}>
                 <b>{fmt.full(picked.date)} · 기록 {picked.id}</b>

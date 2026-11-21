@@ -67,3 +67,8 @@ def test_my_district_and_today_env(monkeypatch):
         assert c.delete("/api/account", headers=h).status_code == 200 and not fake.profiles  # 탈퇴하면 함께 지움
     finally:
         auth._client = store._client = None
+
+
+def test_photo_notice_version_is_separate_from_policy():
+    m = TestClient(app).get("/api/meta").json()
+    assert m["photo_notice_version"] <= m["consent_version"]          # 사진 처리 방식이 바뀐 날만 따로(처리방침 변경과 분리)

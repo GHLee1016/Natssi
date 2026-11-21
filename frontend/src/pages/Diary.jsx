@@ -18,6 +18,28 @@ function envLine(e, district, day) {
   return `${src} · ${parts.join(' · ')}${when} · ${e.unusual ? '평소와 달라요' : '평소와 비슷'}`
 }
 
+// 데모 첫 화면(오늘 = 맑음)만 보면 흐림 → 빈도 조정 → 맑음 이야기가 안 보인다. 이야기의 날들로 바로 가는 줄.
+function Story({ date, setDate }) {
+  const q = useLoad(() => api.timeline(), [])
+  if (!q.data) return null
+  const { records, versions } = q.data
+  const firstSignal = records.find((r) => r.verdict.level === '신호 있음')
+  const steps = [
+    ...versions.slice(1).map((v) => ({ date: v.start, text: v.change })),
+    firstSignal && { date: firstSignal.date, text: '흐림 시작' },
+  ].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))
+  if (!steps.length) return null
+  return (
+    <nav className="story" aria-label="이 기록의 이야기">
+      <b>이 사람의 이야기</b>
+      {steps.map((s) => (
+        <button key={s.date + s.text} className={s.date === date ? 'on' : ''} aria-current={s.date === date ? 'date' : undefined}
+          onClick={() => setDate(s.date)}>{fmt.md(s.date)} {s.text}</button>
+      ))}
+    </nav>
+  )
+}
+
 export default function Diary({ date, setDate, meta, go, askLogin }) {
   const q = useLoad(() => api.day(date), [date])
   const [calOpen, setCalOpen] = useState(false)
@@ -63,7 +85,9 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
             </p>
           </div>
 
+          <Story date={date} setDate={setDate} />
           <FaceMap record={d.record} />
+          {meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}
 
           <div className="week">
             <button className="week-nav" onClick={() => moveWeek(-1)} disabled={d.week[0].date <= meta.first} aria-label="이전 주 보기">‹</button>
@@ -85,11 +109,11 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
                 <span className="rec-k">셀카</span>
                 <div className="rec-v"><i className="thumb round" style={{ backgroundImage: `url(/faces/${d.record.photo}.jpg)` }} />
                   <div>{d.record.quality_ok ? '사진이 잘 찍혔어요' : d.record.quality_note}<p className="muted small">AI로 생성된 이미지</p></div></div>
-                <button className="link" onClick={() => go('capture')}>촬영하기</button>
+                <button className="link" onClick={() => go('capture')}>내 사진 찍어 보기</button>
               </div>
               <div className="rec-row">
                 <span className="rec-k">증상</span>
-                <div className="rec-v"><div>{SYMPTOMS.map((s) => `${s} ${d.record.symptoms[s]}`).join(' · ')}</div></div>
+                <div className="rec-v"><div>{SYMPTOMS.filter((s) => d.record.symptoms[s] > 0).map((s) => `${s} ${d.record.symptoms[s]}점`).join(' · ') || '증상 없음'}</div></div>
                 <button className="link" onClick={askLogin}>로그인하고 기록</button>
               </div>
               <div className="rec-row">
@@ -99,7 +123,6 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
               </div>
             </div>
           </div>
-          {meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}
         </>
       )}
     </section>

@@ -5,7 +5,6 @@ import CheckinSteps from './CheckinSteps.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
-const addDays = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n - 1); return t.toISOString().slice(0, 10) }
 const line = (s) => SYMPTOMS.map((k) => `${k} ${s[k] ?? 0}`).join(' · ')
 
 // 로그인한 사용자의 첫 화면: 오늘 체크인과 '평소 범위까지 N/7일'. 판정·리포트는 김서연 데모에서만 보여준다.
@@ -28,7 +27,32 @@ function EnvToday({ district, env, today, onAccount }) {
   )
 }
 
-export default function MyDay({ go, onAccount }) {
+// 처리방침이 바뀌었는데 아직 동의하지 않은 사용자에게 무엇이 바뀌었는지 한 번에 알린다(촬영 화면과 따로).
+const POLICY_CHANGES = [
+  ['2026-11-19', '얼굴 사진을 이 기기 안에서만 분석하고, 서버에는 측정한 숫자만 보내요.'],
+  ['2026-11-20', '내 루틴(제품 이름·전성분·사용 빈도)을 저장해요.'],
+  ['2026-11-21', '사는 구(선택)를 저장할 수 있어요.'],
+]
+function PolicyNotice({ mine, current, onLegal, onConsented }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  if (!mine || mine >= current) return null
+  const changes = POLICY_CHANGES.filter(([v]) => v > mine && v <= current)
+  const agree = async () => { setBusy(true); setErr(null); try { await api.consent(); onConsented?.() } catch (e) { setErr(e.message); setBusy(false) } }
+  return (
+    <div className="card policy-notice" role="region" aria-label="처리방침 변경 안내">
+      <h2 className="h3">개인정보 처리방침이 바뀌었어요</h2>
+      <ul>{changes.map(([v, t]) => <li key={v}>{t}</li>)}</ul>
+      <div className="actions left">
+        <button className="btn" onClick={agree} disabled={busy}>{busy ? '저장하는 중…' : '바뀐 내용에 동의해요'}</button>
+        <button className="btn ghost" onClick={() => onLegal('privacy')}>처리방침 보기</button>
+      </div>
+      {err && <p className="err" role="alert">{err}</p>}
+    </div>
+  )
+}
+
+export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, onConsented }) {
   const q = useLoad(() => api.me(), [])
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -53,6 +77,7 @@ export default function MyDay({ go, onAccount }) {
       <Status {...q} />
       {d && (
         <>
+        <PolicyNotice mine={viewer?.consent_version} current={policyVersion} onLegal={onLegal} onConsented={onConsented} />
         <EnvToday district={d.district} env={d.env} today={d.today} onAccount={onAccount} />
         <div className="grid2">
           <div>
@@ -62,9 +87,8 @@ export default function MyDay({ go, onAccount }) {
                 {Array.from({ length: d.needed }, (_, i) => <i key={i} className={i < filled ? 'on' : ''} />)}
               </div>
               <p className="bignum" aria-label={`${d.days_recorded}일 기록, 필요 ${d.needed}일`}><span className="num">{d.days_recorded}</span><span className="num-u">/ {d.needed}일 기록</span></p>
-              <p>{d.needed}일 이상 쌓이면 내 평소 범위를 만들 수 있어요.</p>
-              {filled < d.needed && <p className="next-box">매일 기록하면 <b>{fmt.md(addDays(d.today, d.needed - filled + (d.today_checkin ? 1 : 0)))}</b>에 평소 범위가 열려요 <span className="muted small">({d.today_checkin ? '' : '오늘 포함 '}{d.needed - filled}일 더)</span></p>}
-              <p className="muted small">붉은기 측정은 아직 준비 중이라, 지금은 증상 체크인만 쌓여요.</p>
+              <p>지금은 증상 체크인만 저장돼요. 볼 붉은기를 날마다 숫자로 남기고 내 평소 범위와 비교하는 기능은 준비 중이에요(열 때 다시 동의를 받아요).</p>
+              <p className="muted small">볼 붉은기는 촬영 화면에서 재 볼 수 있지만, 아직 내 기록에는 저장하지 않아요. 지금은 증상 체크인만 쌓여요.</p>
             </div>
 
             <div className="card">
@@ -88,7 +112,7 @@ export default function MyDay({ go, onAccount }) {
             <div className="rec">
               <div className="rec-row">
                 <span className="rec-k">셀카</span>
-                <div className="rec-v"><div>지금은 밝기·해상도만 검사하고 바로 버려요.</div></div>
+                <div className="rec-v"><div>고개 각도·표정·노출을 확인하고 볼 붉은기를 재요. 사진은 이 기기 안에서만 분석하고 저장하지 않아요.</div></div>
                 <button className="link" onClick={() => go('capture')}>촬영하기</button>
               </div>
             </div>
@@ -107,7 +131,7 @@ export default function MyDay({ go, onAccount }) {
             </div>
           </div>
         </div>
-        <p className="notice wide">판정과 리포트는 로그아웃하면 볼 수 있는 김서연 가상 데모에서 보여 드려요. 내 기록이 쌓이면 내 데이터로 보여 드릴게요.</p>
+        <p className="notice wide">판정과 리포트는 아직 로그아웃하면 볼 수 있는 김서연 가상 데모에서만 보여 드려요. 내 기록으로 판정하는 기능이 열리면 알려 드릴게요.</p>
         </>
       )}
     </section>
