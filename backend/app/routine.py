@@ -109,12 +109,39 @@ def is_setup_day(data: dict, today: date) -> bool:
     return bool(vs) and vs[-1]["id"] == 1 and vs[-1]["start"] == today.isoformat()
 
 
+def _josa(word: str, a: str, b: str) -> str:
+    """받침 있으면 a(을), 없으면 b(를). 한글이 아니면 a/b 병기."""
+    ch = word.strip()[-1:] if word.strip() else ""
+    if "가" <= ch <= "힣":
+        return word + (a if (ord(ch) - 0xAC00) % 28 else b)
+    return f"{word}{a}({b})"
+
+
+def phrase(change: str | None) -> str | None:
+    """'X 추가 (매일 저녁)' → 'X를 추가한' 처럼 리포트 문장 앞부분. 여러 개를 한 번에 바꿨으면 '루틴을 바꾼'."""
+    if not change:
+        return None
+    ops = change.split(", ")
+    if len(ops) > 1:
+        return "루틴을 바꾼"
+    op = ops[0]
+    if op.endswith(" 사용 중단"):
+        return f"{op[:-len(' 사용 중단')]} 사용을 멈춘"
+    for u in USAGES:                                       # 'X 매일 저녁 → 주 2~3회'
+        if f" {u} → " in op:
+            return f"{op.split(f' {u} → ')[0]} 사용 빈도를 바꾼"
+    if " 추가" in op:
+        return _josa(op.split(" 추가")[0], "을", "를") + " 추가한"
+    return "루틴을 바꾼"
+
+
 def payload(data: dict) -> dict:
     """화면용: {current, versions}. 아직 등록한 제품이 없으면 current 는 None."""
     vs = data.get("versions", [])
 
     def one(v):
         return {"id": v["id"], "start": v["start"], "label": v["change"] or "처음 등록한 루틴", "change": v["change"],
+                "phrase": phrase(v["change"]),
                 "reason": v.get("reason"),
                 "items": [{"key": i["key"], "name": i["name"], "usage": i["usage"], "kind": i["kind"],
                            "family": i["family"] or "성분", "families": i["families"], "ingredients": i["ingredients"],

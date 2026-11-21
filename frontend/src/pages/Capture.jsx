@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { loadLandmarker, loadLiveTracker, measurePhoto, trackFrame } from '../measure/browser.js'
+import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame } from '../measure/browser.js'
 import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
@@ -63,6 +63,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [agree, setAgree] = useState(false)
   const [guide, setGuide] = useState(null)   // 실시간 정렬 가이드 {ok, key, hint}. 못 쓰면 null(직접 찍기)
   const [auto, setAuto] = useState(true)     // 정렬이 맞으면 자동으로 찍기
+  const [kept, setKept] = useState(false)    // [선택 동의] 볼 조각을 서버에 보관했는가
   const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3·2·1
   const streak = useRef(0)                   // 맞는 프레임이 이어진 수
   const armed = useRef(true)                 // 자동 촬영을 할 수 있는 상태(한 번 찍으면 내려감)
@@ -137,7 +138,13 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       await loadLandmarker()
       setBusy('검사하는 중…')
       const features = await measurePhoto(src)
-      setResult(await api.capture(features))
+      const parts = takeCheeks()
+      const res = await api.capture(features)
+      setKept(false)
+      if (res.saved_on && viewer?.cheeks && parts) {   // 볼 부분 사진 보관에 동의한 사람만, 그날 처음 저장된 기록에
+        try { await api.saveCheeks(parts); setKept(true) } catch { /* 조각만 못 남김: 숫자 기록은 그대로 */ }
+      }
+      setResult(res)
     } catch (e) {
       setError(e?.status ? e.message : '사진을 분석하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')
     } finally { setBusy(null) }
@@ -153,7 +160,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
             <li>고개 각도·표정·선명도·노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
-            <li>서버에는 측정한 숫자만 보내 품질을 판정해요. 로그인했다면 통과한 사진의 <b>볼 색 숫자 2개(붉은기, 조명 확인용 노란기)</b>만 오늘 기록에 남겨요.</li>
+            <li>서버에는 측정한 숫자만 보내 품질을 판정해요. 로그인했다면 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
           <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})를 읽고 동의해요</label>
@@ -233,7 +240,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
               <details className="tech"><summary>측정 값 보기</summary>
                 {result.checks.map((c) => <p key={c.name}>{c.name} · {c.tech}</p>)}
               </details>
-              <p className="muted small">{result.note}</p>
+              <p className="muted small">{result.note}{kept ? ' 볼 부분 사진(양 볼 네모)도 함께 보관했어요.' : ''}</p>
             </div>
           )}
         </div>
@@ -241,7 +248,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   <div className="notice sentences wide">
     <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
     <p>고개 각도·표정·선명도·노출을 확인하고, 통과하면 볼 붉은기를 보여 드려요.</p>
-    <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기·노란기)만 오늘 기록에 남기고, 다른 측정값과 사진은 남기지 않아요.</p>
+    <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기·노란기·밝기)만 오늘 기록에 남기고, 다른 측정값과 사진은 서버에 남기지 않아요.</p>
     <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
   </div>
     </section>

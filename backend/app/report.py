@@ -36,8 +36,8 @@ def build_facts(judged, versions):
             "phrase": v.get("phrase") or v["label"],
             "signal_ids": [r["id"] for r in sig],
             "signal_days": [r["day_in_version"] for r in sig],
-            "max_sting": max((r["symptoms"]["따가움"] for r in sig), default=0),
-            "env_unusual": any(r["env"]["unusual"] for r in sig),
+            "max_sting": max((r["symptoms"].get("따가움", 0) for r in sig), default=0),
+            "env_unusual": any(r["env"].get("unusual") for r in sig),
             "envs": [r["env"] for r in sig],
             "calm_ids": [r["id"] for r in rows if r["verdict"]["level"] == NO_SIGNAL],
         })
@@ -48,26 +48,33 @@ def build_report(judged, versions):
     sentences = []
     facts = build_facts(judged, versions)
     for f in facts:
+        if (f["version"] == 1 or not f["change"]) and f["signal_ids"]:   # 루틴을 바꾸지 않은 기간에 평소 범위를 넘음
+            md = lambda iso: f"{int(iso[5:7])}월 {int(iso[8:10])}일"
+            ds = [r["date"] for r in judged if r["id"] in f["signal_ids"]]
+            span = f"{md(ds[0])}부터 {md(ds[-1])}까지" if len(ds) > 1 else md(ds[0])
+            sentences.append({"text": f"{span} 양 볼이 평소보다 붉었어요. 이 기간에는 루틴을 바꾸지 않았어요.",
+                              "cites": f["signal_ids"]})
+            continue
         if f["version"] == 1 or not f["change"]:
             continue
         days = f["signal_days"]
         if days and f["carried_over"]:    # 앞 버전의 신호가 바꾼 직후까지 이어진 경우
-            sentences.append({"text": f"{f['phrase']} 뒤(버전 {f['version']}) 처음 {len(days)}일은 붉은기가 아직 평소 범위 밖이었어요.",
+            sentences.append({"text": f"{f['phrase']} 뒤 {'첫날은' if len(days) == 1 else f'처음 {len(days)}일은'} 붉은기가 아직 평소보다 높았어요. 바꾸기 전부터 이어진 거예요.",
                               "cites": f["signal_ids"]})
         elif days:
-            span = f"{days[0]}~{days[-1]}일째" if len(days) > 1 else f"{days[0]}일째"
-            text = f"{f['phrase']} 뒤(버전 {f['version']}) {span} 양 볼 붉은기가 평소 범위를 넘었"
-            text += f"고, 같은 기간 따가움 {f['max_sting']}점이 기록됐어요." if f["max_sting"] else "어요."
+            span = f"{days[0]}일째부터 {days[-1]}일째까지" if len(days) > 1 else f"{days[0]}일째에"
+            text = f"{f['phrase']} 뒤 {span} 양 볼이 평소보다 붉었"
+            text += f"고, 그때 따가움 {f['max_sting']}점도 함께 기록됐어요." if f["max_sting"] else "어요."
             sentences.append({"text": text, "cites": f["signal_ids"]})
             if not f["env_unusual"]:                 # 환경이 평소와 달랐던 날은 판정이 이미 '구분 불가'라 여기 오지 않는다
                 for t in env.summarize(f["envs"]):   # 실제 측정값에서 나온 사실 문장(없으면 '평소와 비슷했어요')
                     sentences.append({"text": t, "cites": f["signal_ids"]})
         if f["calm_ids"] and any(p["signal_ids"] for p in facts if p["version"] < f["version"]):
             sentences.append({"text": f"그 뒤 붉은기가 평소 범위로 돌아왔어요." if f["carried_over"] else
-                              f"{f['phrase']} 뒤(버전 {f['version']}) 붉은기가 평소 범위로 돌아왔어요.",
+                              f"{f['phrase']} 뒤에는 붉은기가 평소 범위로 돌아왔어요.",
                               "cites": f["calm_ids"]})
     if not sentences:
-        sentences.append({"text": "아직 눈에 띄는 변화가 없어요.", "cites": [judged[-1]["id"]] if judged else []})
+        sentences.append({"text": "아직 평소와 달라진 날이 없어요. 붉은기가 내 평소 범위 안에 있어요.", "cites": [judged[-1]["id"]] if judged else []})
     for s in sentences:
         s["cite_label"] = f"근거: 기록 {_span(s['cites'])}" if s["cites"] else ""
     return {"sentences": sentences, "disclaimer": DISCLAIMER, "source": "template"}
@@ -78,11 +85,26 @@ def _label(s):
     return s
 
 
-def build_report_llm(judged, versions):
+def pseudonymize(versions):
+    """AI 모델에 보낼 버전 정보: 제품 이름·사용 빈도·이유·날짜를 빼고 '무엇을 바꿨는지'의 종류만 남긴다."""
+    def kind(change):
+        if not change:
+            return None
+        ops = change.split(", ")
+        if len(ops) > 1:
+            return "루틴을 바꾼"
+        op = ops[0]
+        return "제품 하나를 뺀" if op.endswith("사용 중단") else "사용 빈도를 바꾼" if "→" in op else "제품 하나를 더한" if "추가" in op else "루틴을 바꾼"
+    return [{"id": v["id"], "label": kind(v["change"]) or "처음 루틴", "phrase": kind(v["change"]) or "처음 루틴",
+             "change": kind(v["change"]), "reason": None} for v in versions]
+
+
+def build_report_llm(judged, versions, llm_versions=None):
+    """llm_versions: AI에 보낼 버전 정보(내 기록은 pseudonymize 결과). 없으면 versions(가상 데모)."""
     base = build_report(judged, versions)
     if not llm.enabled():
         return base
-    res = llm.write_report(build_facts(judged, versions))
+    res = llm.write_report(build_facts(judged, llm_versions or versions))
     if "sentences" not in res:
         return {**base, "llm_error": res.get("error"), "llm_problems": (res.get("problems") or [])[:3]}
     if verify(res["sentences"], judged):
@@ -102,7 +124,12 @@ def answer(qid, judged, versions):
     facts = build_facts(judged, versions)
     sig = next((f for f in facts if f["signal_ids"]), None)
     cites = sig["signal_ids"] if sig else []
-    if qid == "cause":
+    if qid in ("cause", "other") and not sig:                   # 평소 범위를 넘은(흐림) 날이 없음
+        text = "아직 붉은기가 평소 범위를 넘은 날이 없어요. 그래서 원인을 따로 살펴볼 변화도 없어요."
+    elif qid == "cause" and not sig["change"]:                   # 루틴을 바꾸지 않은 기간에 넘음
+        text = ("이 기간에는 루틴을 바꾸지 않았어요. 그래서 제품과의 관계는 말할 수 없어요. "
+                "수면·생리 주기·조명처럼 기록하지 않은 요인도 있을 수 있어요.")
+    elif qid == "cause":
         text = ("원인을 단정할 수는 없어요. 다만 바꾼 시기와 붉은기가 오른 시기가 겹쳤어요. "
                 "수면·생리 주기처럼 기록하지 않은 요인도 있을 수 있어요.")
     elif qid == "other":
@@ -126,7 +153,7 @@ def verify(sentences, judged):
                 problems.append(f"없는 기록 번호 {c}: {s['text']}")
         m = re.search(r"따가움 (\d)점", s["text"])
         if m and s["cites"]:
-            actual = max(by_id[c]["symptoms"]["따가움"] for c in s["cites"] if c in by_id)
+            actual = max(by_id[c]["symptoms"].get("따가움", 0) for c in s["cites"] if c in by_id)
             if int(m.group(1)) != actual:
                 problems.append(f"따가움 점수 불일치(문장 {m.group(1)}, 기록 {actual}): {s['text']}")
     return problems

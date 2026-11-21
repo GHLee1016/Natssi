@@ -35,7 +35,8 @@ def test_missing_table_falls_back_to_csv(monkeypatch):
     from datetime import date
     rows = env.load_rows("서대문구", date(2026, 11, 14), date(2026, 11, 16))
     assert sorted(rows) == [date(2026, 11, 14), date(2026, 11, 15), date(2026, 11, 16)]
-    assert env.summarize([{"facts": []}]) == ["같은 기간 미세먼지·습도·기온은 평소와 비슷했어요."]
+    assert env.summarize([{"facts": [], "detail": {"pm25": {}}}]) == ["같은 기간 미세먼지·습도·기온은 평소와 비슷했어요."]
+    assert env.summarize([{}]) == ["같은 기간 미세먼지·습도·기온 측정값이 없어 비교하지 못했어요."]   # 구를 안 고른 사용자
 
 
 def test_my_district_and_today_env(monkeypatch):

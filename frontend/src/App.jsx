@@ -22,18 +22,24 @@ const TABS = [
   { id: 'report', label: '리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
 ]
 
-// 로그인한 사용자의 변화·리포트 화면은 아직 내 기록으로 만들지 않는다. 김서연 데모에서만 보여 준다.
-function Locked({ title, go }) {
+// 로그인한 사용자의 변화·리포트: 사진 기록이 평소 범위를 만들 만큼(7일) 쌓이면 내 기록으로 열고, 그 전에는 진행 상황을 보여 준다.
+function Locked({ title, go, have, need }) {
   return (
     <section>
       <header className="page-head"><div><h1>{title}</h1></div></header>
       <div className="card">
-        <p>내 기록으로 보는 {title} 화면은 준비 중이에요. 어떤 화면인지는 로그아웃하면 김서연 가상 예시로 볼 수 있어요.</p>
-        <p className="muted small">그동안 매일 남긴 기록은 그대로 쌓여요. 화면이 열리면 지난 기록까지 함께 보여 드려요.</p>
-        <div className="actions left"><button className="btn" onClick={() => go('diary')}>오늘 기록 남기러 가기</button></div>
+        <p>사진 기록이 {need}일 쌓이면 내 기록으로 보는 {title} 화면이 열려요. 지금 <b>{have} / {need}일</b>이에요.</p>
+        <p className="muted small">어떤 화면인지는 로그아웃하면 김서연 가상 예시로 미리 볼 수 있어요.</p>
+        <div className="actions left"><button className="btn" onClick={() => go('capture')}>오늘 기록하러 가기</button></div>
       </div>
     </section>
   )
+}
+
+function MineGate({ title, go, children }) {
+  const q = useLoad(() => api.me(), [])
+  if (!q.data) return <section><Status {...q} /></section>
+  return q.data.unlocked ? children : <Locked title={title} go={go} have={q.data.redness_days} need={q.data.needed} />
 }
 
 // 비밀번호 재설정 메일의 링크는 #access_token=…&type=recovery 로 돌아온다(만료되면 #error_code=…).
@@ -125,10 +131,10 @@ export default function App() {
         {meta.data && !page && (
           <div key={epoch}>
             {tab === 'diary' && (viewer ? <MyDay go={setTab} onAccount={() => setPage('account')} viewer={viewer} policyVersion={meta.data.consent_version} onLegal={goLegal} onConsented={refreshAll} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
-            {tab === 'change' && (viewer ? <Locked title="변화" go={setTab} /> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
+            {tab === 'change' && (viewer ? <MineGate title="변화" go={setTab}><Change mine /></MineGate> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
             {tab === 'capture' && <Capture onLegal={goLegal} viewer={viewer} photoVersion={meta.data.photo_notice_version} mdc95={meta.data.mdc95} onConsented={refreshAll} />}
             {tab === 'routine' && (viewer ? <MyRoutine ocr={!!meta.data.ocr} /> : <Routine />)}
-            {tab === 'report' && (viewer ? <Locked title="리포트" go={setTab} /> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
+            {tab === 'report' && (viewer ? <MineGate title="리포트" go={setTab}><Report mine viewer={viewer} aiAvailable={meta.data.ai_available} onLegal={goLegal} onChanged={refreshAll} cacheKey={'mine|' + viewer.email + '|' + meta.data.today + '|' + (viewer.ai_report ? 'ai' : 'tpl')} /></MineGate> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
           </div>
         )}
       </main>

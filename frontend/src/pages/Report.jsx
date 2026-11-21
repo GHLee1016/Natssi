@@ -82,10 +82,28 @@ function evidenceLinks(items, recById) {
   return out
 }
 
-export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
-  const q = useLoad(() => reportStore.load(cacheKey, api.report), [cacheKey], reportStore.data(cacheKey))
+// 내 리포트의 'AI로 문장 다듬기'(선택 동의). 켜면 가명 요약만 AI 모델로 간다(서버 report.pseudonymize).
+function AiToggle({ on, onLegal, onChanged }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  const flip = async (next) => { setBusy(true); setErr(null); try { await api.setOptional('ai_report', next); onChanged?.() } catch (e) { setErr(e.message) } finally { setBusy(false) } }
+  return (
+    <div className="card ai-toggle">
+      <label className="row-check">
+        <input type="checkbox" checked={!!on} disabled={busy} onChange={(e) => flip(e.target.checked)} aria-describedby="ai-help" />
+        <b>AI로 문장 다듬기 (선택)</b>
+      </label>
+      <p id="ai-help" className="muted small">켜면 제품 이름·날짜·이메일을 뺀 요약(바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수)만 미국의 AI 서비스(OpenRouter)로 보내 문장을 다듬어요.
+        판정은 그대로 낯씨가 하고, 끄면 정해진 틀 문장만 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
+      {err && <p className="err" role="alert">{err}</p>}
+    </div>
+  )
+}
+
+export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = false, viewer, aiAvailable, onLegal, onChanged }) {
+  const q = useLoad(() => reportStore.load(cacheKey, mine ? api.myReport : api.report), [cacheKey], reportStore.data(cacheKey))
   const writing = useSlow(q.loading, 400)
-  const tl = useLoad(() => api.timeline(), [])
+  const tl = useLoad(() => (mine ? api.myTimeline() : api.timeline()), [mine])
   const dateOf = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r.date]))
   const recById = Object.fromEntries((tl.data?.records || []).map((r) => [r.id, r]))
   const [thread, setThreadState] = useState(() => reportStore.thread(cacheKey))
@@ -95,7 +113,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
   const ask = async (item) => {
     setBusy(item.id); setError(null)
     try {
-      const a = await api.answer(item.id)
+      const a = await (mine ? api.myAnswer(item.id) : api.answer(item.id))
       setThread((t) => [...t, { me: item.q }, a])
     } catch (e) { setError(e.message) } finally { setBusy(null) }
   }
@@ -108,6 +126,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
         <div><p className="eyebrow">기록을 근거로 설명해요</p><h1>리포트</h1></div>
         {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `기록과 맞지 않는 문장 ${r.problems.length}개` : '기록에서 확인한 내용만 썼어요'}</span>}
       </header>
+      {mine && aiAvailable && <AiToggle on={viewer?.ai_report} onLegal={onLegal} onChanged={onChanged} />}
       {!q.loading && <Status {...q} />}
       {q.loading && writing && <Writing />}
       {r && (
@@ -126,14 +145,14 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
                       <li key={e.key}>
                         <b>{e.range}</b> <span className="muted small">{e.days}</span>
                         <p>{e.summary}</p>
-                        <button className="link ev-open" onClick={() => onOpenDay(e.date)}>{e.range.includes('~') ? '첫날' : '그날'} 기록 보기</button>
+                        {onOpenDay && <button className="link ev-open" onClick={() => onOpenDay(e.date)}>{e.range.includes('~') ? '첫날' : '그날'} 기록 보기</button>}
                       </li>
                     ))}
                   </ul>
                   <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 기록은 판정 기록과 하나하나 대조했어요.</p>
                 </div>
               )
-              : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
+              : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && onOpenDay && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
           <p className="muted small">이어서 물어보기</p>
           <div className="chips">
             {!askedEvidence && <button onClick={showEvidence} disabled={busy !== null}>{EVIDENCE_Q}</button>}

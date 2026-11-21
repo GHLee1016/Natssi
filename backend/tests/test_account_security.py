@@ -360,3 +360,87 @@ def test_recovery_can_be_turned_off(env, monkeypatch):
     r = c.post("/api/auth/recover", json={"email": "a@test.kr"})
     assert r.status_code == 503 and "비밀번호 찾기" in r.json()["detail"]
     assert fake.recovered == []                                  # Supabase에는 요청이 가지 않는다
+
+
+def test_my_change_and_report_open_with_seven_photo_days(env, monkeypatch):
+    _, c = env
+    h = join(c, "d@test.kr")
+    day = date(2026, 12, 1)
+    for i, a in enumerate([10, 10.5, 9.5, 10, 10.2, 9.8, 10.1, 16, 16]):
+        monkeypatch.setattr(config, "today_kst", lambda d=day + timedelta(days=i): d)
+        if i == 6:
+            assert c.get("/api/me/timeline", headers=h).status_code == 409       # 6일: 아직 잠김
+            assert c.get("/api/me", headers=h).json()["unlocked"] is False
+        up(c, {**GOOD, "a_star": a}, headers=h)
+    assert c.get("/api/me", headers=h).json()["unlocked"] is True
+    tl = c.get("/api/me/timeline", headers=h).json()
+    assert len(tl["records"]) == 9 and tl["records"][-1]["verdict"]["level"] == "신호 있음"
+    cmp = c.get("/api/me/compare", params={"a": "2026-12-01", "b": "2026-12-09"}, headers=h).json()
+    assert cmp["diff"] == 6.0 and cmp["beyond_error"] is True
+    rep = c.get("/api/me/report", headers=h).json()
+    assert rep["source"] == "template" and rep["problems"] == [] and rep["sentences"]
+    assert c.get("/api/me/report/answer/cause", headers=h).status_code == 200
+    assert c.get("/api/me/timeline").status_code == 401                          # 로그인 필요
+
+
+def test_ai_report_is_opt_in_and_pseudonymized(env, monkeypatch):
+    fake, c = env
+    h = join(c, "e@test.kr")
+    c.post("/api/me/routine/items", json={"name": "비밀세럼", "usage": "매일 저녁", "ingredients": []}, headers=h)
+    day = date(2026, 12, 1)
+    for i, a in enumerate([10, 10.5, 9.5, 10, 10.2, 9.8, 10.1, 10]):
+        monkeypatch.setattr(config, "today_kst", lambda d=day + timedelta(days=i): d)
+        up(c, {**GOOD, "a_star": a}, headers=h)
+    sent = []
+    monkeypatch.setenv("OPENROUTER_API_KEY", "x")
+    monkeypatch.setattr(llm, "write_report", lambda facts: sent.append(facts) or {"error": "test"})
+    assert c.get("/api/me/report", headers=h).json()["source"] == "template" and not sent     # 동의 전: AI 호출 없음
+    assert c.get("/api/meta", headers=h).json()["viewer"]["ai_report"] is False
+    assert c.post("/api/account/optional", json={"key": "ai_report", "on": True}, headers=h).json()["ai_report"] is True
+    auth._cache.clear()
+    c.get("/api/me/report", headers=h)
+    assert sent and "비밀세럼" not in str(sent) and "e@test.kr" not in str(sent) and "2026-12" not in str(sent)
+    c.post("/api/account/optional", json={"key": "ai_report", "on": False}, headers=h)
+    auth._cache.clear(); sent.clear()
+    c.get("/api/me/report", headers=h)
+    assert not sent                                                                         # 끄면 다시 틀 문장만
+
+
+def _jpeg(size=96):
+    import base64, io
+    from PIL import Image
+    b = io.BytesIO(); Image.new("RGB", (size, size), (200, 150, 140)).save(b, "JPEG")
+    return "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+
+
+def test_signup_optional_consents_are_recorded_separately(env):
+    _, c = env
+    r = c.post("/api/auth/signup", json={"email": "o@test.kr", "password": "abcd1234", **SIGNUP, "consent_cheeks": True})
+    h = {"Authorization": "Bearer " + r.json()["access_token"]}
+    viewer = c.get("/api/meta", headers=h).json()["viewer"]
+    assert viewer["cheeks"] is True and viewer["ai_report"] is False                  # 하나만 골라도 됨
+    assert c.get("/api/account/export", headers=h).json()["consent"]["cheeks_at"]
+    assert c.post("/api/account/optional", json={"key": "nope", "on": True}, headers=h).status_code == 400
+
+
+def test_cheek_photos_only_with_consent_and_deleted_on_withdraw(env):
+    fake, c = env
+    h = join(c, "p@test.kr")                                                          # 선택 동의 안 함
+    up(c, headers=h)
+    body = {"L": _jpeg(), "R": _jpeg()}
+    assert c.post("/api/me/cheeks", json=body, headers=h).status_code == 403
+    c.post("/api/account/optional", json={"key": "cheeks", "on": True}, headers=h)
+    auth._cache.clear()
+    assert c.post("/api/me/cheeks", json={"L": "data:image/png;base64,AAAA", "R": _jpeg()}, headers=h).status_code == 400
+    assert c.post("/api/me/cheeks", json={"L": _jpeg(400), "R": _jpeg()}, headers=h).status_code == 400   # 큰 사진(얼굴 전체 등) 거절
+    assert c.post("/api/me/cheeks", json=body, headers=h).json()["saved"]
+    c.post("/api/me/checkin", json={"따가움": 1}, headers=h)                            # 체크인이 조각을 지우지 않음
+    me = c.get("/api/me", headers=h).json()
+    assert me["today_cheeks"]["L"].startswith("data:image/jpeg") and me["today_checkin"]["따가움"] == 1
+    day = me["today"]
+    assert set(c.get("/api/me/cheeks", params={"dates": day}, headers=h).json()) == {day}
+    assert c.get("/api/account/export", headers=h).json()["checkins"][0]["cheeks"]["L"]
+    c.post("/api/account/optional", json={"key": "cheeks", "on": False}, headers=h)    # 철회하면 바로 삭제
+    auth._cache.clear()
+    assert c.get("/api/me/cheeks", params={"dates": day}, headers=h).json() == {}
+    assert c.get("/api/me", headers=h).json()["today_redness"] == 11.0                  # 숫자 기록은 남음

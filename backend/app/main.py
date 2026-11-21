@@ -3,7 +3,7 @@ import os
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
@@ -103,7 +103,9 @@ def meta(v=Depends(viewer)):
             "mdc95_is_example": False, "storage": store.backend_name(), "llm": llm.enabled(),
             "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "env_district": config.DEMO_ENV_DISTRICT, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION, "photo_notice_version": config.PHOTO_NOTICE_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
-            "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version")} if v else None}
+            "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version"),
+                       **{k: bool((v.get("consent") or {}).get(k)) for k in ("cheeks", "ai_report")}} if v else None,
+            "ai_available": llm.enabled()}
 
 
 # ── 가입·로그인 ────────────────────────────────────────────────
@@ -131,6 +133,8 @@ class SignupBody(Credentials):
     consent_privacy: bool = False
     consent_photo: bool = False
     consent_health: bool = False   # 증상 점수 = 건강 정보(민감정보): 개인정보보호법 제23조 별도 동의
+    consent_cheeks: bool = False      # [선택] 볼 부분 사진 보관(서버)
+    consent_ai_report: bool = False   # [선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)
 
 
 class RefreshBody(BaseModel):
@@ -155,7 +159,8 @@ def signup(body: SignupBody, request: Request):
         raise HTTPException(400, "필수 항목에 모두 동의해야 가입할 수 있어요.")
     _check_password(body.password)
     try:
-        return auth.signup(body.email.strip().lower(), body.password)
+        return auth.signup(body.email.strip().lower(), body.password,
+                           {"cheeks": body.consent_cheeks, "ai_report": body.consent_ai_report})
     except auth.AuthError as e:
         raise HTTPException(e.status, e.message)
 
@@ -338,7 +343,7 @@ def _my_env(uid, today):
 
 # 하루 기록 = checkins.symptoms(jsonb) 한 칸. 증상 4개 + 그날 처음 품질을 통과한 사진의 볼 붉은기(a*)·노란기(b*, 조명 확인용).
 # ponytail: 열을 따로 두지 않고 jsonb에 같이 넣어 DB 패치 없이 배포된다. 값이 늘면 열로 옮길 것.
-MEASURES = ("redness", "b")
+MEASURES = ("redness", "b", "L", "cheeks")            # L*: 볼 색 칩 밝기 / cheeks: [선택 동의] 양 볼 조각 사진(JPEG base64)
 
 
 def _split(entry):
@@ -348,18 +353,22 @@ def _split(entry):
     return (entry or None), m.get("redness"), m
 
 
-def _my_judged(uid, saved, district):
+def _my_judged(uid, saved, district, routine_data=None):
     """내 기록을 내 루틴 버전으로 묶어 김서연 데모와 같은 판정 엔진에 넣는다."""
     try:
-        starts = sorted((v["start"], v["id"]) for v in store.load_routine(uid).get("versions", []))
+        data = routine_data if routine_data is not None else store.load_routine(uid)
+        starts = sorted((v["start"], v["id"]) for v in data.get("versions", []))
     except Exception as e:
         log.warning("my routine failed: %s", store.why(e))
         starts = []
-    recs = []
-    for d in sorted(saved):
+    recs, first_of = [], {}
+    for i, d in enumerate(sorted(saved)):
         symptoms, redness, m = _split(saved[d])
-        recs.append({"date": d, "version": max([i for s, i in starts if s <= d], default=1),
-                     "redness": redness, "b": m.get("b"), "quality_ok": redness is not None,
+        ver = max([vid for s, vid in starts if s <= d], default=1)
+        first_of.setdefault(ver, d)                                  # 이 버전의 첫 기록일부터 센다
+        recs.append({"id": i + 1, "date": d, "version": ver,
+                     "day_in_version": (date.fromisoformat(d) - date.fromisoformat(first_of[ver])).days + 1,
+                     "redness": redness, "b": m.get("b"), "L": m.get("L"), "has_cheeks": "cheeks" in m, "quality_ok": redness is not None,
                      "quality_note": None if redness is not None else "이날은 사진 기록이 없어요",
                      "symptoms": symptoms or {}, "env": {}})
     try:
@@ -380,7 +389,9 @@ def _me_payload(uid):
     return {"today": today, "today_checkin": _split(saved.get(today))[0],
             "today_verdict": last["verdict"] if last and last["redness"] is not None else None,
             "today_redness": last["redness"] if last else None,
+            "today_cheeks": {k: "data:image/jpeg;base64," + x for k, x in _split(saved.get(today))[2].get("cheeks", {}).items()} or None,
             "days_recorded": len(judged), "redness_days": sum(1 for r in judged if r["redness"] is not None),
+            "unlocked": sum(1 for r in judged if r["redness"] is not None) >= BASELINE_DAYS,
             "needed": BASELINE_DAYS, "recent": recent, "district": district, "env": today_env}
 
 
@@ -415,6 +426,61 @@ def me(v=Depends(need_user)):
     return _me_payload(v["id"])
 
 
+# ── 내 기록으로 보는 변화·리포트(사진 기록이 평소 범위를 만들 만큼 쌓인 뒤) ──────────────
+def _my_ctx(uid):
+    saved = _mine(uid)
+    try:
+        data = store.load_routine(uid)
+        district = store.load_profile(uid).get("district")
+    except Exception as e:
+        raise _store_fail("저장소에 연결하지 못했어요.", e)
+    rows = _my_judged(uid, saved, district, data)
+    versions = myroutine.payload(data)["versions"] or [{"id": 1, "start": rows[0]["date"] if rows else config.today_kst().isoformat(),
+                                                          "label": "처음 루틴", "change": None, "reason": None, "items": []}]
+    if sum(1 for r in rows if r["redness"] is not None) < BASELINE_DAYS:
+        raise HTTPException(409, f"사진 기록이 {BASELINE_DAYS}일 쌓이면 열려요.")
+    return rows, versions
+
+
+@app.get("/api/me/timeline")
+def my_timeline(v=Depends(need_user)):
+    rows, versions = _my_ctx(v["id"])
+    return {"records": rows, "versions": versions, "mdc95": config.MDC95_A_STAR}
+
+
+@app.get("/api/me/compare")
+def my_compare(a: date, b: date, v=Depends(need_user)):
+    rows = {r["date"]: r for r in _my_ctx(v["id"])[0]}
+    ra, rb = rows.get(a.isoformat()), rows.get(b.isoformat())
+    if not ra or not rb or ra["redness"] is None or rb["redness"] is None:
+        raise HTTPException(404, "두 날짜 모두 사진 기록이 있어야 해요")
+    diff = round(rb["redness"] - ra["redness"], 2)
+    return {"a": ra, "b": rb, "diff": diff, "mdc95": config.MDC95_A_STAR, "beyond_error": abs(diff) > config.MDC95_A_STAR}
+
+
+@app.get("/api/me/report")
+def my_report(request: Request, v=Depends(need_user)):
+    """내 리포트: 기본은 틀 문장. 'AI로 문장 다듬기'에 따로 동의한 사람만, 제품 이름·날짜·이메일을 뺀 가명 요약을 AI 모델에 보낸다."""
+    limit("report", request, v)
+    rows, versions = _my_ctx(v["id"])
+    if (v.get("consent") or {}).get("ai_report"):
+        rep = report.build_report_llm(rows, versions, llm_versions=report.pseudonymize(versions))
+    else:
+        rep = report.build_report(rows, versions)
+    rep["problems"] = report.verify(rep["sentences"], rows)
+    rep["questions"] = report.QUESTIONS
+    return rep
+
+
+@app.get("/api/me/report/answer/{qid}")
+def my_answer(qid: str, v=Depends(need_user)):
+    rows, versions = _my_ctx(v["id"])
+    ans = report.answer(qid, rows, versions)
+    if ans is None:
+        raise HTTPException(404, "준비되지 않은 질문이에요")
+    return ans
+
+
 @app.post("/api/me/checkin")
 def checkin(body: Checkin, request: Request, v=Depends(need_user)):
     """오늘(한국 시간) 증상 체크인을 저장한다. 같은 날 다시 보내면 덮어쓴다."""
@@ -441,7 +507,10 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
             entry = store.load_all(v["id"]).get(today) or {}
             if _split(entry)[1] is None:                              # 하루 1개: 처음 통과한 값만(다시 찍어 고르지 않게)
                 b = None if body.b_L is None or body.b_R is None else round((body.b_L + body.b_R) / 2, 2)
-                store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2), **({"b": b} if b is not None else {})})
+                L = None if body.L_star is None else round(body.L_star, 2)
+                store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2),
+                                            **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {})})
+                res["saved_on"] = today                              # 브라우저가 볼 조각을 이 날짜로 기기에 남길 때 쓴다
             res["saved"] = True
             res["note"] = "오늘 기록에 볼 색 숫자를 남겼어요. 하루에 처음 통과한 사진의 값만 남기고, 사진은 남기지 않아요."
         except Exception as e:
@@ -547,6 +616,98 @@ def remove_routine_item(key: str, request: Request, v=Depends(need_user)):
 
 class ConsentUpdate(BaseModel):
     photo: bool = False
+
+
+OPTIONAL = ("cheeks", "ai_report")       # 선택 동의: 볼 부분 사진 보관 / AI로 리포트 문장 다듬기
+
+
+class OptionalBody(BaseModel):
+    key: str = Field(..., max_length=20)
+    on: bool
+
+
+def _drop_cheeks(uid):
+    """볼 부분 사진 보관 동의를 끄면 이미 저장한 조각을 모두 지운다(숫자 기록은 남김)."""
+    saved = _mine(uid)
+    for d, entry in saved.items():
+        if isinstance(entry, dict) and "cheeks" in entry:
+            store.save(uid, d, {k: x for k, x in entry.items() if k != "cheeks"})
+
+
+@app.post("/api/account/optional")
+def set_optional(body: OptionalBody, request: Request, authorization: Optional[str] = Header(None), v=Depends(need_user)):
+    """선택 동의 하나를 켜고 끈다. 볼 사진 보관을 끄면 저장된 조각을 바로 지운다. AI를 끄면 다음 리포트부터 틀 문장만."""
+    limit("account", request, v)
+    if body.key not in OPTIONAL:
+        raise HTTPException(400, "알 수 없는 선택 항목이에요.")
+    try:
+        if config.OPEN_MODE:
+            LOCAL_USER["consent"] = {**(LOCAL_USER.get("consent") or {}), body.key: body.on}
+        else:
+            auth.set_consent_flag(authorization[7:].strip(), v.get("consent"), body.key, body.on)
+        if body.key == "cheeks" and not body.on:
+            _drop_cheeks(v["id"])
+    except auth.AuthError as e:
+        raise HTTPException(e.status, e.message)
+    except Exception as e:
+        raise _store_fail("선택 동의를 바꾸지 못했어요.", e)
+    return {body.key: body.on}
+
+
+class CheeksBody(BaseModel):
+    L: str = Field(..., max_length=40_000)
+    R: str = Field(..., max_length=40_000)
+
+
+def _check_jpeg(data_url: str) -> str:
+    """'data:image/jpeg;base64,…' 인지, 실제로 작은 JPEG(최대 128px)인지 확인하고 base64 본문만 돌려준다."""
+    import base64, io
+    from PIL import Image
+    head, _, b64 = data_url.partition(",")
+    if head != "data:image/jpeg;base64":
+        raise HTTPException(400, "볼 사진 형식이 맞지 않아요.")
+    try:
+        im = Image.open(io.BytesIO(base64.b64decode(b64, validate=True)))
+        ok = im.format == "JPEG" and max(im.size) <= 128
+    except Exception:
+        ok = False
+    if not ok:
+        raise HTTPException(400, "볼 사진 형식이 맞지 않아요.")
+    return b64
+
+
+@app.post("/api/me/cheeks")
+def save_cheeks(body: CheeksBody, request: Request, v=Depends(need_user)):
+    """[선택 동의] 오늘 저장된 기록에 양 볼 조각(작은 JPEG)을 붙인다. 하루 1번, 처음 것만(숫자 기록과 같은 규칙)."""
+    limit("capture", request, v)
+    if not (v.get("consent") or {}).get("cheeks"):
+        raise HTTPException(403, "볼 부분 사진 보관에 동의한 경우에만 저장해요.")
+    parts = {"L": _check_jpeg(body.L), "R": _check_jpeg(body.R)}
+    today = config.today_kst().isoformat()
+    try:
+        entry = _mine(v["id"]).get(today)
+        if not entry or entry.get("redness") is None:
+            raise HTTPException(409, "오늘 사진 기록이 먼저 있어야 해요.")
+        if "cheeks" not in entry:
+            store.save(v["id"], today, {**entry, "cheeks": parts})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise _store_fail("볼 사진을 저장하지 못했어요.", e)
+    return {"saved": True, "date": today}
+
+
+@app.get("/api/me/cheeks")
+def get_cheeks(dates: str = Query(..., max_length=80), v=Depends(need_user)):
+    """비교 화면용: 고른 날짜(쉼표로 최대 4개)의 볼 조각. 없는 날은 빠진다."""
+    want = [d for d in dates.split(",")[:4] if len(d) == 10]
+    saved = _mine(v["id"])
+    out = {}
+    for d in want:
+        c = (saved.get(d) or {}).get("cheeks")
+        if c:
+            out[d] = {k: "data:image/jpeg;base64," + c[k] for k in ("L", "R")}
+    return out
 
 
 @app.post("/api/account/consent")

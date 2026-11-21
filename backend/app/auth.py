@@ -96,11 +96,13 @@ def _call(method, path, *, key, json=None, params=None, token=None):
         raise AuthError(503, "로그인 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
 
 
-def signup(email: str, password: str) -> dict:
-    """가입. 동의 기록은 사용자 메타데이터에 남깁니다(서버가 시각을 찍음)."""
+def signup(email: str, password: str, optional: dict | None = None) -> dict:
+    """가입. 동의 기록은 사용자 메타데이터에 남깁니다(서버가 시각을 찍음). optional: 선택 동의 {cheeks, ai_report}."""
     _, anon, _ = _env()
-    consent = {"version": config.CONSENT_VERSION, "terms": True, "privacy": True, "photo": True, "health": True,
-               "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    consent = {"version": config.CONSENT_VERSION, "terms": True, "privacy": True, "photo": True, "health": True, "at": now,
+               **{k: bool(on) for k, on in (optional or {}).items()},
+               **{f"{k}_at": now for k, on in (optional or {}).items() if on}}
     r = _call("POST", "/auth/v1/signup", key=anon, json={"email": email, "password": password,
                                                           "data": {"consent": consent}})
     if r.status_code >= 400:
@@ -170,6 +172,19 @@ def user_from_token(token: str) -> dict:
         _cache.clear()
     _cache[token] = (now, out)
     return out
+
+
+def set_consent_flag(token: str, old: dict | None, key: str, on: bool) -> dict:
+    """선택 동의 하나(예: ai_report)를 켜고 끈다. 언제 바꿨는지도 남긴다."""
+    _, anon, _ = _env()
+    consent = {**(old or {}), key: on, f"{key}_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    r = _call("PUT", "/auth/v1/user", key=anon, token=token, json={"data": {"consent": consent}})
+    if r.status_code in (401, 403):
+        raise AuthError(401, "로그인이 필요해요.")
+    if r.status_code >= 400:
+        raise AuthError(503, "선택 동의를 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+    _cache.pop(token, None)
+    return consent
 
 
 def update_consent(token: str, old: dict | None) -> dict:

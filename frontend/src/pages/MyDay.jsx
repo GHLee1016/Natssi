@@ -34,6 +34,7 @@ const POLICY_CHANGES = [
   ['2026-11-19', '얼굴 사진을 이 기기 안에서만 분석하고, 서버에는 측정한 숫자만 보내요.'],
   ['2026-11-20', '내 루틴(제품 이름·전성분·사용 빈도)을 저장해요.'],
   ['2026-11-21', '사는 구(선택)를 저장할 수 있어요.'],
+  ['2026-11-23', '볼 밝기 숫자도 함께 남겨 두 날의 볼 색을 색 칩으로 비교해요. 선택 동의 두 가지(볼 부분 사진 보관, AI로 리포트 문장 다듬기)가 생겼어요. 내 계정에서 고를 수 있어요.'],
   ['2026-11-22', '품질 검사를 통과한 사진의 볼 색 숫자(붉은기, 조명 확인용 노란기)를 하루 1번 내 기록에 남겨요(사진은 남기지 않아요). 동의해야 내 판정이 열려요.'],
 ]
 function PolicyNotice({ mine, current, onLegal, onConsented }) {
@@ -93,6 +94,16 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
             {v.baseline && <Gauge value={d.today_redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />}
           </div>
         )}
+        <div className="rec rec-wide">
+          <div className="rec-row">
+            <span className="rec-k">셀카</span>
+            <div className="rec-v"><div>{d.today_redness != null ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요.` : '고개 각도·표정·노출을 확인하고 볼 붉은기를 재요. 사진은 이 기기 안에서만 분석하고 남기지 않아요.'}</div></div>
+            {d.today_cheeks && (
+              <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
+            )}
+            {d.today_redness == null && <button className="link" onClick={() => go('capture')}>기록하기</button>}
+          </div>
+        </div>
         <div className="grid2">
           <div>
             <div className="card">
@@ -102,7 +113,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
               </div>
               <p className="bignum" aria-label={`사진 기록 ${d.redness_days}일, 필요 ${d.needed}일`}><span className="num">{d.redness_days}</span><span className="num-u">/ {d.needed}일 사진 기록</span></p>
               <p>{d.redness_days >= d.needed ? '평소 범위가 만들어졌어요. 사진을 찍은 날마다 평소와 비교해 알려 드려요.' : `볼 붉은기를 ${d.needed}일 남기면 그다음 날부터 내 평소 범위와 비교해요.`}</p>
-              <p className="muted small">같은 폰·같은 장소·같은 시간대에 찍어야 비교할 수 있어요. 품질 검사를 통과한 사진의 볼 색 숫자만 남기고, 사진은 남기지 않아요.</p>
+              <p className="muted small">같은 폰·같은 장소·같은 시간대에 찍어야 비교할 수 있어요. 품질 검사를 통과한 사진의 볼 색 숫자만 남기고, 사진은 서버에 남기지 않아요.</p>
             </div>
 
             <div className="card">
@@ -123,13 +134,6 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
               )}
             </div>
 
-            <div className="rec">
-              <div className="rec-row">
-                <span className="rec-k">셀카</span>
-                <div className="rec-v"><div>{d.today_redness != null ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요.` : '고개 각도·표정·노출을 확인하고 볼 붉은기를 재요. 사진은 이 기기 안에서만 분석하고 남기지 않아요.'}</div></div>
-                {d.today_redness == null && <button className="link" onClick={() => go('capture')}>촬영하기</button>}
-              </div>
-            </div>
           </div>
 
           <div>
@@ -145,7 +149,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
             </div>
           </div>
         </div>
-        <p className="notice wide">판정은 내 기록으로 해요. 진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소·전문의와 상담해 주세요. 변화·리포트 화면은 아직 로그아웃하면 볼 수 있는 김서연 가상 데모에서만 보여 드려요.</p>
+        <p className="notice wide">판정은 내 기록으로 해요. 진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소·전문의와 상담해 주세요. 사진 기록이 7일 쌓이면 변화·리포트 화면도 내 기록으로 열려요.</p>
         </>
       )}
     </section>

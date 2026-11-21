@@ -79,6 +79,10 @@ export const api = {
   report: () => req('/api/report'),
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
+  myTimeline: () => req('/api/me/timeline'),
+  myCompare: (a, b) => req(`/api/me/compare?a=${a}&b=${b}`),
+  myReport: () => req('/api/me/report'),
+  myAnswer: (id) => req(`/api/me/report/answer/${id}`),
   myProfile: () => req('/api/me/profile'),
   saveProfile: (district) => req('/api/me/profile', json('PUT', { district: district || null })),
   myRoutine: () => req('/api/me/routine'),
@@ -90,6 +94,9 @@ export const api = {
   checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
   capture: (features) => req('/api/capture', json('POST', features)),   // 사진이 아니라 브라우저가 잰 숫자만 보냄
   consent: () => req('/api/account/consent', json('POST', { photo: true })),
+  setOptional: async (key, on) => { const r = await req('/api/account/optional', json('POST', { key, on })); reportStore.clear(); return r },   // 선택 동의: cheeks | ai_report
+  saveCheeks: (parts) => req('/api/me/cheeks', json('POST', parts)),
+  myCheeks: (dates) => req(`/api/me/cheeks?dates=${dates.join(',')}`),
   signup: async (body) => { const r = await req('/api/auth/signup', json('POST', body)); if (r.access_token) session.set(r); return r },
   login: async (body) => { const r = await req('/api/auth/login', json('POST', body)); session.set(r); return r },
   recover: (body) => req('/api/auth/recover', json('POST', body)),

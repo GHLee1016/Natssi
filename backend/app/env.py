@@ -179,4 +179,8 @@ def summarize(envs: list[dict]) -> list[str]:
         for f in e.get("facts", []):
             if f not in facts:
                 facts.append(f)
-    return facts or ["같은 기간 미세먼지·습도·기온은 평소와 비슷했어요."]
+    if facts:
+        return facts
+    if not any(e.get("detail") and "reason" not in e["detail"] for e in envs):   # 사는 구를 안 골랐거나 측정값이 없음
+        return ["같은 기간 미세먼지·습도·기온 측정값이 없어 비교하지 못했어요."]
+    return ["같은 기간 미세먼지·습도·기온은 평소와 비슷했어요."]

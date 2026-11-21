@@ -14,6 +14,8 @@ const checkPassword = (v, strict) => {
 const fieldOf = (msg) => (msg.startsWith('이미 가입된') ? 'email' : /^(비밀번호|이전과 다른 비밀번호)/.test(msg) ? 'password' : null)
 
 const CONSENTS = [['terms', '[필수] 이용약관'], ['privacy', '[필수] 개인정보 수집·이용'], ['photo', '[필수] 얼굴 사진 처리 안내'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용']]
+// 선택 동의: 항목마다 따로 고른다. 동의하지 않아도 가입·모든 기본 기능을 쓸 수 있고, 내 계정에서 언제든 바꿀 수 있다.
+const OPTIONALS = [['cheeks', '[선택] 볼 부분 사진 보관', 'photo'], ['ai_report', '[선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)', 'ai']]
 
 function Field({ id, label, error, helper, children }) {
   return (
@@ -32,6 +34,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [c, setC] = useState({ terms: false, privacy: false, photo: false, health: false })
+  const [opt, setOpt] = useState({ cheeks: false, ai_report: false })
   const [errs, setErrs] = useState({})
   const [consentTried, setConsentTried] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -65,7 +68,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
     setBusy(true)
     try {
       if (mode === 'signup') {
-        const r = await api.signup({ email, password, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health })
+        const r = await api.signup({ email, password, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health, consent_cheeks: opt.cheeks, consent_ai_report: opt.ai_report })
         if (r.status === 'confirm_email') { setDone('signup'); return }
         onDone()
       } else if (mode === 'login') {
@@ -150,7 +153,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           <fieldset className="consents" aria-describedby={consentTried && !all ? 'consent-err' : undefined}>
             <legend>약관 동의</legend>
             <label className="check all"><input type="checkbox" checked={all}
-              onChange={(e) => setC({ terms: e.target.checked, privacy: e.target.checked, photo: e.target.checked, health: e.target.checked })} />전체 동의</label>
+              onChange={(e) => setC({ terms: e.target.checked, privacy: e.target.checked, photo: e.target.checked, health: e.target.checked })} />필수 항목 모두 동의</label>
             {CONSENTS.map(([k, label]) => {
               const bad = consentTried && !c[k]
               return (
@@ -163,6 +166,13 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
               )
             })}
             {consentTried && !all && <p id="consent-err" className="field-err" role="alert">필수 항목에 모두 동의해 주세요.</p>}
+            <p className="muted small opt-head">선택 항목은 동의하지 않아도 가입하고 기본 기능을 모두 쓸 수 있어요. 나중에 내 계정에서 바꿀 수 있어요.</p>
+            {OPTIONALS.map(([k, label, doc]) => (
+              <div className="check-row" key={k}>
+                <label className="check"><input id={'consent-' + k} type="checkbox" checked={opt[k]} onChange={(e) => setOpt({ ...opt, [k]: e.target.checked })} />{label}</label>
+                <button type="button" className="link" onClick={() => onLegal(doc)}>보기</button>
+              </div>
+            ))}
           </fieldset>
         )}
         {formError && <p className="err" role="alert">{formError}</p>}
@@ -177,7 +187,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           <li><b>변화</b><span>루틴을 바꾼 날을 기준으로 평소 범위와 비교해요.</span></li>
           <li><b>리포트</b><span>기록에 있는 사실만 문장으로 정리해요. 진단은 하지 않아요.</span></li>
         </ul>
-        <p className="small muted">로그인하지 않아도 김서연 데모는 읽기 전용으로 볼 수 있어요. 가입하면 내 기록으로 판정해요(사진 기록 7일 뒤부터). 얼굴 사진은 검사 후 바로 버리고 저장하지 않아요.</p>
+        <p className="small muted">로그인하지 않아도 김서연 데모는 읽기 전용으로 볼 수 있어요. 가입하면 내 기록으로 판정해요(사진 기록 7일 뒤부터). 얼굴 사진은 기기 안에서 검사하고 서버에 보내지 않아요(볼 부분 사진 보관에 선택 동의한 경우만 양 볼 조각을 보관해요).</p>
       </aside>
       </div>
     </section>

@@ -109,7 +109,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
                 <span className="rec-k">셀카</span>
                 <div className="rec-v"><i className="thumb round" style={{ backgroundImage: `url(/faces/${d.record.photo}.jpg)` }} />
                   <div>{d.record.quality_ok ? '사진이 잘 찍혔어요' : d.record.quality_note}<p className="muted small">AI로 생성된 이미지</p></div></div>
-                <button className="link" onClick={() => go('capture')}>내 사진 찍어 보기</button>
+                <button className="link" onClick={() => go('capture')}>내 얼굴 기록해 보기</button>
               </div>
               <div className="rec-row">
                 <span className="rec-k">증상</span>

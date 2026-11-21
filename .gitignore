@@ -4,3 +4,4 @@ natssi_blender_mockup/.DS_Store
 .DS_Store
 /frontend/dist
 /frontend/public/mediapipe
+__pycache__/
