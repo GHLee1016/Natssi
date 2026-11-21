@@ -1,28 +1,10 @@
 import time
 
 from . import families, ocr, parse
-from .match import Matcher
+from .match import Matcher, jamo, norm
+from .segment import segment
 
 _matcher = None
-
-
-def _segment(frags: list[str], m: Matcher) -> list[dict]:
-    """공백 조각을 사전에 맞춰 합친다. 길게 합친 정확 일치 > 짧은 정확 일치 > 오타 보정 순."""
-    out, i, n = [], 0, len(frags)
-    while i < n:
-        hit = None
-        for how in (m.exact, m.fuzzy):
-            for L in (4, 3, 2, 1):
-                if i + L <= n and (r := how("".join(frags[i:i + L]))):
-                    hit = (L, r)
-                    break
-            if hit:
-                break
-        if not hit:
-            hit = (1, {"ocr": frags[i], "kor": frags[i], "inci": "", "status": "확인 필요", "score": None})
-        out.append(hit[1])
-        i += hit[0]
-    return out
 
 
 def ingredient_lines(text: str, m: Matcher) -> str:
@@ -31,7 +13,7 @@ def ingredient_lines(text: str, m: Matcher) -> str:
     '전성분' 머리말은 OCR이 자주 못 읽어서 기대지 않는다. 대신 줄을 쉼표로 나눈 조각이
     사전에 많이 있으면(40% 이상, 2개 이상) 성분 줄로 본다. 광고 문구·주의사항은 여기서 빠진다.
     """
-    keep, skip = [], 0
+    keep, skip, prev = [], 0, False
     for line in text.splitlines():
         # '8 FREE' 표시 바로 뒤 몇 줄('동물성원료, 실리콘오일, 합성색소…')은 '안 들어간' 성분 목록이다
         if parse.FREE_FROM.search(line):
@@ -39,6 +21,7 @@ def ingredient_lines(text: str, m: Matcher) -> str:
             continue
         if skip and not parse.START.search(line):
             skip -= 1
+            prev = False
             continue
         skip = 0
         s = parse.START.search(line)
@@ -50,11 +33,34 @@ def ingredient_lines(text: str, m: Matcher) -> str:
         toks = [parse.clean(t) for t in parse.SPLIT.split(line)]
         toks = [t for t in toks if len(t) >= 2]
         if not toks:
+            prev = False
             continue
         hits = sum(1 for t in toks if m.exact(t) or m.fuzzy(t))
-        if hits >= 2 and hits / len(toks) >= 0.4:
+        # 성분 줄 바로 다음 줄은 기준을 낮춘다: 목록 끝('…, 향료')이나 줄바꿈에서 잘린 이름 뒷부분('탄검')만 있는 줄
+        cont = prev and (hits >= 1 and hits / len(toks) >= 0.3
+                         or (len(toks) == 1 and m.exact(keep[-1].rsplit(",", 1)[-1].strip() + toks[0])))
+        prev = (hits >= 2 and hits / len(toks) >= 0.4) or bool(cont)
+        if prev:
             keep.append(line)
     return "\n".join(keep)
+
+
+def dedupe(items: list[dict]) -> list[dict]:
+    """같은 성분은 한 번만. 사진 여러 장이 겹치거나, 줄바꿈에서 잘린 조각('세토페는')이 따로 읽혀도 하나로 남긴다.
+    - 표준 이름이 같으면(공백·기호·대소문자 무시) 처음 것만
+    - 사전에 없는 조각이 이미 찾은 성분 이름의 일부와 거의 같으면 버린다('추출물' ⊂ '병풀추출물')"""
+    from rapidfuzz import fuzz
+    out, seen = [], set()
+    for it in items:
+        k = norm(it["kor"])
+        if k and k not in seen:
+            seen.add(k)
+            out.append(it)
+    known = [jamo(norm(i["kor"])) for i in out if i["status"] != "확인 필요"]
+    def part_of_known(it):
+        j = jamo(norm(it["kor"]))
+        return len(j) >= 3 and any(len(kj) > len(j) and fuzz.partial_ratio(j, kj) >= 90 for kj in known)
+    return [it for it in out if it["status"] != "확인 필요" or not part_of_known(it)]
 
 
 def from_text(text: str, select_lines: bool = True) -> dict:
@@ -65,14 +71,11 @@ def from_text(text: str, select_lines: bool = True) -> dict:
     if _matcher.has_dict:
         # 성분 줄을 하나도 못 찾으면 빈 결과 → 앱에서 '전성분이 보이게 다시 찍어 주세요'
         picked = ingredient_lines(text, _matcher) if select_lines else text
-        matched = [r for frags in parse.split_chunks(picked) for r in _segment(frags, _matcher)]
+        matched = [r for tok in parse.split_tokens(picked) for r in segment(tok, _matcher)]
     else:
         matched = [_matcher.match(t) for t in parse.split_list(text)]
-    items, seen = [], set()
-    for m in matched:
-        if m["kor"] in seen:
-            continue
-        seen.add(m["kor"])
+    items = []
+    for m in dedupe(matched):
         m["families"] = families.tag(m["kor"], m["inci"])
         items.append(m)
     fams = sorted({f for it in items for f in it["families"]})

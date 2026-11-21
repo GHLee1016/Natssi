@@ -7,6 +7,15 @@ import { productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
 // 서버가 식약처 성분 사전으로 표준 이름에 맞춘다(일치 / 보정 = 오타를 고침 / 확인 필요 = 사전에 없음). 지어내지 않고 사용자가 확인한다.
 const STEPS = 3
+// 같은 성분인지 비교하는 키: 띄어쓰기·기호·대소문자 무시(서버 match.norm과 같은 규칙)
+const key = (s) => s.toLowerCase().replace(/[\s\-·‧ㆍ,./()[\]]/g, '')
+// 받침 있으면 '은', 없으면 '는'(한글이 아니면 '은(는)')
+const josa = (w) => {
+  const c = w.charCodeAt(w.length - 1) - 0xac00
+  return c < 0 || c > 11171 ? '은(는)' : c % 28 ? '은' : '는'
+}
+// 같은 성분이 두 번 오면 처음 것만(사진 여러 장이 겹칠 때)
+const uniq = (items) => { const seen = new Set(); return items.filter((i) => !seen.has(key(i.name)) && seen.add(key(i.name))) }
 const SAMPLE = '정제수, 글리세린, 나이아신아마이드, 판테놀, 병풀추출물, 세라마이드엔피, 향료'
 
 // 성분 이름 자동완성(식약처 사전). 글자를 칠 때 0.25초 기다렸다가 묻는다.
@@ -37,6 +46,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [editText, setEditText] = useState('')
   const hints = useSuggest(editing !== null ? editText : extra)
   const [err, setErr] = useState(null)
+  const [note, setNote] = useState(null)               // '이미 목록에 있어요' 같은 안내
   const [busy, setBusy] = useState(false)
   const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(30초쯤)
   const [photo, setPhoto] = useState(null)            // 제품 사진(선택): 240px 썸네일 data URL
@@ -55,7 +65,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
       const r = await readIngredientPhotos(files)
       setOcrFile(files[0])
       if (!r.ingredients.length) return setErr(r.message || '전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게 다시 찍거나, 글자를 붙여 넣어 주세요.')
-      setList(r.ingredients); setAsk(r.ask_families); setPicked([]); setEditing(null)
+      setList(uniq(r.ingredients)); setAsk(r.ask_families); setPicked([]); setEditing(null); setNote(null)
       setStep(2)
     } catch (e) { setErr(e.message) } finally { setReading(false) }
   }
@@ -68,20 +78,43 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     setBusy(true); setErr(null)
     try {
       if (skip || !text.trim()) { setList([]); setAsk(askFamilies) }
-      else { const r = await api.analyzeIngredients(text); setList(r.ingredients); setAsk(r.ask_families) }
+      else { const r = await api.analyzeIngredients(text); setList(uniq(r.ingredients)); setAsk(r.ask_families) }
+      setNote(null)
       setPicked([]); setEditing(null)
       setStep(2)
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
-  const addExtra = () => {
-    const n = extra.trim()
-    if (n && !list.some((i) => i.name === n)) setList([...list, { name: n, status: '직접 입력', ocr: n, families: [] }])
-    setExtra('')
+  // 사용자가 넣은 이름을 서버 사전으로 표준 이름에 맞춘다('Glycerin'→'글리세린'). 서버에 닿지 못하면 쓴 그대로.
+  const standardize = async (n) => {
+    try {
+      const r = await api.analyzeIngredients(n)
+      if (r.ingredients.length) return r.ingredients.map((i) => ({ ...i, status: i.status === '일치' ? '일치' : '직접 입력' }))
+    } catch { /* 아래로 */ }
+    return [{ name: n, status: '직접 입력', ocr: n, families: [] }]
   }
-  const saveEdit = () => {
+  const addExtra = async () => {
+    const n = extra.trim()
+    if (!n || busy) return
+    setBusy(true); setNote(null)
+    const found = await standardize(n)
+    const have = new Set(list.map((i) => key(i.name)))
+    const fresh = found.filter((i) => !have.has(key(i.name)) && have.add(key(i.name)))
+    const dup = found.filter((i) => !fresh.includes(i)).map((i) => i.name)
+    if (fresh.length) setList([...list, ...fresh])
+    if (dup.length) setNote(`${dup.join(', ')}${josa(dup[dup.length - 1])} 이미 목록에 있어요.`)
+    setExtra(''); setBusy(false)
+  }
+  const saveEdit = async () => {
     const n = editText.trim()
-    if (n && !list.some((i) => i.name === n && i.name !== editing)) setList(list.map((i) => (i.name === editing ? { ...i, name: n, status: '직접 입력' } : i)))
-    setEditing(null)
+    const was = editing
+    setEditing(null); setNote(null)
+    if (!n || n === was) return
+    const [first] = await standardize(n)
+    const other = list.find((i) => i.name !== was && key(i.name) === key(first.name))
+    if (other) {          // 이미 있는 성분으로 고쳤으면 하나로 합친다
+      setList(list.filter((i) => i.name !== was))
+      setNote(`${other.name}${josa(other.name)} 이미 목록에 있어서 하나로 합쳤어요.`)
+    } else setList(list.map((i) => (i.name === was ? { ...first, ocr: i.ocr } : i)))
   }
   const togglePick = (f) => setPicked(picked.includes(f) ? picked.filter((x) => x !== f) : [...picked, f])
   const save = async () => {
@@ -213,8 +246,9 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           <div className="add-ing">
             <input value={extra} list="ing-hints" onChange={(e) => setExtra(e.target.value)} placeholder={t.step3.add} aria-label={t.step3.add}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addExtra() } }} />
-            <button type="button" className="btn ghost" onClick={addExtra}>추가</button>
+            <button type="button" className="btn ghost" onClick={addExtra} disabled={busy}>추가</button>
           </div>
+          {note && <p className="muted small" role="status">{note}</p>}
           {ask.length > 0 && (
             <fieldset className="ask-fam">
               <legend className="small">{t.step3.ask}</legend>
