@@ -434,3 +434,18 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .ocr-pick{margin:12px 0 4px}.ocr-pick .btn.disabled{opacity:.6;pointer-events:none}
 .ocr-pick .or{display:flex;align-items:center;gap:10px;margin:14px 0 4px;color:var(--sub);font-size:12.500px}
 .ocr-pick .or::before,.ocr-pick .or::after{content:'';flex:1;height:1px;background:var(--line)}
+.recap-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.recap-nav{display:flex;gap:6px}.recap-nav .btn{min-width:44px;padding:0 12px}
+.recap-weather{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;padding:0;list-style:none}
+.recap-weather li{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;background:var(--unk-bg);color:var(--ink);font-size:12.500px}
+.recap-weather li.ok{background:var(--ok-bg)}.recap-weather li.watch{background:var(--watch-bg)}.recap-weather li.signal{background:#ffe6da}.recap-weather li.unknown{background:var(--unk-bg)}
+.recap-weather li.ok svg{color:var(--ok)}.recap-weather li.watch svg{color:var(--watch)}.recap-weather li.signal svg{color:#c2522d}.recap-weather li.unknown svg{color:var(--unk)}
+.recap-weather li b{font-size:20px}
+.recap-lines{margin:0;padding-left:18px;line-height:1.6;font-size:14.500px}
+.ch-bar{position:relative;height:12px;border-radius:999px;background:var(--line);overflow:hidden;margin:12px 0 4px}
+.ch-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:999px}
+.ch-bar .ch-mid{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--card)}
+.ch-legend{display:flex;justify-content:space-between;margin-bottom:8px}
+.ch-rounds{margin-top:10px}.ch-rounds summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+.ch-round{padding:8px 0;border-top:1px solid var(--line)}
+.ov-item{padding:8px 0;border-top:1px solid var(--line)}.ov-item:first-of-type{border-top:0}

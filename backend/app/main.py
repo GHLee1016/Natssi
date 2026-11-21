@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, config, demo_data, env, ingredients, judge, llm, quality, ratelimit, report, store
+from . import auth, config, demo_data, env, ingredients, insights, judge, llm, quality, ratelimit, report, store
 from . import routine as myroutine
 
 log = logging.getLogger("natssi")
@@ -295,6 +295,26 @@ def compare(a: date, b: date, v=Depends(viewer)):
     return {"a": ra, "b": rb, "diff": diff, "mdc95": config.MDC95_A_STAR,
             "beyond_error": diff is not None and abs(diff) > config.MDC95_A_STAR,
             "photo_note": "AI로 생성된 이미지"}
+
+
+@app.get("/api/insights")
+def demo_insights(month: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}$")):
+    """가상 데모: 월간 Skin Recap, 하나만 바꾸기 14일 챌린지, 흐림과 겹친 성분 계열."""
+    return insights.build(judged(), [routine_payload(x) for x in demo_data.versions(config.demo_shift())], month)
+
+
+@app.get("/api/me/insights")
+def my_insights(request: Request, month: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}$"), v=Depends(need_user)):
+    """내 기록으로 만든 같은 요약. 챌린지는 첫날부터(평소 기록 n/7) 보여 준다."""
+    limit("read", request, v)
+    saved = _mine(v["id"])
+    try:
+        data = store.load_routine(v["id"])
+        district = store.load_profile(v["id"]).get("district")
+    except Exception as e:
+        raise _store_fail("저장소에 연결하지 못했어요.", e)
+    rows = _my_judged(v["id"], saved, district, data)
+    return insights.build(rows, myroutine.payload(data)["versions"], month)
 
 
 @app.get("/api/report")

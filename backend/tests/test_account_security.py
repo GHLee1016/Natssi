@@ -483,3 +483,15 @@ def test_read_endpoints_are_rate_limited(env):
     h = join(c, "r@test.kr")
     codes = [c.get("/api/me", headers=h).status_code for _ in range(config.LIMITS["read"][0] + 1)]
     assert codes[0] == 200 and codes[-1] == 429
+
+
+def test_my_challenge_starts_with_baseline_and_needs_login(env, monkeypatch):
+    _, c = env
+    assert c.get("/api/me/insights").status_code == 401
+    h = join(c, "ch@test.kr")
+    day = date(2026, 12, 1)
+    for i in range(3):
+        monkeypatch.setattr(config, "today_kst", lambda d=day + timedelta(days=i): d)
+        up(c, headers=h)
+    cur = c.get("/api/me/insights", headers=h).json()["challenge"]["current"]
+    assert cur["phase"] == "baseline" and cur["have"] == 3 and cur["total"] == 14

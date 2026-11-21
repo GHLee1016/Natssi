@@ -2,6 +2,7 @@ import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
 import { routineCopy } from '../copy/routine.js'
+import { RoutineInsights } from './Insights.jsx'
 
 const TONE = { 레티노이드: '#ffe6da', LED: '#ffe6da', '자외선 차단': '#fff3d9' }
 
@@ -14,6 +15,7 @@ export default function Routine() {
       <Status {...q} />
       {r && (
         <>
+        <RoutineInsights mine={false} />
         <div className="grid2">
           <div>
             <div className="card dark">

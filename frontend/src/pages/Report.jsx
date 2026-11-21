@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, reportStore } from '../api.js'
 import { useLoad, useSlow, Status } from '../useLoad.jsx'
 import StartCard from './StartCard.jsx'
+import { RecapCard } from './Insights.jsx'
 import { WEATHER } from '../weather.jsx'
 
 // 리포트가 바로 나오면 이 표시는 보이지 않고, 0.4초 넘게 걸릴 때만 나타난다(AI가 문장을 쓰는 동안).
@@ -126,6 +127,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
         <div><p className="eyebrow">기록을 근거로 설명해요</p><h1>리포트</h1></div>
         {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `기록과 맞지 않는 문장 ${r.problems.length}개` : '기록에서 확인한 내용만 썼어요'}</span>}
       </header>
+      <RecapCard mine={mine} />
       {mine && aiAvailable && <AiToggle on={viewer?.ai_report} onLegal={onLegal} onChanged={onChanged} />}
       {!q.loading && <Status {...q} />}
       {q.loading && writing && <Writing />}

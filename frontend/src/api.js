@@ -80,6 +80,8 @@ export const api = {
   answer: (id) => req(`/api/report/answer/${id}`),
   me: () => req('/api/me'),
   myTimeline: () => req('/api/me/timeline'),
+  insights: (month) => req('/api/insights' + (month ? `?month=${month}` : '')),
+  myInsights: (month) => req('/api/me/insights' + (month ? `?month=${month}` : '')),
   myCompare: (a, b) => req(`/api/me/compare?a=${a}&b=${b}`),
   myReport: () => req('/api/me/report'),
   myAnswer: (id) => req(`/api/me/report/answer/${id}`),

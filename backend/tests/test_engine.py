@@ -89,3 +89,19 @@ def test_light_change_turns_high_redness_into_fog():
     assert "조명" in warm[-1]["verdict"]["reasons"][0]
     same_light = judge.judge_all(usual + [rec(8, 15, 16.2), rec(9, 15, 16.1)])  # 조명 그대로: 흐림
     assert same_light[-1]["verdict"]["level"] == judge.SIGNAL
+
+
+def test_demo_insights_recap_challenge_overlap():
+    c = TestClient(app)
+    d = c.get("/api/insights").json()
+    assert d["recap"]["month"] == "2026-11" and d["recap"]["weather"]["신호 있음"] == 5
+    assert any("평소 범위를 넘었어요" in x for x in d["recap"]["lines"])
+    r2, r3 = d["challenge"]["rounds"]
+    assert r2["done"] and r2["beyond"] and r2["delta"] > 0                       # 레티놀 추가 뒤 붉은기 오름(오차 밖)
+    assert r3["done"] and r3["delta"] < 0                                         # 주 2회로 줄인 뒤 내려감
+    assert d["challenge"]["current"]["phase"] == "done"
+    assert d["overlap"][0]["families"] == ["레티노이드"] and d["overlap"][0]["changed"][0]["kind"] == "added"
+    assert c.get("/api/insights", params={"month": "2026-10"}).json()["recap"]["month"] == "2026-10"
+    assert c.get("/api/insights", params={"month": "bad"}).status_code == 422
+    for s in [x for x in d["recap"]["lines"]]:
+        assert "때문" not in s and "추천" not in s                               # 원인 단정·추천 표현 없음

@@ -3,6 +3,7 @@ import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
 import AddProduct from './AddProduct.jsx'
+import { RoutineInsights } from './Insights.jsx'
 import { routineCopy } from '../copy/routine.js'
 
 const TONE = { 레티노이드: '#ffe6da', '자외선 차단': '#fff3d9' }
@@ -41,6 +42,7 @@ export default function MyRoutine({ ocr }) {
       <header className="page-head"><div><p className="eyebrow">지금 쓰는 제품</p><h1>내 루틴</h1></div>
         {r && r.current && !adding && <button className="btn" onClick={() => { setAdding(true); setNote(''); setWarn([]) }}>제품 추가</button>}
       </header>
+      {r?.current && !adding && <RoutineInsights mine />}
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
       {r && (
