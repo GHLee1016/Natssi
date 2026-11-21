@@ -72,7 +72,13 @@ def records(v=None):
     """김서연 예시 기록. 로그인한 사용자의 기록은 섞지 않는다(내 기록은 /api/me)."""
     recs = demo_data.build_records(offset=config.demo_shift())
     if config.DEMO_ENV_DISTRICT:          # 실제 환경 값(공공데이터)으로 바꾸기. 비워 두면 예시 값 그대로
-        recs = env.attach_env(recs, config.DEMO_ENV_DISTRICT)
+        # 데모 날짜는 접속일에 맞춰 매일 밀린다. 환경까지 밀린 날짜로 붙이면 날마다 결과가 달라지므로,
+        # 이야기의 원래 날짜(DEMO_BASE 기준, 10/20~11/16)의 실제 값을 쓴다 → 언제 열어도 기록 19가 '구분 불가'.
+        shift = config.demo_shift()
+        base = [{"date": (date.fromisoformat(r["date"]) - timedelta(days=shift)).isoformat()} for r in recs]
+        env.attach_env(base, config.DEMO_ENV_DISTRICT)
+        for r, b in zip(recs, base):
+            r["env"] = b["env"]
     return recs
 
 

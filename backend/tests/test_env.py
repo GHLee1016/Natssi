@@ -115,3 +115,11 @@ def test_profiles_table_missing_does_not_break_me(fake, monkeypatch):
     store._client = httpx.Client(transport=httpx.MockTransport(lambda r: FakeSupabase.handler(f, r)))
     r = c.get("/api/me", headers=h)
     assert r.status_code == 200 and r.json()["district"] is None
+
+
+@pytest.mark.parametrize("shift", [0, 5, 11])          # 기준일, 오늘(11/21), 발표일(11/27)
+def test_demo_real_env_is_same_whatever_day_you_open(demo_real_env, monkeypatch, shift):
+    """데모 날짜는 접속일에 맞춰 밀리지만, 환경은 이야기의 원래 날짜 값 → 언제 열어도 같은 결과."""
+    monkeypatch.setattr(config, "DEMO_SHIFT_DAYS", shift)
+    rows = demo_real_env.get("/api/timeline").json()["records"]
+    assert [r["id"] for r in rows if r["verdict"].get("env_blocked")] == [19]
