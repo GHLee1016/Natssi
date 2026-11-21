@@ -1,7 +1,5 @@
 # data_pipeline — 환경 데이터 · 전성분 OCR (강주희)
 
-**앱에 붙이는 방법은 [INTEGRATION.md](INTEGRATION.md)** 에 정리했어요.
-
 앱(backend/frontend)과 따로 돌아가는 파이썬 모듈. **이 폴더 안에서** 실행한다.
 
 ```powershell

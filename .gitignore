@@ -1,7 +1,5 @@
-backend/.DS_Store
-frontend/.DS_Store
-natssi_blender_mockup/.DS_Store
 .DS_Store
+.pytest_cache/
 /frontend/dist
 /frontend/public/mediapipe
 __pycache__/
