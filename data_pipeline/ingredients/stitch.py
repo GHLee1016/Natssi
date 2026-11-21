@@ -61,8 +61,8 @@ def overlap(a: str, b: str):
     return val, a[:cut] + b[ib[p]:]
 
 
-def stitch_pair(A: list[str], B: list[str]) -> list[str]:
-    """두 사진의 줄 목록 → 이어 붙인 줄 목록. 위아래 순서를 지키는 짝 중 점수 합이 가장 큰 것."""
+def _pair(A: list[str], B: list[str]) -> tuple[list[str], float]:
+    """두 사진의 줄 목록 → (이어 붙인 줄 목록, 겹친 점수 합). 위아래 순서를 지키는 짝 중 점수 합이 가장 큰 것."""
     n, m = len(A), len(B)
     ov = {}
     for i in range(n):
@@ -85,14 +85,31 @@ def stitch_pair(A: list[str], B: list[str]) -> list[str]:
             out.append(A[i]); i += 1
         else:
             out.append(B[j]); j += 1
-    return out + A[i:] + B[j:]
+    return out + A[i:] + B[j:], best[0][0] if n and m else 0.0
+
+
+def stitch_pair(A: list[str], B: list[str]) -> list[str]:
+    return _pair(A, B)[0]
+
+
+def _chain(views):
+    out, total = views[0], 0.0
+    for v in views[1:]:
+        out, sc = _pair(out, v)
+        total += sc
+    return out, total
 
 
 def stitch(views: list[list[str]]) -> list[str]:
-    """사진 순서대로(왼쪽에서 오른쪽으로 돌려 찍은 순서) 차례로 이어 붙인다."""
+    """돌려 찍은 사진들을 이어 붙인다. 사용자는 사진을 아무 순서로나 고르므로(오른쪽 면부터 찍기도 한다),
+    4장 이하면 가능한 순서를 모두 이어 보고 겹친 점수 합이 가장 큰 순서를 쓴다. 점수가 같으면 보낸 순서 그대로."""
     if not views:
         return []
-    out = views[0]
-    for v in views[1:]:
-        out = stitch_pair(out, v)
-    return out
+    from itertools import permutations
+    orders = permutations(range(len(views))) if len(views) <= 4 else [tuple(range(len(views)))]
+    best = None
+    for o in orders:                       # 첫 번째가 보낸 순서라서, 같은 점수면 보낸 순서가 남는다
+        lines, sc = _chain([views[k] for k in o])
+        if best is None or sc > best[1]:
+            best = (lines, sc)
+    return best[0]

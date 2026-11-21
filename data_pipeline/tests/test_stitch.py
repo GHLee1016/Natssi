@@ -31,6 +31,16 @@ def test_rows_pair_in_order_and_unmatched_rows_stay():
     assert stitch([A]) == A and stitch([]) == []
 
 
+def test_photo_order_does_not_matter():
+    # 오른쪽 면을 먼저 찍어 보내도(B, A) 바른 순서(A, B)와 같은 줄이 된다
+    A = ["정제수, 글리세린, 부틸렌글라이콜, 페녹", "나이아신아마이드, 판테놀, 아데노"]
+    B = ["부틸렌글라이콜, 페녹시에탄올, 향료", "판테놀, 아데노신, 마데카소사이드"]
+    C = ["페녹시에탄올, 향료, 카보머", "마데카소사이드, 알란토인"]
+    right = stitch([A, B, C])
+    assert right[0].endswith("페녹시에탄올, 향료, 카보머")
+    assert stitch([C, B, A]) == right and stitch([B, A, C]) == right
+
+
 def test_register_stitches_two_photos(monkeypatch):
     views = {1: ["전성분: 정제수, 글리세린, 부틸렌글라이콜, 페녹"], 2: ["부틸렌글라이콜, 페녹시에탄올, 나이아신아마이드"]}
     monkeypatch.setattr(ocr, "load", lambda p: np.full((8, 8, 3), p[0], np.uint8))
