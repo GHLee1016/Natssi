@@ -37,7 +37,8 @@ def _letters(token: str):
     return "".join(chars), pos, words
 
 
-def segment(token: str, m: Matcher) -> list[dict]:
+def segment(token: str, m: Matcher, fuzzy: bool = True) -> list[dict]:
+    """fuzzy=False: 비슷한 이름 찾기(느림)를 빼고 사전 그대로·헷갈리는 글자 고친 이름만. 줄 고르기에서 빠르게 셀 때."""
     if not token.strip():
         return []
     if (r := m.exact(token)):                       # 대부분은 여기서 끝난다
@@ -68,7 +69,7 @@ def segment(token: str, m: Matcher) -> list[dict]:
         if (i, j) in found:
             w, r = found[(i, j)]
             return w * n - PIECE, r
-        if 3 <= n <= MAX_FUZZY and (r := m.fuzzy(s[i:j])):
+        if fuzzy and 3 <= n <= MAX_FUZZY and (r := m.fuzzy(s[i:j])):
             # 비슷하기만 한 이름은 점수가 낮을수록 크게 깎는다(80점 → 0.33, 95점 → 0.83).
             # 그래야 사전에 그대로 있는 이름 + 찌꺼기 몇 글자가, 찌꺼기까지 삼킨 엉뚱한 보정보다 앞선다.
             return (r["score"] - 70) / 30 * n - 2 * PIECE, r
