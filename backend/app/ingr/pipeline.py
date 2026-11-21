@@ -37,18 +37,22 @@ def ingredient_lines(text: str, m: Matcher) -> str:
             prev = False
             continue
         total = sum(len(norm(t)) for t in toks)
-        hits = covered = 0
-        for t in toks:     # 빠른 나누기로 세고, 하나도 못 찾은 덩어리만 통째로 오타 보정을 해 본다(느려서)
+        hits = covered = tok_hits = 0
+        for t in toks:     # 빠른 나누기로 세고, 대부분을 못 덮은 조각만 통째로 오타 보정을 해 본다(느려서)
             found = [r for r in segment(t, m, fuzzy=False) if r["status"] != "확인 필요"]
-            if not found and m.fuzzy(t):
-                found = [{"ocr": t}]
+            c = min(1.0, sum(len(norm(r["ocr"])) for r in found) / len(norm(t)))
+            if c < 0.6 and m.fuzzy(t):
+                found, c = [{"ocr": t}], 1.0
             hits += len(found)
-            covered += sum(len(norm(r["ocr"])) for r in found)
-        cover = covered / total
+            tok_hits += c >= 0.6           # 조각의 대부분이 성분 이름이어야 '성분 조각'('Clear Moisture Cream'의 'Cream'은 아님)
+            covered += c * len(norm(t))
+        cover, ratio = covered / total, tok_hits / len(toks)
+        # 쉼표 조각 대부분이 성분이거나(쉼표를 읽은 줄), 글자 대부분이 성분 이름으로 덮이면(쉼표를 못 읽은 줄) 성분 줄
+        ok = (tok_hits >= 2 and ratio >= 0.4) or (hits >= 2 and cover >= 0.5)
         # 성분 줄 바로 다음 줄은 기준을 낮춘다: 목록 끝('…, 향료')이나 줄바꿈에서 잘린 이름 뒷부분('탄검')만 있는 줄
-        cont = prev and (hits >= 1 and cover >= 0.3
+        cont = prev and (tok_hits >= 1 and ratio >= 0.3
                          or (len(toks) == 1 and m.exact(keep[-1].rsplit(",", 1)[-1].strip() + toks[0])))
-        prev = (hits >= 2 and cover >= 0.5) or (bool(s) and hits >= 1) or bool(cont)
+        prev = ok or (bool(s) and hits >= 1) or bool(cont)
         if prev:
             keep.append(line)
     return "\n".join(keep)
