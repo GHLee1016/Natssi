@@ -1,6 +1,7 @@
+import os
 import time
 
-from . import families, ocr, parse, unwarp
+from . import families, ocr, parse, stitch, unwarp
 from .match import Matcher, jamo, norm
 from .segment import segment
 
@@ -100,28 +101,47 @@ def register(image_paths: list) -> dict:
     """전성분표 사진 여러 장(원통형 용기는 돌려 가며 2~3장) → 성분 목록.
 
     사진마다: 원래 사진을 읽고(적게 읽히면 다른 설정으로 다시), 휜 사진 펴기 모델이 있으면
-    편 사진도 한 번 더 읽어 글자를 합친다(unwarp.py). 같은 성분은 from_text의 dedupe가 하나로 남긴다."""
+    편 사진도 한 번 더 읽어 글자를 합친다(unwarp.py).
+    사진이 2장 이상이면 줄 단위로 이어 붙인다(stitch.py): 돌려 찍은 사진은 줄마다 앞·뒷부분이 나뉘어 찍혀서,
+    사진 경계에서 잘린 이름('페녹시' | '에탄올')을 겹친 글자로 이어 한 줄로 만든다. 끄기: NATSSI_STITCH=0.
+    같은 성분은 from_text의 dedupe가 하나로 남긴다."""
     t0 = time.perf_counter()
     def good(t):  # 사전과 맞은 성분 수
         return sum(i["status"] != "확인 필요" for i in from_text(t)["ingredients"])
 
-    texts, used = [], []
+    multi = len(image_paths) > 1 and os.environ.get("NATSSI_STITCH", "1") != "0"
+    read = (lambda im, v: ocr.read_rows(im, v)) if multi else (lambda im, v: ocr.read_image(im, v).splitlines())
+    views, flat_views, used = [], [], []
     for p in image_paths:
         img = ocr.load(p)
-        best_v, best_t = "base", ocr.read_image(img, "base")
-        best = good(best_t)
+        best_v, best_r = "base", read(img, "base")
+        best = good("\n".join(best_r))
         if best < 15:   # 적게 읽었으면 다른 설정으로 다시 (계단식)
             for v in ocr.VARIANTS[1:]:
-                t = ocr.read_image(img, v)
-                if (g := good(t)) > best:
-                    best_v, best_t, best = v, t, g
+                r = read(img, v)
+                if (g := good("\n".join(r))) > best:
+                    best_v, best_r, best = v, r, g
+        views.append(best_r)
         if unwarp.available():
-            best_t += "\n" + ocr.read_image(unwarp.unwarp(img), "base")
+            flat_views.append(read(unwarp.unwarp(img), "base"))
             best_v += "+unwarp"
-        texts.append(best_t)
         used.append(best_v)
-    text = "\n".join(texts)
-    out = from_text(text)
+    every = [ln for v in views + flat_views for ln in v]
+    if multi:
+        text = "\n".join(stitch.stitch(views) + stitch.stitch(flat_views))
+        out = from_text(text)
+        if os.environ.get("NATSSI_STITCH_EXACT", "0") == "1":
+            # 이어 붙이면 같은 줄을 한 번만 읽게 된다. 사진마다 따로 읽은 글자에서 사전과 '그대로' 맞은 성분은
+            # 잘린 조각의 짐작이 아니므로 더한다(짐작 보정·확인 필요 조각은 더하지 않는다).
+            have = {norm(i["kor"]) for i in out["ingredients"]}
+            extra = [i for i in from_text("\n".join(every))["ingredients"]
+                     if i["status"] == "일치" and norm(i["kor"]) not in have]
+            out["ingredients"] += extra
+            out["families"] = sorted({f for it in out["ingredients"] for f in it["families"]})
+        used.append("stitch")
+    else:
+        text = "\n".join(every)
+        out = from_text(text)
     out["variants"] = used
     out["raw_text"] = text
     out["seconds"] = round(time.perf_counter() - t0, 1)

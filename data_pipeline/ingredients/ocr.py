@@ -62,5 +62,17 @@ def read_image(img: np.ndarray, variant: str = "base") -> str:
     return "\n".join(r.txts or [])
 
 
+def read_rows(img: np.ndarray, variant: str = "base") -> list[str]:
+    """이미 연 사진 → 글자 줄 목록(위에서 아래로). 엔진이 줄 하나를 상자 하나로 잡으므로 상자 = 줄.
+    상자끼리 묶지 않는다: 휜 사진에서는 위아래 줄이 겹쳐 보이고, 옆 칸(영문 전성분 등)이 같은 높이에 있어서.
+    여러 장을 줄 단위로 이어 붙일 때(stitch.py) 쓴다."""
+    eng = _engine(1.3 if variant == "tight" else 1.6)
+    r = eng(invert_img(img) if variant == "invert" else img)
+    if r.boxes is None or not len(r.txts or []):
+        return []
+    order = sorted(range(len(r.txts)), key=lambda i: (float(r.boxes[i][:, 1].mean()), float(r.boxes[i][:, 0].min())))
+    return [r.txts[i] for i in order]
+
+
 def read_text(path, variant: str = "base") -> str:
     return read_image(load(path), variant)
