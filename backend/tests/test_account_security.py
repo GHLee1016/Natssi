@@ -444,3 +444,34 @@ def test_cheek_photos_only_with_consent_and_deleted_on_withdraw(env):
     auth._cache.clear()
     assert c.get("/api/me/cheeks", params={"dates": day}, headers=h).json() == {}
     assert c.get("/api/me", headers=h).json()["today_redness"] == 11.0                  # 숫자 기록은 남음
+
+
+def test_open_mode_is_ignored_on_vercel():
+    """로그인 없이 쓰기(OPEN_MODE)는 로컬 전용. Vercel에서 환경변수가 켜져 있어도 무시한다."""
+    import os, subprocess, sys
+    code = "from app import config; print(config.OPEN_MODE)"
+    run = lambda extra: subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                                       cwd=os.path.dirname(os.path.dirname(__file__)),
+                                       env={k: v for k, v in {**os.environ, "NATSSI_OPEN_MODE": "1", **extra}.items()
+                                            if not (k.startswith("VERCEL") and k not in extra)}).stdout.strip()
+    assert run({}) == "True"
+    assert run({"VERCEL": "1"}) == "False" and run({"VERCEL_ENV": "preview"}) == "False"
+
+
+def test_client_ip_trusts_vercel_header_not_spoofed_forwarded_for(monkeypatch):
+    from starlette.requests import Request
+    def req(headers):
+        return Request({"type": "http", "headers": [(k.encode(), v.encode()) for k, v in headers.items()], "client": ("10.0.0.1", 1)})
+    spoof = {"x-forwarded-for": "1.2.3.4, 9.9.9.9"}
+    assert ratelimit.client_ip(req({**spoof, "x-vercel-forwarded-for": "9.9.9.9"})) == "9.9.9.9"
+    monkeypatch.setattr(config, "ON_VERCEL", True)
+    assert ratelimit.client_ip(req(spoof)) == "9.9.9.9"                    # 사용자가 붙인 첫 값(1.2.3.4)을 믿지 않음
+    monkeypatch.setattr(config, "ON_VERCEL", False)
+    assert ratelimit.client_ip(req({})) == "10.0.0.1"
+
+
+def test_read_endpoints_are_rate_limited(env):
+    _, c = env
+    h = join(c, "r@test.kr")
+    codes = [c.get("/api/me", headers=h).status_code for _ in range(config.LIMITS["read"][0] + 1)]
+    assert codes[0] == 200 and codes[-1] == 429

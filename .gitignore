@@ -5,3 +5,9 @@ natssi_blender_mockup/.DS_Store
 /frontend/dist
 /frontend/public/mediapipe
 __pycache__/
+# 비밀값·키 파일(실수로 커밋하지 않게)
+.env
+.env.*
+!.env.example
+*.pem
+*.key

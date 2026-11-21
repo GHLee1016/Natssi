@@ -149,7 +149,10 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
             </div>
           </div>
         </div>
-        <p className="notice wide">판정은 내 기록으로 해요. 진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소·전문의와 상담해 주세요. 사진 기록이 7일 쌓이면 변화·리포트 화면도 내 기록으로 열려요.</p>
+        <p className="notice wide">
+          얼굴 날씨는 내 평소 기록과 비교한 결과이고, 진단이 아니에요. 따가움·화끈거림이 계속되면 제품 사용을 멈추고 보건소나 피부과 전문의와 상담해 주세요.
+          {!d.unlocked && ` 사진 기록이 ${d.needed}일 쌓이면 변화·리포트도 내 기록으로 볼 수 있어요(지금 ${d.redness_days}일).`}
+        </p>
         </>
       )}
     </section>

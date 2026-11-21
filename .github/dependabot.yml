@@ -1,0 +1,20 @@
+# 의존성 업데이트 PR(주 1회). 보안 업데이트 PR은 저장소 Settings → Advanced Security에서 'Dependabot security updates'를 켜야 온다.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "pip"
+    directory: "/"                 # Vercel 함수가 설치하는 requirements.txt
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

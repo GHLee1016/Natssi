@@ -15,8 +15,13 @@ _MAX_KEYS = 5000
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for", "")
-    return (fwd.split(",")[0].strip() or (request.client.host if request.client else "unknown"))[:64]
+    """요청한 사람의 IP. Vercel이 직접 넣는 헤더를 먼저 믿는다(x-forwarded-for 첫 값은 사용자가 지어 보낼 수 있음).
+    로컬처럼 프록시가 없으면 접속 주소를 쓴다."""
+    h = request.headers
+    ip = (h.get("x-vercel-forwarded-for") or h.get("x-real-ip") or "").split(",")[0].strip()
+    if not ip and config.ON_VERCEL:                          # Vercel인데 위 헤더가 없으면 프록시가 붙인 마지막 값
+        ip = h.get("x-forwarded-for", "").split(",")[-1].strip()
+    return (ip or (request.client.host if request.client else "unknown"))[:64]
 
 
 def hit(bucket: str, key: str) -> None:

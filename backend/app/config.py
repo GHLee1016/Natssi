@@ -39,7 +39,9 @@ import os
 # 비밀번호 찾기는 Supabase 커스텀 SMTP를 설정한 뒤에만 켠다(기본 메일 서비스는 팀 구성원에게만 보낸다).
 RECOVERY_ENABLED = os.environ.get("NATSSI_RECOVERY") == "1"
 OCR_ENABLED = os.environ.get("NATSSI_OCR") == "1"       # 전성분 사진 읽기(OCR). 서버·화면이 모두 준비된 뒤에만 켜기(기본 꺼짐)
-OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1"   # 로컬 개발용: 로그인 없이 쓰기 허용(운영에서는 켜지 마세요)
+# 로컬 개발용: 로그인 없이 쓰기 허용. Vercel(운영·미리보기)에서는 환경변수가 실수로 켜져 있어도 무시한다.
+ON_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+OPEN_MODE = os.environ.get("NATSSI_OPEN_MODE") == "1" and not ON_VERCEL
 CONSENT_VERSION = "2026-11-23"                          # 처리방침을 바꾸면 이 값도 바꿉니다(11-23: 볼 밝기 L* 저장, 볼 조각 기기 저장(선택), AI 문장 다듬기(선택 동의) / 11-22: 볼 색 숫자(a*·b*) 하루 1번 저장 / 11-19: 사진을 브라우저에서 측정, 볼 붉은기 측정 연결 / 11-20: 내 루틴 저장 추가 / 11-21: 사는 구(선택) 추가)
 PHOTO_NOTICE_VERSION = "2026-11-23"                     # 얼굴 사진 처리 방식이 바뀐 날. 이 값이 오를 때만 촬영 전에 다시 동의를 받는다
 REDNESS_SINCE = "2026-11-22"                            # 이 버전 이상에 동의한 사용자만 볼 붉은기 숫자를 저장한다
@@ -53,5 +55,6 @@ LIMITS = {
     "capture": (12, 60),
     "write": (30, 60),
     "suggest": (90, 60),
+    "read": (90, 60),          # 로그인한 사람의 조회(내 기록·변화·볼 사진 등): 반복 호출로 DB 비용이 커지지 않게
     "account": (6, 60),
 }

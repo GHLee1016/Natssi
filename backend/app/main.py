@@ -400,7 +400,8 @@ class ProfileBody(BaseModel):
 
 
 @app.get("/api/me/profile")
-def my_profile(v=Depends(need_user)):
+def my_profile(request: Request, v=Depends(need_user)):
+    limit("read", request, v)
     try:
         return {**store.load_profile(v["id"]), "districts": env.SEOUL_DISTRICTS}
     except Exception as e:
@@ -421,8 +422,9 @@ def save_my_profile(body: ProfileBody, request: Request, v=Depends(need_user)):
 
 
 @app.get("/api/me")
-def me(v=Depends(need_user)):
+def me(request: Request, v=Depends(need_user)):
     """로그인한 사용자 본인의 기록. 오늘 체크인, 쌓인 일수(평소 범위까지 N/7), 최근 기록."""
+    limit("read", request, v)
     return _me_payload(v["id"])
 
 
@@ -443,13 +445,15 @@ def _my_ctx(uid):
 
 
 @app.get("/api/me/timeline")
-def my_timeline(v=Depends(need_user)):
+def my_timeline(request: Request, v=Depends(need_user)):
+    limit("read", request, v)
     rows, versions = _my_ctx(v["id"])
     return {"records": rows, "versions": versions, "mdc95": config.MDC95_A_STAR}
 
 
 @app.get("/api/me/compare")
-def my_compare(a: date, b: date, v=Depends(need_user)):
+def my_compare(a: date, b: date, request: Request, v=Depends(need_user)):
+    limit("read", request, v)
     rows = {r["date"]: r for r in _my_ctx(v["id"])[0]}
     ra, rb = rows.get(a.isoformat()), rows.get(b.isoformat())
     if not ra or not rb or ra["redness"] is None or rb["redness"] is None:
@@ -473,7 +477,8 @@ def my_report(request: Request, v=Depends(need_user)):
 
 
 @app.get("/api/me/report/answer/{qid}")
-def my_answer(qid: str, v=Depends(need_user)):
+def my_answer(qid: str, request: Request, v=Depends(need_user)):
+    limit("read", request, v)
     rows, versions = _my_ctx(v["id"])
     ans = report.answer(qid, rows, versions)
     if ans is None:
@@ -543,8 +548,9 @@ def _routine_response(data, warnings=()):
 
 
 @app.get("/api/me/routine")
-def my_routine(v=Depends(need_user)):
+def my_routine(request: Request, v=Depends(need_user)):
     """내 루틴(제품 목록과 버전). 판정·리포트와 달리 첫날부터 열려 있어요."""
+    limit("read", request, v)
     try:
         return _routine_response(store.load_routine(v["id"]))
     except Exception as e:
@@ -698,8 +704,9 @@ def save_cheeks(body: CheeksBody, request: Request, v=Depends(need_user)):
 
 
 @app.get("/api/me/cheeks")
-def get_cheeks(dates: str = Query(..., max_length=80), v=Depends(need_user)):
+def get_cheeks(request: Request, dates: str = Query(..., max_length=80), v=Depends(need_user)):
     """비교 화면용: 고른 날짜(쉼표로 최대 4개)의 볼 조각. 없는 날은 빠진다."""
+    limit("read", request, v)
     want = [d for d in dates.split(",")[:4] if len(d) == 10]
     saved = _mine(v["id"])
     out = {}
