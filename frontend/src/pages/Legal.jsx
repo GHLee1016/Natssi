@@ -11,7 +11,7 @@ export default function Legal({ anchor, back, version }) {
     <section className="legal">
       <header className="page-head"><div><p className="eyebrow">시행 기준 {version}</p><h1>약관과 개인정보 처리방침</h1></div>
         <button className="btn ghost" onClick={back}>돌아가기</button></header>
-      <p className="notice">공모전 시연용 <b>초안</b>이에요. 실제 서비스 전에 법률 검토를 받고, [대괄호] 항목을 채워야 해요.
+      <p className="notice">공모전 시연용 <b>초안</b>이에요. 실제 서비스 전에 법률 검토를 받아야 해요.
         증상 점수는 건강에 관한 정보로 볼 수 있어 별도 동의가 필요한지 확인이 필요해요.</p>
 
       <div className="legal-body">
@@ -82,9 +82,9 @@ export default function Legal({ anchor, back, version }) {
         <ul>
           <li><b>동의한 경우에만 써요.</b> 가입할 때나 ‘내 계정’·리포트 화면에서 ‘AI로 문장 다듬기’를 켠 사람만 해당돼요. 동의하지 않아도 모든 기능을 쓸 수 있고, 리포트는 정해진 틀 문장으로 보여 드려요. 언제든 끌 수 있어요.</li>
           <li><b>보내는 것(가명 요약):</b> 루틴을 바꾼 종류(예: ‘제품 하나를 더한’), 바꾼 뒤 며칠째인지, 평소 범위를 넘은 날과 돌아온 날의 순서 번호, 그 기간 따가움 최고 점수, 환경이 평소와 달랐는지 여부. <b>이메일·이름·사진·제품 이름·날짜·볼 색 측정값은 보내지 않아요.</b></li>
-          <li><b>받는 곳(국외 이전):</b> OpenRouter, Inc.(미국)와 연결된 AI 모델 제공 업체. 내 리포트를 열 때 암호화된 연결로 보내요.</li>
+          <li><b>받는 곳(국외 이전):</b> OpenRouter, Inc.(미국)를 거쳐 AI 모델 제공 업체(Upstage의 Solar 모델, 이 모델이 응답하지 않을 때는 OpenRouter가 연결한 다른 모델)로 보내요. 내 리포트를 열 때 암호화된 연결로 보내요.</li>
           <li><b>목적:</b> 판정 결과를 읽기 쉬운 문장으로 다듬기. 판정은 AI가 하지 않고 낯씨 코드가 해요. AI 문장은 기록과 맞는지 다시 확인하고, 맞지 않으면 틀 문장으로 바꿔요.</li>
-          <li><b>보관:</b> 낯씨 서버는 보낸 요약과 받은 문장을 저장하지 않아요. 업체의 보관·학습 여부는 [OpenRouter 계정의 데이터 정책 설정(로그 저장·학습 끄기) 확인 후 기재].</li>
+          <li><b>보관:</b> 낯씨 서버는 보낸 요약과 받은 문장을 저장하지 않아요. OpenRouter 계정에서 요청 데이터로 학습하는 업체와 프롬프트를 공개하는 업체로는 보내지 않도록 막아 두었어요. 모델 제공 업체 쪽 보관은 OpenRouter에 공개된 그 업체의 데이터 정책을 따라요.</li>
           <li><b>거부할 권리:</b> 동의하지 않거나 언제든 끌 수 있고, 그래도 불이익은 없어요.</li>
         </ul>
       </article>
