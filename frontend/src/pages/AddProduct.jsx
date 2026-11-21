@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { routineCopy } from '../copy/routine.js'
-import { readIngredientPhotos, wakeOcr } from '../ocr.js'
+import { productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
@@ -39,6 +39,9 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [err, setErr] = useState(null)
   const [busy, setBusy] = useState(false)
   const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(30초쯤)
+  const [photo, setPhoto] = useState(null)            // 제품 사진(선택): 240px 썸네일 data URL
+  const [ocrFile, setOcrFile] = useState(null)        // 전성분을 읽은 첫 사진(제품 사진으로 쓸 수 있게)
+  const [useOcrPhoto, setUseOcrPhoto] = useState(true)
   const head = useRef(null)
   const root = useRef(null)
   useEffect(() => { head.current?.focus({ preventScroll: true }); root.current?.scrollIntoView({ block: 'nearest' }) }, [step])
@@ -50,6 +53,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     setReading(true); setErr(null)
     try {
       const r = await readIngredientPhotos(files)
+      setOcrFile(files[0])
       if (!r.ingredients.length) return setErr(r.message || '전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게 다시 찍거나, 글자를 붙여 넣어 주세요.')
       setList(r.ingredients); setAsk(r.ask_families); setPicked([]); setEditing(null)
       setStep(2)
@@ -82,7 +86,10 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const togglePick = (f) => setPicked(picked.includes(f) ? picked.filter((x) => x !== f) : [...picked, f])
   const save = async () => {
     setBusy(true); setErr(null)
-    try { onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent })) }
+    try {
+      const pic = photo || (useOcrPhoto && ocrFile ? await productThumbnail(ocrFile) : null)
+      onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent, photo: pic }))
+    }
     catch (e) { setErr(e.message); setBusy(false) }
   }
   const review = list.filter((i) => i.status === '확인 필요').length
@@ -119,6 +126,17 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
             </label>
           )}
           {first && <small id="p-recent-help" className="muted">{t.recent.help}</small>}
+          <div className="field prod-photo-field">
+            <span className="muted small">제품 사진 (선택)</span>
+            <div className="prod-photo-row">
+              {photo && <img className="prod-photo" src={photo} alt="고른 제품 사진" />}
+              <label className="btn ghost file">{photo ? '다른 사진' : '사진 찍기·고르기'}
+                <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { try { setPhoto(await productThumbnail(f)) } catch { setErr('사진을 열 수 없어요. JPG·PNG로 골라 주세요.') } } }} />
+              </label>
+              {photo && <button type="button" className="link" onClick={() => setPhoto(null)}>빼기</button>}
+            </div>
+            <small className="muted">루틴 목록에서 제품을 알아보기 쉽게 작게 줄여 저장해요.</small>
+          </div>
           {err && <p className="err" role="alert">{err}</p>}
           <div className="step-actions">
             <button className="btn ghost" onClick={onCancel}>취소</button>
@@ -206,6 +224,12 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                 </label>
               ))}
             </fieldset>
+          )}
+          {!photo && ocrFile && (
+            <label className="row-check">
+              <input type="checkbox" checked={useOcrPhoto} onChange={(e) => setUseOcrPhoto(e.target.checked)} />
+              전성분을 읽은 사진을 제품 사진으로 쓰기(작게 줄여 저장)
+            </label>
           )}
           {err && <p className="err" role="alert">{err}</p>}
           <div className="step-actions">

@@ -201,3 +201,24 @@ def test_recent_flag_only_on_first_routine():
     first, last = routine.payload(data)["versions"]
     assert [i["recent"] for i in first["items"]] == [True, False]
     assert [i["recent"] for i in last["items"]] == [True, False, False]
+
+
+def _jpeg(size):
+    import base64, io
+    from PIL import Image
+    b = io.BytesIO(); Image.new("RGB", (size, size), (230, 220, 210)).save(b, "JPEG")
+    return "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+
+
+def test_product_photo_is_small_jpeg_and_kept_on_changes(env):
+    _, c = env
+    h = join(c, "pp@test.kr")
+    base = {"name": "세럼", "usage": "매일 저녁", "ingredients": []}
+    assert c.post("/api/me/routine/items", json={**base, "photo": _jpeg(600)}, headers=h).status_code == 400   # 큰 사진 거절
+    assert c.post("/api/me/routine/items", json={**base, "photo": "data:image/png;base64,AAAA"}, headers=h).status_code == 400
+    r = c.post("/api/me/routine/items", json={**base, "photo": _jpeg(200)}, headers=h).json()
+    item = r["current"]["items"][0]
+    assert item["photo"].startswith("data:image/jpeg;base64,")
+    c.post("/api/me/routine/items", json={"name": "크림", "usage": "매일 아침", "ingredients": []}, headers=h)
+    r = c.patch(f"/api/me/routine/items/{item['key']}", json={"usage": "주 2~3회"}, headers=h).json()
+    assert [i["photo"] is not None for i in r["current"]["items"]] == [True, False]          # 빈도를 바꿔도 사진 유지

@@ -12,6 +12,8 @@ if (typeof window !== 'undefined') {
 const KEY = 'natssi.installHint'
 const standalone = () => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
 const ios = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const samsung = () => /SamsungBrowser/i.test(navigator.userAgent)
+const android = () => /android/i.test(navigator.userAgent)
 
 export function InstallHint() {
   const [, tick] = useState(0)
@@ -27,11 +29,35 @@ export function InstallHint() {
         <b>홈 화면에 낯씨를 추가해 두세요</b>
         <p className="muted small">{deferred ? '앱처럼 아이콘을 눌러 매일 바로 기록할 수 있어요.'
           : ios() ? '사파리 아래쪽 공유 버튼(□↑)을 누르고 ‘홈 화면에 추가’를 고르면 앱처럼 열려요.'
-            : '브라우저 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 매일 바로 열 수 있어요.'}</p>
+            : samsung() ? '아래쪽 메뉴(≡)를 누르고 ‘현재 페이지 추가’ → ‘홈 화면’을 고르면 앱처럼 열려요.'
+              : android() ? '오른쪽 위 메뉴(⋮)를 누르고 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 앱처럼 열려요.'
+                : '브라우저 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 매일 바로 열 수 있어요.'}</p>
         <div className="actions left">
           {deferred && <button className="btn" onClick={install}>홈 화면에 추가</button>}
           <button className="btn ghost" onClick={close}>{deferred ? '나중에' : '닫기'}</button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// 카카오톡·인스타그램·네이버 등 '앱 속 브라우저'로 열면 카메라와 홈 화면 추가가 잘 안 된다. 맨 위에 기본 브라우저로 열기를 안내한다.
+const INAPP = /KAKAOTALK|Instagram|FBAN|FBAV|NAVER\(inapp|Line\/|everytimeApp|DaumApps/i
+export function InAppBanner() {
+  const [hide, setHide] = useState(() => { try { return sessionStorage.getItem('natssi.inapp') === 'closed' } catch { return false } })
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  if (hide || !INAPP.test(ua)) return null
+  const kakao = /KAKAOTALK/i.test(ua)
+  const url = window.location.href
+  const close = () => { try { sessionStorage.setItem('natssi.inapp', 'closed') } catch { /* 무시 */ } setHide(true) }
+  return (
+    <div className="inapp-banner" role="note">
+      <p><b>{kakao ? '카카오톡' : '앱'} 안의 브라우저로 열렸어요.</b> 카메라와 홈 화면 추가가 잘 안 될 수 있어요.{' '}
+        {android() ? '' : ios() ? (kakao ? '오른쪽 아래 공유(⋯) → ‘Safari로 열기’를 눌러 주세요.' : '메뉴에서 ‘Safari로 열기’를 눌러 주세요.') : ''}</p>
+      <div className="actions left">
+        {android() && kakao && <a className="btn" href={'kakaotalk://web/openExternal?url=' + encodeURIComponent(url)}>기본 브라우저로 열기</a>}
+        {android() && !kakao && <a className="btn" href={'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'}>크롬으로 열기</a>}
+        <button className="btn ghost" onClick={close}>닫기</button>
       </div>
     </div>
   )

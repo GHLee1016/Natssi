@@ -449,3 +449,7 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .ch-rounds{margin-top:10px}.ch-rounds summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
 .ch-round{padding:8px 0;border-top:1px solid var(--line)}
 .ov-item{padding:8px 0;border-top:1px solid var(--line)}.ov-item:first-of-type{border-top:0}
+.inapp-banner{margin:0 0 12px;padding:12px 14px;border-radius:14px;background:#fff4dc;color:#5c3d00;font-size:14px;line-height:1.5}
+.inapp-banner .actions{margin-top:8px}
+.prod-photo{width:44px;height:44px;border-radius:12px;object-fit:cover;flex:none;background:var(--unk-bg)}
+.prod-photo-row{display:flex;align-items:center;gap:10px;margin:6px 0 4px}

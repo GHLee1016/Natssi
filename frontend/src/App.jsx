@@ -4,6 +4,7 @@ import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
 import MyDay from './pages/MyDay.jsx'
 import Welcome from './pages/Welcome.jsx'
+import { InAppBanner } from './install.jsx'
 import Splash from './pages/Splash.jsx'
 import Change from './pages/Change.jsx'
 import Capture from './pages/Capture.jsx'
@@ -110,6 +111,7 @@ export default function App() {
       </aside>
 
       <main className="main">
+        <InAppBanner />
         <button className="brand-m" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
         {meta.data && (
           <div className="topline">

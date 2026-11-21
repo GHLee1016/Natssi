@@ -46,7 +46,7 @@ def _commit(data: dict, today: date, items: list, op: str, reason: str | None) -
 
 
 def add_item(data: dict, today: date, name: str, usage: str, names: list[str], reason: str | None = None,
-             extra_families: list[str] = (), recent: bool = False) -> list[str]:
+             extra_families: list[str] = (), recent: bool = False, photo: str | None = None) -> list[str]:
     """recent: 처음 등록하는 루틴(버전 1)에 넣는 제품을 '최근 2주 안에 쓰기 시작했다'고 표시. 이 제품은 쓰기 전 기록이 없어
     판정의 기준(평소) 안에 들어가므로, 화면에서 '지금은 판단할 수 없어요'라고 알린다. 나중에 추가하는 제품은 그 자체가 변화라 무시."""
     name = name.strip()
@@ -74,7 +74,8 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
     vs = data.get("versions", [])
     first = not vs or (vs[-1]["id"] == 1 and vs[-1]["start"] == today.isoformat())
     item = {"key": uuid.uuid4().hex[:8], "name": name, "usage": usage, "kind": "cosmetic",
-            "family": fams[0] if fams else "", "families": fams, "ingredients": clean, "recent": bool(recent and first)}
+            "family": fams[0] if fams else "", "families": fams, "ingredients": clean, "recent": bool(recent and first),
+            **({"photo": photo} if photo else {})}                    # 제품 사진: 검사한 작은 JPEG의 base64(선택)
     return _commit(data, today, [*items, item], f"{name} 추가 ({usage})", reason)
 
 
@@ -145,7 +146,8 @@ def payload(data: dict) -> dict:
                 "reason": v.get("reason"),
                 "items": [{"key": i["key"], "name": i["name"], "usage": i["usage"], "kind": i["kind"],
                            "family": i["family"] or "성분", "families": i["families"], "ingredients": i["ingredients"],
-                           "recent": i.get("recent", False)}
+                           "recent": i.get("recent", False),
+                           "photo": ("data:image/jpeg;base64," + i["photo"]) if i.get("photo") else None}
                           for i in v["items"]]}
 
     return {"current": one(vs[-1]) if vs else None, "versions": [one(v) for v in vs], "usages": USAGES, "reasons": REASONS}

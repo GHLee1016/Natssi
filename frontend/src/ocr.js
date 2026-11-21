@@ -29,6 +29,17 @@ async function clean(file) {
   return new File([blob], 'ingredients.jpg', { type: 'image/jpeg' })
 }
 
+// 제품 사진 썸네일: 긴 변 240px JPEG data URL(약 10KB). 다시 그려서 EXIF(촬영 위치 등)도 지워진다. 서버가 240px 이하인지 다시 검사한다.
+export async function productThumbnail(file, side = 240) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  const s = Math.min(1, side / Math.max(bmp.width, bmp.height))
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(bmp.width * s)); c.height = Math.max(1, Math.round(bmp.height * s))
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(bmp, 0, 0, c.width, c.height)
+  bmp.close?.()
+  return c.toDataURL('image/jpeg', 0.82)
+}
+
 // 사진 1~3장 → {ingredients:[{name, status, ocr, families}], ask_families, message?} (글자 붙여넣기와 같은 모양)
 export async function readIngredientPhotos(files) {
   const photos = await Promise.all([...files].slice(0, 3).map(clean))

@@ -565,6 +565,7 @@ class RoutineAdd(BaseModel):
     families: list[str] = Field(default_factory=list, max_length=20)     # 사용자가 '들어 있어요'라고 체크한 계열
     reason: Optional[str] = Field(None, max_length=60)
     recent: bool = False                                                 # 처음 등록 때: 최근 2주 안에 쓰기 시작한 제품
+    photo: Optional[str] = Field(None, max_length=60_000)               # 제품 사진(선택): 긴 변 240px 이하 JPEG data URL
 
 
 def _routine_response(data, warnings=()):
@@ -603,10 +604,11 @@ def suggest_ingredients(q: str, request: Request, v=Depends(need_user)):
 def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     """제품을 루틴에 추가한다. 다른 날 바꾸면 새 버전이 생기고, 직전 변경이 7일 안이면 경고를 함께 돌려준다."""
     limit("write", request, v)
+    photo = _check_jpeg(body.photo, 240, "제품 사진") if body.photo else None   # 저장 오류 처리 밖에서 먼저 검사(400)
     try:
         data = store.load_routine(v["id"])
         warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason,
-                                      body.families, body.recent)
+                                      body.families, body.recent, photo)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
@@ -690,20 +692,20 @@ class CheeksBody(BaseModel):
     R: str = Field(..., max_length=40_000)
 
 
-def _check_jpeg(data_url: str) -> str:
-    """'data:image/jpeg;base64,…' 인지, 실제로 작은 JPEG(최대 128px)인지 확인하고 base64 본문만 돌려준다."""
+def _check_jpeg(data_url: str, max_side: int = 128, what: str = "볼 사진") -> str:
+    """'data:image/jpeg;base64,…' 인지, 실제로 작은 JPEG(긴 변 max_side 이하)인지 확인하고 base64 본문만 돌려준다."""
     import base64, io
     from PIL import Image
     head, _, b64 = data_url.partition(",")
     if head != "data:image/jpeg;base64":
-        raise HTTPException(400, "볼 사진 형식이 맞지 않아요.")
+        raise HTTPException(400, f"{what} 형식이 맞지 않아요.")
     try:
         im = Image.open(io.BytesIO(base64.b64decode(b64, validate=True)))
-        ok = im.format == "JPEG" and max(im.size) <= 128
+        ok = im.format == "JPEG" and max(im.size) <= max_side
     except Exception:
         ok = False
     if not ok:
-        raise HTTPException(400, "볼 사진 형식이 맞지 않아요.")
+        raise HTTPException(400, f"{what} 형식이 맞지 않아요.")
     return b64
 
 

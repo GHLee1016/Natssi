@@ -64,7 +64,8 @@ export default function MyRoutine({ ocr }) {
                 {r.current.items.map((it) => (
                   <div key={it.key}>
                     <div className="row">
-                      <ProductIcon name={ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />
+                      {it.photo ? <img className="prod-photo" src={it.photo} alt={`${it.name} 사진`} />
+                        : <ProductIcon name={ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />}
                       <div><b>{it.name}</b>
                         <p className="muted small">{it.usage}{it.ingredients.length ? ` · 성분 ${it.ingredients.length}개` : ' · 성분 미입력'}</p>
                         {it.families.length > 0 && <p className="fam">{it.families.map((f) => <span key={f}>{f}</span>)}</p>}
