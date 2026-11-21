@@ -1,0 +1,12 @@
+# 얼굴·제품 사진은 올리지 않는다
+photos/
+*.jpg
+*.jpeg
+*.png
+*.heic
+.env
+__pycache__/
+build/
+.pytest_cache/
+~$*
+private/

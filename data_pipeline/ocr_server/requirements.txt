@@ -1,0 +1,10 @@
+# OCR server (Hugging Face Space / any Docker host). ASCII only: pip on Korean Windows reads cp949.
+# Versions = the ones tested locally on 2026-11-20.
+fastapi==0.165.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+rapidocr==3.10.0
+onnxruntime==1.32.0
+opencv-python-headless==5.1.0.95
+rapidfuzz==3.14.6
+numpy==2.5.2
