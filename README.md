@@ -1,114 +1,89 @@
-# 낯씨 (natssi) — 웹앱 뼈대
+# 낯씨 (natssi)
 
-가상 페르소나 김서연의 4주 데이터로 다이어리 → 변화 → 겹쳐 비교 → 루틴 → 리포트가 끝까지 열리는 앱입니다.
-폰 브라우저에서는 아래 탭, 넓은 화면에서는 왼쪽 메뉴로 보입니다.
+홈더마 사용자가 루틴을 한 번에 하나씩 바꾸고, 매일 셀카와 증상을 기록하면 **평소와 달라진 날과 바꾼 시기가 겹치는지** 보여 주는 AI 루틴 일기예요.
+판매하지 않고(중립), 진단하지 않아요. 2026 AI 플랫폼 구축 경진대회 출품작이고, 서비스 주소는 https://natssiweb.vercel.app 이에요.
+
+- **로그인 전:** 가상 페르소나 김서연의 4주 기록(10/30~11/26)을 읽기 전용으로 봐요. 환경값은 서대문구 실제 측정값이에요.
+- **로그인 후:** 가상 데이터를 섞지 않고 내 기록만 봐요. 사진 기록이 7일 쌓이면 판정·변화·리포트가 열려요(그 전에는 n/7로 잠금).
+- 폰 브라우저에서는 아래 탭, 넓은 화면에서는 왼쪽 메뉴로 보여요. 홈 화면에 추가(PWA)할 수 있어요.
+
+## 무엇이 동작하나
+
+| 기능 | 어떻게 |
+|---|---|
+| 판정 | 코드가 해요(`backend/app/judge.py`). 루틴 버전별 평소 범위 = 중앙값 ± max(MDC95 2.35, 3×1.4826×MAD). 조명이 맞지 않으면(b*) '구분 불가' |
+| 촬영 | 얼굴 사진은 **기기 안에서만** 검사해요(MediaPipe: 얼굴 점·고개 각도·표정·선명도·노출·양 볼 L\*a\*b\*). 서버에는 숫자만 보내고, 통과하면 하루 1번 저장 |
+| 볼 조각 | 선택 동의한 사람만 양 볼 조각(96px JPEG 2장)을 보관해 두 날 비교에 써요. 동의를 끄거나 탈퇴하면 바로 삭제 |
+| 리포트 | 근거 기록 번호가 붙은 틀 문장. 'AI로 문장 다듬기'에 선택 동의한 사람만 가명 요약을 OpenRouter(Upstage Solar)로 보내 문장을 다듬고, 금지어·숫자·근거 번호 검사에 걸리면 틀 문장으로 돌아가요 |
+| 인사이트 | 기록 요약(Skin Recap), 14일 챌린지, 루틴이 겹친 시기 안내(`insights.py`) |
+| 루틴·제품 | 제품 등록, 제품 사진, 전성분 사진 읽기(OCR) → 성분 목록·성분 계열 |
+| 계정 | Supabase Auth 이메일·비밀번호(서버가 중계), 만 14세 이상 확인, 필수·선택 동의 분리, 내 데이터 내려받기·탈퇴 |
+
+### 전성분 OCR
+- 사진 OCR은 브라우저가 팀원의 허깅페이스 Space(`alkadsdvs98py/natssi-ocr`, `frontend/src/ocr.js`)를 바로 불러요. 코드는 `data_pipeline/`에 있고 `python scripts/build_space.py`로 묶어 올려요(자세한 건 `data_pipeline/README.md`).
+- 후처리: 줄바꿈으로 잘린 이름 잇기, 붙은 두 이름 나누기, 헷갈리는 글자(을→올 등), 중복 제거, 영문 성분명 사전 매칭.
+- **휜 사진 펴기(UVDoc):** 둥근 통 사진은 원래 사진과 편 사진을 둘 다 읽어 합쳐요. 정답 있는 둥근 통 4장에서 재현율 0.39 → 0.52. 끄려면 Space 변수 `NATSSI_UNWARP=0`.
+- 평가: AI 허브 화장품 성분표 281장(재현율 0.727, 정밀도 0.932), 정답 세트 `data_pipeline/data/ocr_truth.csv` + `scripts/ocr_truth_eval.py`.
+- 무료 Space는 잠들면 첫 요청에 1~2분 걸려요. 시연 전에 Space 주소를 한 번 열어 두세요.
 
 ## 실행
 
-터미널 두 개가 필요합니다. (Python 3.10 이상, Node 18 이상)
+Python 3.10 이상, Node 18 이상.
 
 ```bash
-# 1) 서버
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# 서버 (OPEN_MODE는 로그인 없이 개발할 때만. 운영에서는 켜지 않기)
+NATSSI_OPEN_MODE=1 uvicorn app.main:app --reload --app-dir backend
 
-# 2) 화면
-cd frontend
-npm install
-npm run dev          # http://localhost:5173
+# 화면
+cd frontend && npm install && npm run dev      # http://localhost:5173
 ```
 
-같은 와이파이의 폰에서 보려면 `npm run dev`가 알려 주는 Network 주소로 접속하세요.
-단, 폰 카메라는 https 또는 localhost에서만 켜집니다. 배포 전에는 "사진 고르기"로 확인하세요.
+폰 카메라는 https 또는 localhost에서만 켜져요.
 
-테스트: `cd backend && pytest`
-
-## 배포: Vercel + Supabase
-
-화면과 API를 Vercel 한 곳에 올리고, 증상 체크인은 Supabase에 저장합니다.
-(설정 파일은 준비했지만, 실제 Vercel·Supabase 계정에 올려서 확인하지는 않았습니다.)
-
-1. **Supabase**: 새 프로젝트를 만들고 SQL Editor에서 `supabase/schema.sql`을 실행합니다.
-   Project Settings > API에서 Project URL과 `service_role` 키를 복사합니다.
-2. **OpenRouter**: openrouter.ai에서 API 키를 만듭니다(무료 모델은 카드 없이 사용 가능).
-3. **Vercel**: 이 폴더를 GitHub 저장소로 올린 뒤 Vercel에서 Import 합니다. Root Directory는 저장소 최상위 그대로 둡니다.
-   Environment Variables에 `.env.example`의 네 가지를 넣고 Deploy 합니다.
-
-환경변수가 없어도 앱은 열립니다. 이때 리포트는 정해진 틀 문장으로 나오고, 체크인은 저장되지 않습니다.
-
-### LLM 리포트 (OpenRouter 무료 모델)
-
-- 기본 모델 순서: `nvidia/nemotron-3.5-super-vl:free` → `nvidia/nemotron-3-ultra-550b-a55b:free` → `openrouter/free`
-- 무료 모델은 자주 바뀌거나 사라집니다. `OPENROUTER_MODELS`로 목록을 바꿀 수 있습니다.
-- 무료 한도는 모델당 분당 20회, 하루 200회 정도입니다. 같은 기록에 대한 결과는 서버가 기억해 두고 다시 부르지 않습니다.
-- LLM에는 판정에서 뽑은 사실(버전, 일차, 기록 번호, 증상 점수)만 보냅니다. 이름과 사진은 보내지 않습니다.
-- LLM 문장은 금지어, 기록에 없는 숫자, 없는 근거 번호, 기록과 다른 증상 점수를 검사합니다. 하나라도 걸리면 정해진 틀 문장으로 돌아갑니다.
-- 무료 모델은 입력을 학습에 쓰거나 보관할 수 있습니다. 실제 사용자 데이터를 보내기 전에 OpenRouter의 데이터 정책 설정을 확인하세요.
-
-### 한 서버로 직접 띄우기 (Vercel 없이)
-
+**테스트**
 ```bash
-cd frontend && npm install && npm run build
-cd ../backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
+cd backend && python3 -m pytest tests -q        # 83개
+cd frontend && npm test                          # 측정 식이 파이썬 기준값과 맞는지
+cd data_pipeline && python -m pytest tests -q    # 전성분 OCR (rapidocr 필요)
 ```
+
+**빌드:** `cd frontend && npm run build`. 빌드 전에 `scripts/copy-mediapipe.mjs`가 MediaPipe wasm과 얼굴 모델을 `public/mediapipe`로 복사해요.
+
+## 배포 (Vercel + Supabase)
+
+- `vercel.json`이 빌드(`cd frontend && npm install && npm run build`)와 `/api` → `api/index.py`(FastAPI)를 맡아요. `"framework": null`을 지우면 `/api`가 화면으로 빠지니 그대로 두세요.
+- **Supabase:**
+  - 새 프로젝트에만 `supabase/schema.sql`을 실행하세요. 첫 줄이 `drop table`이라 **운영 DB에서 실행하면 기록이 지워져요.**
+  - 운영 DB에는 `supabase/patch_*.sql`만 써요.
+  - 시연용으로는 Authentication → Email의 "Confirm email"을 꺼요.
+- **환경변수(Vercel 대시보드에서만 다루고, 채팅·저장소에 올리지 않기):**
+
+| 이름 | 내용 |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` | Supabase 주소와 키 |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MODELS` | AI 문장 다듬기(쉼표 구분, 맨 앞 `upstage/solar-pro4`). 키에 크레딧 상한을 걸고, 계정에서 학습·공개 업체를 막아 두세요 |
+| `NATSSI_OCR=1` | 전성분 사진 읽기 켜기. Space 주소를 바꾸면 `vercel.json` CSP의 connect-src도 바꾸기 |
+| `NATSSI_RECOVERY=1` | 비밀번호 찾기 켜기. Supabase 커스텀 SMTP를 설정한 뒤에만 |
+
+바꾼 뒤에는 Redeploy가 필요해요. 배포 상태는 `/api/meta`(storage, llm, auth)로 확인해요.
 
 ## 구조
 
 ```
-backend/app/
-  config.py      판정 설정값 (MDC95 = 2.35: 팀원 3명 반복 셀카 예비 측정, 2026-11-19)
-  demo_data.py   김서연 가상 기록 28일치, 루틴 버전 3개
-  judge.py       판정 엔진 (신호 없음 / 관찰 중 / 신호 있음 / 구분 불가)
-  report.py      근거 번호를 붙인 리포트 문장 + 문장·기록 대조(verify)
-  llm.py         OpenRouter 호출 + LLM 문장 검사(guard)
-  store.py       증상 체크인 저장 (Supabase, 없으면 메모리)
-  quality.py     촬영 품질 판정 (브라우저가 잰 숫자를 받아 검증 파이프라인과 같은 기준으로 판정)
-  main.py        API
-frontend/src/
-  pages/         Diary, Change(그래프·겹쳐 비교), Capture, Routine, Report
-  api.js         서버 호출
+backend/app/     main.py(API) judge.py(판정) report.py·llm.py(리포트) insights.py(요약·챌린지)
+                 store.py(기록 저장) auth.py(로그인) routine.py·ingredients.py·ingr/(루틴·성분)
+                 env.py(환경 데이터) quality.py(촬영 품질) ratelimit.py config.py demo_data.py(김서연)
+frontend/src/    pages/(Diary, MyDay, Change, Capture, Routine, Report, Insights, Account, Legal …)
+                 measure/(기기 안 측정) ocr.js(전성분 Space 호출) public/sw.js(홈 화면 설치용, 캐시 없음)
+data_pipeline/   ingredients/(전성분 OCR·후처리) ocr_server/(Space) envdata/·scripts/update_env.py(환경 데이터)
+supabase/        schema.sql(새 설치 전용), patch_*.sql(운영 DB용)
 ```
 
-## 실제로 동작하는 것
+## 지켜야 할 것
 
-- 판정 엔진: 버전별 평소 범위(중앙값 ± max(MDC95, 3×MAD))와 증상 체크인으로 4단계 판정
-- 증상 체크인 수정 → 바로 다시 판정 (Supabase에 저장, 설정이 없으면 서버 메모리)
-- 리포트: OpenRouter 무료 모델이 문장을 쓰고, 검사에 걸리면 정해진 틀 문장으로 대체. 문장마다 근거 기록 번호
-- 겹쳐 비교: 두 날짜 선택, 슬라이더, 붉은기 차이와 오차 범위 비교
-- 촬영: 카메라 또는 사진 선택 → **브라우저에서** MediaPipe로 얼굴 점·고개 각도·표정, 선명도·노출, 양 볼 a* 측정(`frontend/src/measure/`) → 숫자만 서버로 보내 품질 판정(`/api/capture`). 사진은 서버로 보내지 않고, 숫자도 저장하지 않음
-
-## 아직 자리만 있는 것 (파트별 연결 지점)
-
-| 할 일 | 넣을 곳 |
-|---|---|
-| 측정한 볼 a*를 내 기록에 저장해 판정에 쓰기(사진은 저장하지 않음, 처리방침 갱신 필요) | `backend/app/store.py`, `/api/capture`, `judge.py` |
-| 이어서 묻기 답변을 LLM으로 | `backend/app/report.py`의 `answer()` (지금은 정해진 답) |
-| 전성분 OCR, 새 제품 등록, 버전 추가 | 새 API + `frontend/src/pages/Routine.jsx` |
-| 환경 데이터(서울시·기상청) | `demo_data.py`의 `env` 자리 |
-| 로그인 | 없음 (지금은 누구나 같은 가상 데이터를 봄) |
-
-## 촬영 측정 (2026-11-19)
-
-- 계산 식은 검증 파이프라인(`natssi_selfie_validation/code/measure_redness.py`)과 같아요: 볼 영역 랜드마크 번호, sRGB→CIELAB, 날아간·어두운 픽셀 제외, a* 중앙값, 흐림(256px INTER_AREA → 라플라시안 분산), 머리 자세(pitch +3.7° 보정).
-- `cd frontend && npm test` — 같은 그림을 파이썬·OpenCV로 잰 기준값과 JS 결과가 맞는지 확인(볼 a* ±0.05, 흐림 ±0.2%, 자세 일치).
-- `npm run build`·`npm run dev` 전에 `scripts/copy-mediapipe.mjs`가 MediaPipe wasm을 `public/mediapipe`로 복사하고 얼굴 모델(약 3.6MB)을 받아 둡니다. 모델을 못 받으면 앱이 실행 중에 Google 주소에서 받아요.
-- 처리방침 버전이 바뀌면(`config.CONSENT_VERSION`) 촬영 화면에서 바뀐 사진 안내에 다시 동의해야 촬영할 수 있어요(`/api/account/consent`, 로그인 없이 쓰면 이 브라우저에만 기억).
-
-## 주의
-
-- 얼굴 사진 3장(`frontend/public/faces`)은 AI로 생성한 이미지입니다. 화면에 표시를 유지하세요.
-- 데이터는 모두 가상입니다. MDC95 2.35는 팀원 3명(같은 폰·같은 장소)의 반복 셀카로 계산한 예비값이에요(95% 신뢰구간 1.85~2.97). 사진이 늘면 다시 계산해 갱신합니다.
-
-
-## 로그인·보안 (v0.2)
-
-- **로그인**: Supabase Auth 이메일+비밀번호. 브라우저는 이 서버(`/api/auth/*`)를 거치므로 화면 코드에 Supabase 키가 들어가지 않습니다.
-- **로그인 전**: 김서연 가상 데이터를 읽기 전용으로 봅니다(저장·초기화·탈퇴 API는 401).
-- **로그인 후**: 예시 기록 위에 **내 증상 체크인**만 덮어 보입니다. 데이터는 `user_id`로 분리되고 RLS 정책이 걸려 있습니다.
-- **내 데이터**: `/api/account/export`(내려받기), `DELETE /api/account`(체크인+계정 삭제).
-- **동의**: 가입 때 이용약관·개인정보·얼굴 사진 처리 안내에 모두 동의해야 하며, 약관 버전과 시각이 사용자 메타데이터에 기록됩니다. 문구는 `frontend/src/pages/Legal.jsx` — **초안이므로 법률 검토 후 [대괄호]를 채우세요.**
-- **제한**: 호출 횟수(`config.LIMITS`, 인스턴스별 최선 노력 방식). 촬영은 측정값(숫자)만 받고 범위를 벗어난 값은 422로 거절.
-- **환경변수**(Vercel): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_MODELS`. 로컬 개발은 `NATSSI_OPEN_MODE=1`.
-- **Supabase 설정**: `supabase/schema.sql`(v2)을 실행하고, Authentication → Providers에서 Email을 켭니다. 시연용으로 메일 인증을 끄려면 Authentication → Sign In / Providers → Email의 "Confirm email"을 끄세요.
-- 실제 호출 상한은 OpenRouter 키의 크레딧 한도로도 함께 거세요.
+- 판정은 코드가 하고, LLM은 문장만 다듬어요. LLM에는 이름·이메일·사진·제품 이름·날짜·볼 색 측정값을 보내지 않아요.
+- 얼굴 전체 사진은 서버에 저장하지 않아요. 처리방침(`frontend/src/pages/Legal.jsx`)과 실제 동작이 일치해야 해요(공모전용 초안, 실서비스 전 법률 검토 필요).
+- 서비스 워커에 캐시를 넣지 않아요.
+- 얼굴 예시 이미지(`frontend/public/faces`)는 AI로 생성한 이미지예요. 표시를 유지하세요.
+- 김서연 데이터는 가상이에요. MDC95 2.35는 팀원 3명의 반복 셀카로 낸 예비값이에요(95% 신뢰구간 1.85~2.97).
+- 환경값 CSV(`backend/app/data/env_daily_seoul.csv`)는 11/19까지 있어요. 11/26 이후 `data_pipeline/scripts/update_env.py`로 한 번 갱신하세요.
