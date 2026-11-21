@@ -129,6 +129,8 @@ export async function shrinkImage(file, maxSide = 1600) {
 export const fmt = {
   md: (iso) => { const [, m, d] = iso.split('-'); return `${+m}/${+d}` },
   full: (iso) => { const dt = new Date(iso + 'T00:00:00'); return `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${'일월화수목금토'[dt.getDay()]})` },
+  // 저장된 값의 가운데 점(·)을 화면에서만 쉼표로: '아침·저녁' → '아침, 저녁'. 값 자체(서버 검사·저장)는 그대로 둔다.
+  plain: (t) => (t == null ? t : String(t).replace(/\s*·\s*/g, ', ')),
   shift: (iso, n) => { const dt = new Date(iso + 'T00:00:00'); dt.setDate(dt.getDate() + n); const p = (x) => String(x).padStart(2, '0'); return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}` },
 }
 

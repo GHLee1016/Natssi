@@ -68,8 +68,8 @@ export default function App() {
   useEffect(() => { if (window.location.hash && (resetToken || linkExpired)) window.history.replaceState(null, '', window.location.pathname + window.location.search) }, [])   // 토큰이 주소창에 남지 않게
   const firstNav = useRef(true)
   useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
-    const name = page === 'auth' ? '로그인 · 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : TAB_TITLES[tab]
-    document.title = `${name} · 낯씨`
+    const name = page === 'auth' ? '로그인 또는 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : TAB_TITLES[tab]
+    document.title = `${name} - 낯씨`
     if (firstNav.current) { firstNav.current = false; return }
     const h = document.querySelector('.main h1')
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }) }
@@ -116,13 +116,13 @@ export default function App() {
         {meta.data && (
           <div className="topline">
             <div className="demo-bar">
-              {viewer ? `${viewer.email} · 내 기록` : <><span className="demo-badge">예시 화면</span> {meta.data.persona.name}(가상 인물)의 기록이에요 · 읽기 전용</>}
+              {viewer ? <><b>내 기록</b> <span className="muted">{viewer.email}</span></> : <><span className="demo-badge">예시 화면</span> {meta.data.persona.name}(가상 인물)의 기록이에요. 읽기만 할 수 있어요.</>}
             </div>
             <div className="top-actions">
               <button className="link" onClick={() => setGuide(true)}>사용법</button>
               {meta.data.auth && (viewer
                 ? <button className="link" onClick={() => setPage('account')}>내 계정</button>
-                : <button className="link strong" onClick={() => setPage('auth')}>로그인 · 가입</button>)}
+                : <button className="link strong" onClick={() => setPage('auth')}>로그인 또는 가입</button>)}
             </div>
           </div>
         )}

@@ -159,5 +159,5 @@ def why(exc: Exception) -> str:
             msg = ""
         return f"Supabase {code} {hint} {msg}".strip()
     if isinstance(exc, httpx.HTTPError):
-        return f"Supabase에 닿지 못했어요({type(exc).__name__}) — SUPABASE_URL을 확인하세요"
+        return f"Supabase에 닿지 못했어요({type(exc).__name__}). SUPABASE_URL을 확인하세요"
     return type(exc).__name__

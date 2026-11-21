@@ -64,7 +64,7 @@ function summarize(recs) {
   const [sk, sv] = Object.entries(sym).sort((a, b) => b[1] - a[1])[0] || []
   out.push(sv ? `${sk} 최고 ${sv}점` : '증상 없음')
   if (recs.some((r) => r.env?.measured_on)) out.push(recs.some((r) => r.env?.unusual) ? '공기가 평소와 달랐던 날 있음' : '공기는 평소와 비슷')
-  return out.filter(Boolean).join(' · ')
+  return out.filter(Boolean)                  // 한 줄에 하나씩 보여 준다
 }
 function evidenceLinks(items, recById) {
   const seen = new Set(), out = []
@@ -78,7 +78,7 @@ function evidenceLinks(items, recById) {
     const ids = new Set(recs.map((r) => r.id))
     const held = Object.values(recById).filter((r) => r.date > first && r.date < last && !ids.has(r.id) && r.redness == null).length
     out.push({ key: e.cite_label, date: first, range: first === last ? md(first) : `${md(first)}~${md(last)}`,
-               days: recs.length > 1 ? `${recs.length}일치 기록${held ? ` · 측정 보류 ${held}일 제외` : ''}` : '', summary: summarize(recs) })
+               days: recs.length > 1 ? `${recs.length}일치 기록${held ? `, 측정 보류 ${held}일 제외` : ''}` : '', summary: summarize(recs) })
   }
   return out
 }
@@ -94,8 +94,11 @@ function AiToggle({ on, onLegal, onChanged }) {
         <input type="checkbox" checked={!!on} disabled={busy} onChange={(e) => flip(e.target.checked)} aria-describedby="ai-help" />
         <b>AI로 문장 다듬기 (선택)</b>
       </label>
-      <p id="ai-help" className="muted small">켜면 제품 이름·날짜·이메일을 뺀 요약(바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수)만 미국의 AI 서비스(OpenRouter)로 보내 문장을 다듬어요.
-        판정은 그대로 낯씨가 하고, 끄면 정해진 틀 문장만 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
+      <div id="ai-help" className="muted small">
+        <p>켜면 제품 이름, 날짜, 이메일을 뺀 요약만 미국의 AI 서비스(OpenRouter)로 보내 문장을 다듬어요.</p>
+        <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수</p>
+        <p>판정은 낯씨가 해요. 끄면 정해진 틀 문장을 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
+      </div>
       {err && <p className="err" role="alert">{err}</p>}
     </div>
   )
@@ -145,8 +148,8 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
                   <ul className="ev-links">
                     {evidenceLinks(m.evidence, recById).map((e) => (
                       <li key={e.key}>
-                        <b>{e.range}</b> <span className="muted small">{e.days}</span>
-                        <p>{e.summary}</p>
+                        <b>{e.range}</b>{e.days && <span className="sub-line">{e.days}</span>}
+                        <ul className="ev-sum">{e.summary.map((t) => <li key={t}>{t}</li>)}</ul>
                         {onOpenDay && <button className="link ev-open" onClick={() => onOpenDay(e.date)}>{e.range.includes('~') ? '첫날' : '그날'} 기록 보기</button>}
                       </li>
                     ))}
@@ -172,7 +175,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
             : r.llm_error
               ? <>
                   <p className="muted small">AI 문장을 쓰지 못해, 정해진 틀의 문장으로 보여 드려요. 판정 내용은 같아요.</p>
-                  <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? ' · ' + r.llm_problems.join(' / ') : ''}`} />
+                  <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? '. ' + r.llm_problems.join(', ') : ''}`} />
                 </>
               : <p className="muted small">판정 기록만으로 만든 문장이에요.</p>}
         </div>

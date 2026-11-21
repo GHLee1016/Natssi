@@ -38,7 +38,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       <div className="grid2">
       <div className="card">
         <h2 className="h3">내 데이터</h2>
-        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인·루틴·사는 구와 동의 기록을 파일로 받아요.</p></div>
+        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인, 루틴, 사는 구, 동의 기록을 파일로 받아요.</p></div>
           <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
         <div className="row"><div><b>체크인 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 체크인만 지워요.</p></div>
           <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
@@ -49,7 +49,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
         <h2 className="h3">선택 동의</h2>
         <p className="muted small">동의하지 않아도 기본 기능은 모두 쓸 수 있어요. 언제든 바꿀 수 있어요.</p>
         {[['cheeks', '볼 부분 사진 보관', meta.viewer?.cheeks ? '양 볼 네모 조각(작은 사진)을 보관해 두 날을 눈으로 비교해요. 끄면 보관한 조각을 바로 모두 지워요.' : '켜면 그날 처음 저장된 사진의 양 볼 네모 조각만 보관해 두 날을 눈으로 비교할 수 있어요.', '끄면 보관한 볼 사진을 모두 지웠어요.', '볼 부분 사진 보관을 켰어요.', 'photo'],
-          ['ai_report', 'AI로 리포트 문장 다듬기', '제품 이름·날짜·이메일을 뺀 가명 요약만 미국의 AI 서비스(OpenRouter)로 보내 리포트 문장을 다듬어요. 끄면 정해진 틀 문장만 써요.', 'AI 문장 다듬기를 껐어요.', 'AI 문장 다듬기를 켰어요.', 'ai']].map(([k, label, help, offMsg, onMsg, doc]) => (
+          ['ai_report', 'AI로 리포트 문장 다듬기', '제품 이름, 날짜, 이메일을 뺀 가명 요약만 미국의 AI 서비스(OpenRouter)로 보내 리포트 문장을 다듬어요. 끄면 정해진 틀 문장을 써요.', 'AI 문장 다듬기를 껐어요.', 'AI 문장 다듬기를 켰어요.', 'ai']].map(([k, label, help, offMsg, onMsg, doc]) => (
           <div className="row" key={k}>
             <div><b>{label}</b><p className="muted small">{help} <button className="link" onClick={() => onLegal(doc)}>자세히</button></p></div>
             <label className="switch"><input type="checkbox" checked={!!meta.viewer?.[k]} disabled={!!busy}
@@ -60,7 +60,8 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="card">
         <h2 className="h3">사는 구 <span className="muted small">(선택)</span></h2>
-        <p className="muted small">고르면 그 구의 미세먼지·습도·기온(에어코리아·기상청 실측)을 기록과 함께 보여 드려요. 구 단위만 저장하고 정확한 위치는 받지 않아요. 지금은 서울만 돼요.</p>
+        <p className="muted small">고르면 그 구의 미세먼지, 습도, 기온(에어코리아와 기상청 실측)을 기록과 함께 보여 드려요.</p>
+        <p className="muted small">구 단위만 저장하고 정확한 위치는 받지 않아요. 지금은 서울만 돼요.</p>
         <div className="district-row">
           <label className="sr-only" htmlFor="district">사는 구</label>
           <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!districts.length}>
@@ -73,7 +74,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="card danger">
         <h2 className="h3">탈퇴</h2>
-        <p className="muted small">계정과 내 체크인·볼 색 기록·볼 부분 사진·루틴·사는 구가 모두 지워지고 되돌릴 수 없어요.</p>
+        <p className="muted small">계정과 함께 체크인, 볼 색 기록, 볼 부분 사진, 루틴, 사는 구가 모두 지워져요. 되돌릴 수 없어요.</p>
         {!confirmDelete ? (
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>
         ) : (
@@ -90,7 +91,8 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       </div>
       {msg && <p className="ok-msg" role="status">{msg}</p>}
       {error && <p className="err" role="alert">{error}</p>}
-      <p className="muted small">약관 버전 {meta.consent_version} · <button className="link" onClick={() => onLegal('privacy')}>개인정보 처리방침 보기</button></p>
+      <p className="muted small">약관 버전 {meta.consent_version}</p>
+        <p className="muted small"><button className="link" onClick={() => onLegal('privacy')}>개인정보 처리방침 보기</button></p>
     </section>
   )
 }

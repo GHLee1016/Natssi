@@ -3,11 +3,12 @@ import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { WEATHER } from '../weather.jsx'
 import { labToCss } from '../cheeks.js'
+import KV from '../kv.jsx'
 
 const PAD = { l: 34, r: 12, t: 44, b: 34 }
 const symptomLine = (s) => {
   const on = Object.entries(s || {}).filter(([, v]) => v > 0)
-  return !s || !Object.keys(s).length ? '체크인 없음' : on.length ? on.map(([k, v]) => `${k} ${v}점`).join(' · ') : '증상 없음'
+  return !s || !Object.keys(s).length ? '체크인 없음' : on.length ? on.map(([k, v]) => `${k} ${v}점`).join(', ') : '증상 없음'
 }
 
 // 점들을 부드러운 곡선으로 잇는다(단조 3차 보간: 점 사이에서 값이 튀어 오르거나 꺼지지 않는다).
@@ -122,7 +123,7 @@ function Compare({ records, mine }) {
   const q = useLoad(() => (mine ? api.myCompare(a, b) : api.compare(a, b)), [a, b])
   const c = q.data
   const parts = useLoad(() => (mine ? api.myCheeks([a, b]) : Promise.resolve({})), [a, b, mine]).data || {}
-  const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} · 버전 {r.version}</option>
+  const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} (버전 {r.version})</option>
   return (
     <div className="card">
       <h2 className="h3">{mine ? '두 날의 볼 붉은기 비교' : '두 날의 사진 겹쳐 비교'}</h2>
@@ -138,8 +139,8 @@ function Compare({ records, mine }) {
             <img src={`/faces/${c.a.photo}.jpg`} alt={`${fmt.md(c.a.date)} 사진`} />
             <img src={`/faces/${c.b.photo}.jpg`} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
             <div className="bar" style={{ left: pos + '%' }}><span>⇆</span></div>
-            <span className="tag l">버전 {c.a.version} · {fmt.md(c.a.date)}</span>
-            <span className="tag r">버전 {c.b.version} · {fmt.md(c.b.date)}</span>
+            <span className="tag l">{fmt.md(c.a.date)} (버전 {c.a.version})</span>
+            <span className="tag r">{fmt.md(c.b.date)} (버전 {c.b.version})</span>
             <span className="tag ai">{c.photo_note}</span>
             <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="비교 위치 조절" />
           </div>}
@@ -160,14 +161,14 @@ function Compare({ records, mine }) {
                 <figure key={i}>
                   <span className="chip" style={{ background: color }} role="img" aria-label={`${fmt.md(r.date)} 볼 평균 색`} />
                   {part && <span className="cheek-pair"><img src={part.L} alt={`${fmt.md(r.date)} 왼쪽 볼`} /><img src={part.R} alt={`${fmt.md(r.date)} 오른쪽 볼`} /></span>}
-                  <figcaption>{i ? '뒤' : '앞'} · {fmt.md(r.date)}</figcaption>
+                  <figcaption><span className="sub-line">{i ? '뒤' : '앞'}</span>{fmt.md(r.date)}</figcaption>
                 </figure>
               )
             })}
           </div>
           <p className="muted small">색 칩은 사진 속 양 볼의 평균 색이에요. 조명과 화면에 따라 조금 달라 보일 수 있어요.
             {mine && ' 볼 부분 사진은 \'볼 부분 사진 보관\'(선택)에 동의한 뒤 찍은 날만 보여요.'}</p>
-          <details className="tech"><summary>기술 정보</summary><p>붉은기는 Lab 색공간의 a* 값이고, 위 차이는 Δa*(뒤 날짜 − 앞 날짜)예요. 측정 오차는 MDC95 기준이에요. 색 칩은 그날 잰 L*·a*·b*를 화면 색(sRGB)으로 바꾼 거예요.</p></details>
+          <details className="tech"><summary>기술 정보</summary><p>붉은기는 Lab 색공간의 a* 값이고, 위 차이는 Δa*(뒤 날짜 − 앞 날짜)예요. 측정 오차는 MDC95 기준이에요. 색 칩은 그날 잰 L*, a*, b*를 화면 색(sRGB)으로 바꾼 거예요.</p></details>
         </>
       )}
     </div>
@@ -208,7 +209,7 @@ export default function Change({ onOpenDay, mine = false }) {
             {picked ? (
               <div className={'picked ' + LEVEL_CLASS[picked.verdict.level]}>
                 <b>{fmt.full(picked.date)}</b>
-                <span>{WEATHER[picked.verdict.level].name} · 붉은기 {picked.redness > 0 ? '+' : ''}{picked.redness} · {symptomLine(picked.symptoms)}</span>
+                <KV className="small" items={[['날씨', WEATHER[picked.verdict.level].name], ['붉은기', `${picked.redness > 0 ? '+' : ''}${picked.redness}`], ['증상', symptomLine(picked.symptoms)]]} />
                 {onOpenDay && <button className="link" onClick={() => onOpenDay(picked.date)}>다이어리에서 보기</button>}
               </div>
             ) : <p className="muted small hint">점을 누르거나 아래에서 날짜를 골라 보세요.</p>}
@@ -227,7 +228,7 @@ export default function Change({ onOpenDay, mine = false }) {
             {changes.map((v) => (
               <div className="ev" key={v.id}>
                 <b>{fmt.md(v.start)}</b>
-                <div>{v.change}<p className="muted small">버전 {v.id}{v.reason ? ` · 바꾼 이유: ${v.reason}` : ''}</p></div>
+                <div>{fmt.plain(v.change)}<p className="muted small">버전 {v.id}</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
               </div>
             ))}
           </div>

@@ -9,11 +9,11 @@ NO_SIGNAL, WATCH, SIGNAL, UNKNOWN = "신호 없음", "관찰 중", "신호 있�
 MESSAGES = {
     NO_SIGNAL: "지금 루틴과 잘 지내고 있어요.",
     WATCH: "며칠 더 지켜볼게요.",
-    SIGNAL: "바꾼 시기와 붉은기가 오른 시기가 겹쳐요. 같은 장소·시간에 며칠 더 찍거나, 빈도를 줄여 보고 달라지는지 확인할 수 있어요.",
+    SIGNAL: "바꾼 시기와 붉은기가 오른 시기가 겹쳐요. 같은 장소와 시간에 며칠 더 찍거나, 빈도를 줄여 보세요.",
     UNKNOWN: "기록이 더 필요해요.",
 }
 # 루틴을 바꾸지 않은 채(같은 버전 안에서) 평소 범위를 넘은 경우: '바꾼 시기'가 없으므로 다른 문장을 쓴다
-SIGNAL_NO_CHANGE = "루틴을 바꾸지 않았는데 붉은기가 평소 범위를 넘은 날이 이어졌어요. 같은 장소·시간에 며칠 더 찍어 확인해 보세요."
+SIGNAL_NO_CHANGE = "루틴을 바꾸지 않았는데 붉은기가 평소 범위를 넘은 날이 이어졌어요. 같은 장소와 시간에 며칠 더 찍어 확인해 보세요."
 
 
 def _mad(values, med):
@@ -69,7 +69,7 @@ def judge_all(records):
             prev_day_exceeded = bool(prev) and prev[-1]["verdict"]["exceeds"]
             if exceeds and light_off(r, prev):         # '흐림'으로 올리지 않고 안개로 내린다(조명 탓일 수 있음)
                 verdict = UNKNOWN
-                res["reasons"].append("사진의 조명 색이 평소와 달라요. 같은 장소·시간에 다시 찍어 주세요")
+                res["reasons"].append("사진의 조명 색이 평소와 달라요. 같은 장소와 시간에 다시 찍어 주세요")
             elif exceeds and r["env"].get("unusual"):
                 verdict = UNKNOWN
                 res["reasons"].append("같은 시기에 환경도 크게 달라졌어요")

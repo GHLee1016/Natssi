@@ -15,9 +15,9 @@ function state(record) {
   const v = record.verdict, r = record.redness, b = v.baseline
   if (r == null) return { key: 'hold', tag: '측정 보류', text: record.quality_note ? `${record.quality_note}. 그래서 이날은 붉은기를 재지 않았어요.` : '이날은 사진 품질 때문에 붉은기를 재지 않았어요.' }
   if (!b) return { key: 'wait', tag: `붉은기 ${sgn(r)}`, text: '아직 평소 범위를 만드는 중이에요. 기록이 7일 넘게 쌓이면 평소와 비교해 알려 드려요.' }
-  if (r > b.high) return { key: 'high', tag: `붉은기 ${sgn(r)} · 평소보다 높음`, text: `이날 양 볼 붉은기가 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 높았어요. 네모 안 볼이 평소보다 붉게 보인 날이에요.` }
-  if (r < b.low) return { key: 'low', tag: `붉은기 ${sgn(r)} · 평소보다 낮음`, text: `이날 양 볼 붉은기가 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 낮았어요.` }
-  return { key: 'ok', tag: `붉은기 ${sgn(r)} · 평소 범위`, text: `이날 양 볼 붉은기는 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)}) 안이었어요.` }
+  if (r > b.high) return { key: 'high', tag: `붉은기 ${sgn(r)}, 평소보다 높음`, text: `이날 양 볼 붉은기가 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 높았어요. 네모 안 볼이 평소보다 붉게 보인 날이에요.` }
+  if (r < b.low) return { key: 'low', tag: `붉은기 ${sgn(r)}, 평소보다 낮음`, text: `이날 양 볼 붉은기가 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 낮았어요.` }
+  return { key: 'ok', tag: `붉은기 ${sgn(r)}, 평소 범위`, text: `이날 양 볼 붉은기는 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)}) 안이었어요.` }
 }
 
 export default function FaceMap({ record }) {

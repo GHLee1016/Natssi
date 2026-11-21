@@ -88,7 +88,7 @@ def recap(records, versions, month=None):
     if symptom:
         lines.append(f"증상을 적은 날은 {len(symptom)}일이에요.")
     if env_diff:
-        lines.append(f"동네 환경(미세먼지·습도·기온)이 평소와 달랐던 날은 {env_diff}일이에요.")
+        lines.append(f"동네 환경(미세먼지, 습도, 기온)이 평소와 달랐던 날은 {env_diff}일이에요.")
     return {"month": month, "months": months, "empty": False, "days": len(rows), "photo_days": len(photo),
             "weather": count, "signal_spans": _spans(signal), "back_on": back, "changes": changes,
             "symptom_days": len(symptom), "env_diff_days": env_diff, "inside": inside, "judged": len(judged), "lines": lines}

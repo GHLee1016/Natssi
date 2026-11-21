@@ -1,4 +1,5 @@
 import { api, fmt } from '../api.js'
+import KV from '../kv.jsx'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
 import { routineCopy } from '../copy/routine.js'
@@ -20,15 +21,15 @@ export default function Routine() {
           <div>
             <div className="card dark">
               <p className="small">지금 루틴</p>
-              <h2>버전 {r.current.id} · {fmt.md(r.current.start)}부터</h2>
-              {r.current.change && <p className="small">최근 바꾼 것: {r.current.change} (이유: {r.current.reason})</p>}
+              <h2>버전 {r.current.id}<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
+              {r.current.change && <p className="small">최근 바꾼 것: {fmt.plain(r.current.change)} (이유: {r.current.reason})</p>}
             </div>
             <div className="card">
               {r.current.items.map((it) => (
                 <div className="row" key={it.key}>
                   <ProductIcon name={it.key} tone={TONE[it.family] || '#e8f2f8'} />
                   <div><b>{it.name}</b>
-                    <p className="muted small">{it.usage} · {it.kind === 'device' ? '디바이스' : it.family + ' 계열'}</p></div>
+                    <KV className="small" items={[['사용', fmt.plain(it.usage)], ['종류', it.kind === 'device' ? '디바이스' : it.family + ' 계열']]} /></div>
                 </div>
               ))}
             </div>
@@ -38,8 +39,8 @@ export default function Routine() {
             {[...r.versions].reverse().map((v) => (
               <div className="ev" key={v.id}>
                 <b>버전 {v.id}</b>
-                <div>{v.change || v.label}
-                  <p className="muted small">{fmt.md(v.start)} 시작{v.reason ? ` · 바꾼 이유: ${v.reason}` : ''}</p></div>
+                <div>{fmt.plain(v.change) || v.label}
+                  <p className="muted small">{fmt.md(v.start)} 시작</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
               </div>
             ))}
           </div>

@@ -6,16 +6,23 @@ import Calendar from './Calendar.jsx'
 import Gauge from '../gauge.jsx'
 import StartCard from './StartCard.jsx'
 import FaceMap from './FaceMap.jsx'
+import KV from '../kv.jsx'
 
 const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
-// 환경 줄. 김서연은 가상 인물이지만 환경값은 실제 측정값(에어코리아·기상청)이라 어느 구 값인지 밝힌다.
-function envLine(e, district, day) {
+// 환경 줄. 김서연은 가상 인물이지만 환경값은 실제 측정값(에어코리아, 기상청)이라 어느 구 값인지 밝힌다.
+function EnvLine({ e, district, day }) {
   const src = district ? `환경(${district} 실측)` : '환경'
-  const parts = [e.pm25 != null && `초미세먼지 ${e.pm25}`, e.humidity != null && `습도 ${e.humidity}%`, e.temp != null && `기온 ${e.temp}℃`].filter(Boolean)
-  if (!parts.length) return `${src} · 이날 측정값은 아직 없어요`
-  const when = e.measured_on && e.measured_on !== day ? ` (${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값)` : ''
-  return `${src} · ${parts.join(' · ')}${when} · ${e.unusual ? '평소와 달라요' : '평소와 비슷'}`
+  const has = e.pm25 != null || e.humidity != null || e.temp != null
+  if (!has) return <span className="env-line"><b>{src}</b> <span className="muted">이날 측정값은 아직 없어요</span></span>
+  const when = e.measured_on && e.measured_on !== day ? `${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값` : ''
+  return (
+    <span className="env-line">
+      <b>{src}</b> <span className="muted">{e.unusual ? '평소와 달라요' : '평소와 비슷해요'}</span>
+      <KV className="small" items={[['초미세먼지', e.pm25 != null && e.pm25], ['습도', e.humidity != null && `${e.humidity}%`], ['기온', e.temp != null && `${e.temp}℃`]]} />
+      {when && <span className="sub-line">{when}</span>}
+    </span>
+  )
 }
 
 // 데모 첫 화면(오늘 = 맑음)만 보면 흐림 → 빈도 조정 → 맑음 이야기가 안 보인다. 이야기의 날들로 바로 가는 줄.
@@ -78,11 +85,11 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
               <Gauge value={d.record.redness} low={d.record.verdict.baseline.low} high={d.record.verdict.baseline.high}
                 base={d.record.verdict.baseline_version} />
             )}
-            <p className="hero-meta">
-              루틴 버전 {d.version.id} · {d.version.label} · {d.record.day_in_version}일째<br />
-              {envLine(d.record.env, meta.env_district, date)}
+            <div className="hero-meta">
+              <b>루틴 버전 {d.version.id}</b> {fmt.plain(d.version.label)}<span className="sub-line">이 버전으로 {d.record.day_in_version}일째</span>
+              <EnvLine e={d.record.env} district={meta.env_district} day={date} />
               {d.record.env.facts?.length > 0 && <><br />{d.record.env.facts.join(' ')}</>}
-            </p>
+            </div>
           </div>
 
           <Story date={date} setDate={setDate} />
@@ -113,12 +120,12 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
               </div>
               <div className="rec-row">
                 <span className="rec-k">증상</span>
-                <div className="rec-v"><div>{SYMPTOMS.filter((s) => d.record.symptoms[s] > 0).map((s) => `${s} ${d.record.symptoms[s]}점`).join(' · ') || '증상 없음'}</div></div>
+                <div className="rec-v"><div>{SYMPTOMS.filter((s) => d.record.symptoms[s] > 0).map((s) => `${s} ${d.record.symptoms[s]}점`).join(', ') || '증상 없음'}</div></div>
                 <button className="link" onClick={askLogin}>로그인하고 기록</button>
               </div>
               <div className="rec-row">
                 <span className="rec-k">루틴</span>
-                <div className="rec-v"><div>{d.version.items.filter((i) => i.kind === 'cosmetic').map((i) => i.name).join(' · ')}</div></div>
+                <div className="rec-v"><div>{d.version.items.filter((i) => i.kind === 'cosmetic').map((i) => i.name).join(', ')}</div></div>
                 <span className="done" aria-label="사용함">✓</span>
               </div>
             </div>

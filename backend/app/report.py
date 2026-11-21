@@ -8,7 +8,7 @@ import re
 from . import env, llm
 from .judge import SIGNAL, NO_SIGNAL
 
-DISCLAIMER = "진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소·전문의와 상담하세요."
+DISCLAIMER = "진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소나 전문의와 상담하세요."
 
 
 def _span(ids):
@@ -128,10 +128,10 @@ def answer(qid, judged, versions):
         text = "아직 붉은기가 평소 범위를 넘은 날이 없어요. 그래서 원인을 따로 살펴볼 변화도 없어요."
     elif qid == "cause" and not sig["change"]:                   # 루틴을 바꾸지 않은 기간에 넘음
         text = ("이 기간에는 루틴을 바꾸지 않았어요. 그래서 제품과의 관계는 말할 수 없어요. "
-                "수면·생리 주기·조명처럼 기록하지 않은 요인도 있을 수 있어요.")
+                "수면, 생리 주기, 조명처럼 기록하지 않은 요인도 있을 수 있어요.")
     elif qid == "cause":
         text = ("원인을 단정할 수는 없어요. 다만 바꾼 시기와 붉은기가 오른 시기가 겹쳤어요. "
-                "수면·생리 주기처럼 기록하지 않은 요인도 있을 수 있어요.")
+                "수면이나 생리 주기처럼 기록하지 않은 요인도 있을 수 있어요.")
     elif qid == "other":
         text = (" ".join(env.summarize(sig["envs"])) + " 기록하지 않은 요인은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
                "같은 기간 환경도 평소와 달랐어요. 그래서 어느 쪽 때문인지 가릴 수 없어요."

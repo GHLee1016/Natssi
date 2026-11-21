@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import CheckinSteps from './CheckinSteps.jsx'
 import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError } from '../measure/browser.js'
 import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
+import KV, { symptomItems } from '../kv.jsx'
 
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
 
@@ -54,10 +55,6 @@ function Face({ kind }) {
   )
 }
 
-const SYMPTOM_LINE = (s) => {
-  const on = Object.entries(s || {}).filter(([, v]) => v > 0)
-  return on.length ? on.map(([k, v]) => `${k} ${v}점`).join(' · ') : '증상 없음'
-}
 
 // 하루 기록 2단계 중 두 번째: 사진 결과 바로 아래에서 증상 4개를 이어서 묻는다(로그인한 사람만).
 function TodaySymptoms({ photoDone, go }) {
@@ -74,11 +71,11 @@ function TodaySymptoms({ photoDone, go }) {
   const done = today && !editing
   return (
     <div className="card today-step" aria-live="polite">
-      <p className="eyebrow">{done ? '오늘 기록 완료' : '2 / 2 · 오늘 증상'}</p>
+      <p className="eyebrow">{done ? '오늘 기록 완료' : '2단계: 오늘 증상'}</p>
       {done ? (
         <>
           <h2 className="h3">{photoDone ? '오늘 기록을 마쳤어요' : '오늘 증상을 남겼어요'}</h2>
-          <p className="muted small">{photoDone ? '사진 ✓ · ' : ''}증상: {SYMPTOM_LINE(today)}</p>
+          <KV className="small" items={[['사진', photoDone && '남김 ✓'], ...symptomItems(today)]} />
           <div className="actions left">
             <button className="btn" onClick={() => go('diary')}>오늘의 얼굴 날씨 보기</button>
             <button className="btn ghost" onClick={() => setEditing(true)}>증상 고치기</button>
@@ -204,7 +201,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <h2 className="h3">{firstTime ? '촬영 전에 확인해 주세요' : '사진 처리 방식이 바뀌었어요'}</h2>
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
-            <li>고개 각도·표정·선명도·노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
+            <li>고개 각도, 표정, 선명도, 노출을 확인하고, 양 볼의 색(볼 붉은기)을 재요.</li>
             <li>서버에는 측정한 숫자만 보내 품질을 판정해요. 로그인했다면 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
@@ -218,7 +215,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
 
   return (
     <section className="capture">
-      <header className="page-head"><div>{viewer && <p className="eyebrow">1 / 2 · 사진 → 2 / 2 · 증상</p>}<h1>{viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'}</h1></div></header>
+      <header className="page-head"><div>{viewer && <p className="eyebrow">1단계 사진, 2단계 증상</p>}<h1>{viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'}</h1></div></header>
       <div className="grid2">
         <div className={'view' + (cam === 'on' ? ' on' : '')}>
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
@@ -272,7 +269,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
               )}
               {result.redness !== null && (
                 <div className="row">
-                  <div><b>볼 붉은기 (a*)</b><p className="muted small">측정 오차 ±{mdc95} · 같은 폰·같은 장소에서 찍은 날끼리 비교해요</p></div>
+                  <div><b>볼 붉은기 (a*)</b><p className="muted small">측정 오차 ±{mdc95}</p><p className="muted small">같은 폰으로 같은 장소에서 찍은 날끼리 비교해요.</p></div>
                   <b>{result.redness.toFixed(1)}</b>
                 </div>
               )}
@@ -287,7 +284,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
                     <span className={c.ok === null ? 'muted small' : c.ok ? 'done' : 'warn'}>{c.ok === null ? '확인 못 함' : c.ok ? '좋아요 ✓' : '아쉬워요'}</span>
                   </div>
                 ))}
-                {result.checks.map((c) => <p key={c.name + 't'}>{c.name} · {c.tech}</p>)}
+                {result.checks.map((c) => <p key={c.name + 't'}>{c.name}: {c.tech}</p>)}
               </details>
             </div>
           )}
@@ -296,8 +293,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       </div>
   <div className="notice sentences wide">
     <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
-    <p>고개 각도·표정·선명도·노출을 확인하고, 통과하면 볼 붉은기를 보여 드려요.</p>
-    <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기·노란기·밝기)만 오늘 기록에 남기고, 다른 측정값과 사진은 서버에 남기지 않아요.</p>
+    <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기, 노란기, 밝기)만 오늘 기록에 남겨요.</p>
     <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
   </div>
     </section>

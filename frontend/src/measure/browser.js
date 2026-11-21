@@ -89,7 +89,7 @@ async function decodePhoto(file) {
     const w = ratio >= 1 ? MEASURE_MAX_SIDE : Math.round(MEASURE_MAX_SIDE * ratio)
     return await createImageBitmap(file, { ...opt, resizeWidth: w, resizeQuality: 'high' })
   } catch {
-    throw userError('사진을 열 수 없어요. JPG·PNG 사진으로 골라 주세요.')
+    throw userError('사진을 열 수 없어요. JPG나 PNG 사진으로 골라 주세요.')
   }
 }
 

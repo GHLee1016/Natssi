@@ -145,15 +145,15 @@ def evaluate(f: Features):
         item("선명도", {"blur"}, "또렷하게 보여요", "흐려요. 폰을 고정하고 다시 찍어 주세요",
              f"{_num(d['sharpness'], '.0f')} ({t['min_sharpness']:.0f} 이상)"),
         item("고개 각도", {"head_pose"}, "정면을 잘 보고 있어요", pose_bad(),
-             f"좌우 {_num(d['yaw'], '+.0f')}° · 위아래 {_num(pitch, '+.0f')}° · 기울기 {_num(d['roll'], '+.0f')}°"),
+             f"좌우 {_num(d['yaw'], '+.0f')}°, 위아래 {_num(pitch, '+.0f')}°, 기울기 {_num(d['roll'], '+.0f')}°"),
         item("표정", {"smile", "eyes_closed"}, "편안한 표정이에요", expr_bad(),
-             f"미소 {_num(d['smile'], '.2f')} · 눈 감음 {_num(d['blink'], '.2f')}"),
+             f"미소 {_num(d['smile'], '.2f')}, 눈 감음 {_num(d['blink'], '.2f')}"),
         item("볼 노출", {"clipped_L", "clipped_R"}, "볼에 빛이 고르게 닿았어요",
              "볼이 하얗게 번졌어요. 빛이 덜 센 곳에서 찍어 주세요",
-             f"하얗게 날아간 부분 {_num(d['clip_ratio_L'], '.1%')} · {_num(d['clip_ratio_R'], '.1%')} (1% 이하)"),
+             f"하얗게 날아간 부분 왼쪽 {_num(d['clip_ratio_L'], '.1%')}, 오른쪽 {_num(d['clip_ratio_R'], '.1%')} (1% 이하)"),
         item("볼 영역", {"roi_small_L", "roi_small_R"}, "양 볼이 잘 보여요",
              "볼이 가려졌어요. 머리카락이나 마스크를 치워 주세요",
-             f"{_num(d['n_L'], ',.0f')} · {_num(d['n_R'], ',.0f')} 픽셀"),
+             f"왼쪽 {_num(d['n_L'], ',.0f')}, 오른쪽 {_num(d['n_R'], ',.0f')} 픽셀"),
     ]
     passed = not flags
     redness = round(d["a_star"], 2) if passed and not _missing(d["a_star"]) else None
@@ -161,7 +161,7 @@ def evaluate(f: Features):
         message = "좋아요, 이 사진으로 괜찮아요."
         note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 오늘 기록에 볼 색 숫자만 남겨요(사진은 남기지 않아요)."
     else:
-        message = "같은 장소·조명에서 정면을 보고 다시 찍어 주세요."
+        message = "같은 장소와 조명에서 정면을 보고 다시 찍어 주세요."
         note = "품질 검사를 통과한 사진만 볼 붉은기를 보여 드려요."
     return {"passed": passed, "checks": checks, "flags": sorted(flags), "message": message,
             "redness": redness, "note": note}

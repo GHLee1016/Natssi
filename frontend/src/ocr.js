@@ -27,7 +27,7 @@ async function clean(file) {
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
   bmp.close?.()
   const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.9))
-  if (!blob) throw new Error('사진을 열 수 없어요. JPG·PNG로 골라 주세요.')
+  if (!blob) throw new Error('사진을 열 수 없어요. JPG나 PNG로 골라 주세요.')
   return new File([blob], 'ingredients.jpg', { type: 'image/jpeg' })
 }
 

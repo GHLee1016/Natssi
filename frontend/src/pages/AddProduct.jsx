@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api.js'
+import { api, fmt } from '../api.js'
 import { routineCopy } from '../copy/routine.js'
 import { isBlurry, productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
+import KV from '../kv.jsx'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
@@ -21,7 +22,7 @@ const MAX_PHOTOS = 3
 function RoundTip() {
   return (
     <details className="round-tip">
-      <summary className="small">둥근 통·병이라면 이렇게 찍어 주세요</summary>
+      <summary className="small">둥근 통이나 병이라면 이렇게 찍어 주세요</summary>
       <div className="round-tip-body">
         <svg viewBox="0 0 240 72" width="240" height="72" role="img" aria-label="통을 돌려 가며 세 번 찍는 그림">
           {[0, 1, 2].map((k) => (
@@ -201,7 +202,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
             {usages.map((u) => (
               <label className={'opt' + (usage === u ? ' on' : '')} key={u}>
                 <input type="radio" name="usage" checked={usage === u} onChange={() => { setUsage(u); setErr(null) }} />
-                <span className="opt-dot" aria-hidden="true" />{u}
+                <span className="opt-dot" aria-hidden="true" />{fmt.plain(u)}
               </label>
             ))}
           </div>
@@ -215,8 +216,8 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
             <span className="muted small">제품 사진 (선택)</span>
             <div className="prod-photo-row">
               {photo && <img className="prod-photo" src={photo} alt="고른 제품 사진" />}
-              <label className="btn ghost file">{photo ? '다른 사진' : '사진 찍기·고르기'}
-                <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { try { setPhoto(await productThumbnail(f)) } catch { setErr('사진을 열 수 없어요. JPG·PNG로 골라 주세요.') } } }} />
+              <label className="btn ghost file">{photo ? '다른 사진' : '사진 찍거나 고르기'}
+                <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { try { setPhoto(await productThumbnail(f)) } catch { setErr('사진을 열 수 없어요. JPG나 PNG로 골라 주세요.') } } }} />
               </label>
               {photo && <button type="button" className="link" onClick={() => setPhoto(null)}>빼기</button>}
             </div>
@@ -265,13 +266,11 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
       {step === 2 && (
         <>
           <h3 className="step-q" tabIndex={-1} ref={head}>{t.step3.title}</h3>
-          <p className="small"><b>{name.trim()}</b> · {usage}</p>
+          <p className="small"><b>{name.trim()}</b><span className="sub-line">{fmt.plain(usage)}</span></p>
           <datalist id="ing-hints">{hints.map((h) => <option key={h.name} value={h.name}>{h.inci}</option>)}</datalist>
           {list.length === 0 ? <p className="muted">{t.step3.none}</p> : (
             <>
-              <p className="small">성분 {list.length}개
-                {fixed.length > 0 && <> · 자동으로 고침 {fixed.length}개</>}
-                {review > 0 && <> · <b className="warn">확인 필요 {review}개</b></>}</p>
+              <KV items={[['성분', `${list.length}개`], ['자동으로 고침', fixed.length > 0 && `${fixed.length}개`], ['확인 필요', review > 0 && <b className="warn">{review}개</b>]]} />
               <p className="muted small">{review > 0 ? t.step3.review : t.step3.fix}</p>
               <ul className="ing">
                 {list.map((i) => (editing === i.name ? (

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, fmt } from '../api.js'
+import KV from '../kv.jsx'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
 import AddProduct from './AddProduct.jsx'
@@ -60,14 +61,14 @@ export default function MyRoutine({ ocr }) {
             )}
             {!adding && (r.current ? (
               <div className="card">
-                <h2 className="h3">버전 {r.current.id} · {fmt.md(r.current.start)}부터</h2>
+                <h2 className="h3">버전 {r.current.id}<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
                 {r.current.items.map((it) => (
                   <div key={it.key}>
                     <div className="row">
                       {it.photo ? <img className="prod-photo" src={it.photo} alt={`${it.name} 사진`} />
                         : <ProductIcon name={ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />}
                       <div><b>{it.name}</b>
-                        <p className="muted small">{it.usage}{it.ingredients.length ? ` · 성분 ${it.ingredients.length}개` : ' · 성분 미입력'}</p>
+                        <KV className="small" items={[['사용', fmt.plain(it.usage)], ['성분', it.ingredients.length ? `${it.ingredients.length}개` : '미입력']]} />
                         {it.families.length > 0 && <p className="fam">{it.families.map((f) => <span key={f}>{f}</span>)}</p>}
                       </div>
                       {asking === it.key ? (
@@ -81,12 +82,12 @@ export default function MyRoutine({ ocr }) {
                     </div>
                     {editing === it.key && (
                       <div className="edit-usage">
-                        <p className="small"><b>{it.name}</b>을 얼마나 자주 쓰나요? <span className="muted">(지금: {it.usage})</span></p>
+                        <p className="small"><b>{it.name}</b>을 얼마나 자주 쓰나요? <span className="muted">(지금: {fmt.plain(it.usage)})</span></p>
                         <div role="radiogroup" aria-label="새 사용 빈도" className="opts">
                           {r.usages.filter((u) => u !== it.usage).map((u) => (
                             <label className={'opt' + (newUsage === u ? ' on' : '')} key={u}>
                               <input type="radio" name={'u-' + it.key} checked={newUsage === u} onChange={() => setNewUsage(u)} />
-                              <span className="opt-dot" aria-hidden="true" />{u}
+                              <span className="opt-dot" aria-hidden="true" />{fmt.plain(u)}
                             </label>
                           ))}
                         </div>
@@ -122,8 +123,8 @@ export default function MyRoutine({ ocr }) {
               {[...r.versions].reverse().map((v) => (
                 <div className="ev" key={v.id}>
                   <b>버전 {v.id}</b>
-                  <div>{v.change || '처음 등록한 루틴'}
-                    <p className="muted small">{fmt.md(v.start)} 시작{v.reason ? ` · 바꾼 이유: ${v.reason}` : ''}</p></div>
+                  <div>{fmt.plain(v.change) || '처음 등록한 루틴'}
+                    <p className="muted small">{fmt.md(v.start)} 시작</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
                 </div>
               ))}
             </div>
