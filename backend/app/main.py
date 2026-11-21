@@ -129,6 +129,7 @@ class ResetBody(BaseModel):
 
 
 class SignupBody(Credentials):
+    consent_age14: bool = False    # 만 14세 이상 확인(미만은 법정대리인 동의가 필요해 가입을 받지 않음)
     consent_terms: bool = False
     consent_privacy: bool = False
     consent_photo: bool = False
@@ -155,6 +156,8 @@ def _auth_on():
 def signup(body: SignupBody, request: Request):
     _auth_on()
     limit("auth", request)
+    if not body.consent_age14:
+        raise HTTPException(400, "만 14세 이상만 가입할 수 있어요.")
     if not (body.consent_terms and body.consent_privacy and body.consent_photo and body.consent_health):
         raise HTTPException(400, "필수 항목에 모두 동의해야 가입할 수 있어요.")
     _check_password(body.password)

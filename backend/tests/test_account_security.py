@@ -109,7 +109,7 @@ def env(monkeypatch):
     auth._client = store._client = None
 
 
-SIGNUP = {"consent_terms": True, "consent_privacy": True, "consent_photo": True, "consent_health": True}
+SIGNUP = {"consent_age14": True, "consent_terms": True, "consent_privacy": True, "consent_photo": True, "consent_health": True}
 
 
 def join(c, email, pw="abcd1234"):
@@ -138,11 +138,17 @@ def test_signup_needs_all_consents_and_decent_password(env):
     assert c.post("/api/auth/signup", json={**base, "email": "not-an-email"}).status_code == 422
 
 
+def test_under_14_cannot_sign_up(env):
+    _, c = env
+    r = c.post("/api/auth/signup", json={"email": "k@test.kr", "password": "abcd1234", **SIGNUP, "consent_age14": False})
+    assert r.status_code == 400 and "14세" in r.json()["detail"]
+
+
 def test_consent_is_recorded_with_version(env):
     fake, c = env
     h = join(c, "a@test.kr")
     consent = c.get("/api/account/export", headers=h).json()["consent"]
-    assert consent["version"] == config.CONSENT_VERSION and consent["photo"] and consent["at"]
+    assert consent["version"] == config.CONSENT_VERSION and consent["photo"] and consent["age14"] and consent["at"]
 
 
 def test_login_errors_are_friendly(env):

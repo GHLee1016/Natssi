@@ -13,7 +13,8 @@ const checkPassword = (v, strict) => {
 // 서버가 돌려준 문구가 특정 칸에 대한 것이면 그 칸 아래에 보여준다.
 const fieldOf = (msg) => (msg.startsWith('이미 가입된') ? 'email' : /^(비밀번호|이전과 다른 비밀번호)/.test(msg) ? 'password' : null)
 
-const CONSENTS = [['terms', '[필수] 이용약관'], ['privacy', '[필수] 개인정보 수집·이용'], ['photo', '[필수] 얼굴 사진 처리 안내'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용']]
+// 만 14세 미만은 법정대리인 동의가 필요해 가입을 받지 않는다(개인정보 보호법 제22조의2). 나이 확인은 본인 확인 체크로 받는다.
+const CONSENTS = [['age14', '[필수] 만 14세 이상이에요'], ['terms', '[필수] 이용약관'], ['privacy', '[필수] 개인정보 수집·이용'], ['photo', '[필수] 얼굴 사진 처리 안내'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용']]
 // 선택 동의: 항목마다 따로 고른다. 동의하지 않아도 가입·모든 기본 기능을 쓸 수 있고, 내 계정에서 언제든 바꿀 수 있다.
 const OPTIONALS = [['cheeks', '[선택] 볼 부분 사진 보관', 'photo'], ['ai_report', '[선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)', 'ai']]
 
@@ -33,7 +34,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
-  const [c, setC] = useState({ terms: false, privacy: false, photo: false, health: false })
+  const [c, setC] = useState({ age14: false, terms: false, privacy: false, photo: false, health: false })
   const [opt, setOpt] = useState({ cheeks: false, ai_report: false })
   const [errs, setErrs] = useState({})
   const [consentTried, setConsentTried] = useState(false)
@@ -68,7 +69,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
     setBusy(true)
     try {
       if (mode === 'signup') {
-        const r = await api.signup({ email, password, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health, consent_cheeks: opt.cheeks, consent_ai_report: opt.ai_report })
+        const r = await api.signup({ email, password, consent_age14: c.age14, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health, consent_cheeks: opt.cheeks, consent_ai_report: opt.ai_report })
         if (r.status === 'confirm_email') { setDone('signup'); return }
         onDone()
       } else if (mode === 'login') {
@@ -153,7 +154,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           <fieldset className="consents" aria-describedby={consentTried && !all ? 'consent-err' : undefined}>
             <legend>약관 동의</legend>
             <label className="check all"><input type="checkbox" checked={all}
-              onChange={(e) => setC({ terms: e.target.checked, privacy: e.target.checked, photo: e.target.checked, health: e.target.checked })} />필수 항목 모두 동의</label>
+              onChange={(e) => setC({ age14: e.target.checked, terms: e.target.checked, privacy: e.target.checked, photo: e.target.checked, health: e.target.checked })} />필수 항목 모두 동의</label>
             {CONSENTS.map(([k, label]) => {
               const bad = consentTried && !c[k]
               return (
@@ -161,7 +162,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
                   <label className={'check' + (bad ? ' bad' : '')}>
                     <input id={'consent-' + k} type="checkbox" checked={c[k]} aria-invalid={bad} onChange={(e) => setC({ ...c, [k]: e.target.checked })} />{label}
                   </label>
-                  <button type="button" className="link" onClick={() => onLegal(k)}>보기</button>
+                  <button type="button" className="link" onClick={() => onLegal(k === 'age14' ? 'terms' : k)}>보기</button>
                 </div>
               )
             })}
