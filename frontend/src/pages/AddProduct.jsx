@@ -76,7 +76,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [err, setErr] = useState(null)
   const [note, setNote] = useState(null)               // '이미 목록에 있어요' 같은 안내
   const [busy, setBusy] = useState(false)
-  const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(30초쯤)
+  const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(사진 1장 10초 안팎)
   const [blurry, setBlurry] = useState(null)          // 흐려 보이는 사진: { files, count } — 다시 찍거나 그대로 읽기
   const [photo, setPhoto] = useState(null)            // 제품 사진(선택): 240px 썸네일 data URL
   const [ocrFiles, setOcrFiles] = useState([])        // 전성분을 읽은 사진들(첫 장은 제품 사진으로 쓸 수 있게, 더 찍어 다시 읽을 때 합침)
@@ -239,7 +239,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {ocr && (
             <div className="ocr-pick">
               <label className={'btn file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
-                {reading ? '성분 읽는 중… (30초쯤)' : `전성분 사진 고르기 (최대 ${MAX_PHOTOS}장)`}
+                {reading ? '성분 읽는 중… (10~20초)' : `전성분 사진 고르기 (최대 ${MAX_PHOTOS}장)`}
                 {pickInput((f) => readPhotos(f))}
               </label>
               {blurBox}
@@ -306,7 +306,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
               <p className="small"><b>빠진 성분이 있나요?</b> 둥근 통이면 통을 조금 돌려 찍은 사진을 더해 다시 읽을 수 있어요
                 (지금 {ocrFiles.length}장, 최대 {MAX_PHOTOS}장). 다시 읽으면 위 목록에서 고친 내용은 새 결과로 바뀌어요.</p>
               <label className={'btn ghost file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
-                {reading ? '다시 읽는 중… (30초쯤)' : '돌려 찍은 사진 더해서 다시 읽기'}
+                {reading ? '다시 읽는 중… (10~20초)' : '돌려 찍은 사진 더해서 다시 읽기'}
                 {pickInput((f) => readPhotos([...ocrFiles, ...f], false, ocrFiles.length))}
               </label>
               {blurBox}
