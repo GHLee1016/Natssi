@@ -28,17 +28,22 @@ def main():
     if not (cwd / "tools" / "train.py").exists():
         sys.exit("PaddleOCR 폴더 안에서 실행해 주세요 (tools/train.py가 보이는 곳).")
     cfg = yaml.safe_load(open(yml, encoding="utf-8"))
-    files: dict[Path, str] = {}                     # 실제 파일 → zip 안 이름(root 기준)
+    files: dict[tuple[Path, str], None] = {}        # (실제 파일, zip 안 이름) — 순서 유지·중복 제거
     missing = []
+
+    def arc(f: Path) -> str:
+        """zip 안 이름. 학습 폴더 밖이면 _ext/<맨 끝 폴더나 파일 이름>/… (yml도 같은 규칙으로 고친다)"""
+        try:
+            return f.relative_to(root).as_posix()
+        except ValueError:
+            return None
 
     def add(p: Path):
         p = p.resolve()
         targets = [p] if p.is_file() else [x for x in p.rglob("*") if x.is_file()]
         for f in targets:
-            try:
-                files[f] = f.relative_to(root).as_posix()
-            except ValueError:
-                files[f] = "_ext/" + f.relative_to(p.parent).as_posix()
+            # 같은 파일이 두 이름으로 들어가도 된다(데이터 폴더 안의 라벨 파일 = 폴더 통째 + 라벨 경로)
+            files[(f, arc(f) or "_ext/" + f.relative_to(p.parent).as_posix())] = None
 
     def fix(v: str) -> str:
         p = Path(v).expanduser()
@@ -84,7 +89,7 @@ def main():
 
     out = root.parent / f"{root.name}.colab.zip"
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        for f, name in sorted(files.items(), key=lambda t: t[1]):
+        for f, name in sorted(files, key=lambda t: t[1]):
             z.write(f, name)
         z.writestr(yml.name, yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False))
         z.writestr("colab_meta.json", json.dumps(meta, ensure_ascii=False, indent=1))
