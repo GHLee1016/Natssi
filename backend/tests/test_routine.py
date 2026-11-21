@@ -4,6 +4,7 @@ from datetime import date
 from test_account_security import env, join   # noqa: F401  (픽스처와 가입 도우미 재사용)
 
 from app import config, ingredients, routine, store
+from app.ingr import pipeline
 
 TEXT = "전성분: 정제수, 글리세린, 레티놀, 1,2-헥산다이올, 향료, 나이아신아마이드(2%), 병풀추출물 사용 시의 주의사항: 상처가 있는 부위에는 쓰지 마세요"
 
@@ -30,6 +31,26 @@ def test_analyze_fixes_typos_and_flags_unknown():
         assert False
     except ValueError:
         pass
+
+
+def test_ocr_line_breaks_missing_commas_and_confused_letters():
+    """OCR 전성분: 줄바꿈에서 잘린 이름, 빠진 쉼표로 붙은 두 이름, '올'을 '을'로 읽은 글자."""
+    raw = ("[전성분]정제수,프로판다이을,카프릴릭/카프릭트라이글리세라이드,폴리글리세\n"
+           "린-3,1,2-헥산다이올,나이아신아마이드흑효모발효물,하이드록시아세토페논\n"
+           "판테놀,소듬하이알루로네이트,세라마이드에이\n에스세라마이드이오피,잔\n탄검,세테아릴알코을\n향료")
+    r = pipeline.from_text(raw)
+    names = [i["kor"] for i in r["ingredients"]]
+    assert names == ["정제수", "프로판다이올", "카프릴릭/카프릭트라이글리세라이드", "폴리글리세린-3", "1,2-헥산다이올",
+                     "나이아신아마이드", "흑효모발효물", "하이드록시아세토페논", "판테놀", "소듐하이알루로네이트",
+                     "세라마이드에이에스", "세라마이드이오피", "잔탄검", "세테아릴알코올", "향료"]
+    assert all(i["status"] != "확인 필요" for i in r["ingredients"])
+
+
+def test_same_ingredient_only_once():
+    """여러 장 사진이 겹치거나 줄바꿈에서 잘린 조각이 따로 읽혀도 한 번만. 영문명·띄어쓰기가 달라도 같은 성분."""
+    r = ingredients.analyze("정제수, 글리세린, Glycerin, 글리 세린, 병풀추출물, 추출물, Water")
+    assert [i["name"] for i in r["ingredients"]] == ["정제수", "글리세린", "병풀추출물"]
+    assert ingredients.same_key("Glycerin") == ingredients.same_key("글리세린 ")
 
 
 def test_suggest_and_extra_families():
@@ -75,7 +96,8 @@ def test_routine_validation():
             assert False
         except routine.RoutineError:
             pass
-    routine.add_item(d, date(2026, 11, 19), "A", "매일 저녁", [])
+    routine.add_item(d, date(2026, 11, 19), "A", "매일 저녁", ["글리세린", "Glycerin", "글리 세린", "정제수"])
+    assert d["versions"][-1]["items"][-1]["ingredients"] == ["글리세린", "정제수"]     # 같은 성분은 한 번만 저장
     try:
         routine.add_item(d, date(2026, 11, 19), "A", "매일 저녁", [])
         assert False
