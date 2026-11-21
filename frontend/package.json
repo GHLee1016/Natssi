@@ -9,7 +9,7 @@
     "prebuild": "node scripts/copy-mediapipe.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node src/measure/core.test.mjs"
+    "test": "node src/measure/core.test.mjs && node src/measure/guide.test.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.2.3",

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { loadLandmarker, measurePhoto } from '../measure/browser.js'
+import { loadLandmarker, loadLiveTracker, measurePhoto, trackFrame } from '../measure/browser.js'
+import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
 
@@ -60,11 +61,49 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [agree, setAgree] = useState(false)
+  const [guide, setGuide] = useState(null)   // 실시간 정렬 가이드 {ok, key, hint}. 못 쓰면 null(직접 찍기)
+  const [auto, setAuto] = useState(true)     // 정렬이 맞으면 자동으로 찍기
+  const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3·2·1
+  const streak = useRef(0)                   // 맞는 프레임이 이어진 수
+  const armed = useRef(true)                 // 자동 촬영을 할 수 있는 상태(한 번 찍으면 내려감)
+  const flags = useRef({ busy: false, auto: true, passed: false })
   const [seenLocal, setSeenLocal] = useState(() => { try { return localStorage.getItem(NOTICE_KEY) } catch { return null } })
   const needConsent = viewer ? viewer.consent_version !== consentVersion : seenLocal !== consentVersion
 
   const stop = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null }
   useEffect(() => stop, [])
+  useEffect(() => { flags.current = { busy: !!busy, auto, passed: !!result?.passed } }, [busy, auto, result])
+
+  // 카메라가 켜져 있는 동안 125ms마다 한 프레임을 이 기기에서 보고 정렬 안내를 바꾼다(프레임은 저장하지 않음).
+  // 정렬이 약 1초 이어지면 3·2·1을 세고 찍는다. 찍은 뒤에는 자동 촬영을 내려 두고, 통과하지 못했으면
+  // 사용자가 자세를 바꿨다가(정렬이 한 번 어긋났다가) 다시 맞출 때 다시 켠다.
+  useEffect(() => {
+    if (cam !== 'on') return undefined
+    let alive = true, timer = null, tracker = null, lastKey = '', lastCount = null
+    const showCount = (n) => { if (n !== lastCount) { lastCount = n; setCount(n) } }
+    const tick = () => {
+      if (!alive) return
+      const v = video.current
+      if (tracker && v && v.readyState >= 2 && !flags.current.busy) {
+        let r = null
+        try { r = checkFrame(trackFrame(tracker, v, performance.now())) } catch { r = null }
+        if (r) {
+          if (r.key !== lastKey) { lastKey = r.key; setGuide(r) }
+          if (!r.ok && !armed.current && !flags.current.passed) armed.current = true
+          streak.current = nextStreak(streak.current, r.ok)
+          const s = streak.current - AUTO_FRAMES
+          if (flags.current.auto && armed.current && s >= 0) {
+            if (s >= 12) { armed.current = false; streak.current = 0; showCount(null); shoot() }
+            else showCount(3 - Math.floor(s / 4))
+          } else showCount(null)
+        }
+      }
+      timer = setTimeout(tick, 125)
+    }
+    loadLiveTracker().then((t) => { tracker = t; tick() }).catch(() => setGuide(null))   // 못 불러오면 가이드 없이 직접 찍기
+    return () => { alive = false; clearTimeout(timer); setGuide(null); setCount(null) }
+  }, [cam])
+  const cancelAuto = () => { armed.current = false; streak.current = 0; setCount(null) }
 
   const acceptNotice = async () => {
     setError(null)
@@ -100,7 +139,7 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
       setError(e?.status ? e.message : '사진을 분석하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')
     } finally { setBusy(null) }
   }
-  const shoot = () => video.current && send(video.current)
+  const shoot = () => { armed.current = false; if (video.current) send(video.current) }
 
   if (needConsent) {
     return (
@@ -128,7 +167,14 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
       <div className="grid2">
         <div className="view">
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
-          {cam === 'on' && <div className="oval" />}
+          {cam === 'on' && <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />}
+          {cam === 'on' && guide && !count && <p className={'guide-hint' + (guide.ok ? ' ok' : '')} role="status">{guide.hint}</p>}
+          {cam === 'on' && count && (
+            <div className="countdown" role="status" aria-label={`${count}초 뒤에 찍어요`}>
+              <b>{count}</b>
+              <button className="btn ghost" onClick={cancelAuto}>취소</button>
+            </div>
+          )}
           {cam !== 'on' && (
             <div className="view-empty">
               <p>{cam === 'blocked' ? '카메라를 쓸 수 없어요. 브라우저에서 카메라 권한을 허용하거나, 사진을 골라 주세요.' : '얼굴이 타원 안에 들어오게 정면을 봐 주세요.'}</p>
@@ -143,6 +189,10 @@ export default function Capture({ onLegal, viewer, consentVersion, mdc95, onCons
               <input type="file" accept="image/*" disabled={!!busy} onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) send(f) }} />
             </label>
           </div>
+          {cam === 'on' && guide && (
+            <label className="row-check auto-shot"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />
+              타원에 맞으면 자동으로 찍기</label>
+          )}
           {!result && (
             <div className="card prep">
               <h2 className="h3">이렇게 찍어 주세요</h2>
