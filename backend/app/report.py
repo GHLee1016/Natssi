@@ -46,6 +46,7 @@ def build_facts(judged, versions):
 def build_report(judged, versions):
     sentences = []
     facts = build_facts(judged, versions)
+    env_by_v = {sv.pop("version"): sv for sv in env_sentences(judged, versions)}   # 실제 환경 값이 있을 때만 생김
     for f in facts:
         if f["version"] == 1 or not f["change"]:
             continue
@@ -54,21 +55,55 @@ def build_report(judged, versions):
             sentences.append({"text": f"{f['phrase']} 뒤(버전 {f['version']}) 처음 {len(days)}일은 붉은기가 아직 평소 범위 밖이었어요.",
                               "cites": f["signal_ids"]})
         elif days:
-            span = f"{days[0]}~{days[-1]}일째" if len(days) > 1 else f"{days[0]}일째"
+            span = f"{_span(days)}일째"            # 빠진 날(예: 환경 때문에 구분 불가)은 '4, 6~7일째'처럼 끊어 보인다
             text = f"{f['phrase']} 뒤(버전 {f['version']}) {span} 양 볼 붉은기가 평소 범위를 넘었"
             text += f"고, 같은 기간 따가움 {f['max_sting']}점이 기록됐어요." if f["max_sting"] else "어요."
             sentences.append({"text": text, "cites": f["signal_ids"]})
             if not f["env_unusual"]:
                 sentences.append({"text": "같은 날 미세먼지·습도는 평소와 비슷했어요.", "cites": f["signal_ids"]})
+        if f["version"] in env_by_v:
+            sentences.append(env_by_v.pop(f["version"]))
         if f["calm_ids"] and any(p["signal_ids"] for p in facts if p["version"] < f["version"]):
             sentences.append({"text": f"그 뒤 붉은기가 평소 범위로 돌아왔어요." if f["carried_over"] else
                               f"{f['phrase']} 뒤(버전 {f['version']}) 붉은기가 평소 범위로 돌아왔어요.",
                               "cites": f["calm_ids"]})
+    sentences += [env_by_v[k] for k in sorted(env_by_v)]   # 바꾼 적 없는 버전(1) 등 남은 것
     if not sentences:
         sentences.append({"text": "아직 눈에 띄는 변화가 없어요.", "cites": [judged[-1]["id"]] if judged else []})
     for s in sentences:
         s["cite_label"] = f"근거: 기록 {_span(s['cites'])}" if s["cites"] else ""
     return {"sentences": sentences, "disclaimer": DISCLAIMER, "source": "template"}
+
+
+def _env_blocked(judged):
+    """붉은기가 평소 범위를 넘었지만 같은 때 환경도 크게 달라 '구분 불가'로 둔 기록 (실제 환경 값이 있을 때만)."""
+    return [r for r in judged if r["verdict"].get("env_blocked") and r.get("env", {}).get("facts")]
+
+
+def _facts_of(rows):
+    facts = []
+    for r in rows:
+        facts += [f for f in r["env"]["facts"] if f not in facts]
+    return " ".join(facts)
+
+
+def env_sentences(judged, versions):
+    """환경 때문에 '구분 불가'로 둔 날을 버전별로 한 문장씩. 사실만 말하고 '때문에'라고 하지 않는다.
+    예: '물광 세럼 추가 뒤(버전 2) 3일째에도 붉은기가 평소 범위를 넘었지만, 그때는 전날 기온이 크게 바뀌었어요.
+         그래서 그날은 바꾼 탓인지 가릴 수 없어 '구분 불가'로 두었어요.'"""
+    out = []
+    by_v = {v["id"]: v for v in versions}
+    blocked = _env_blocked(judged)
+    for vid in sorted({r["version"] for r in blocked}):
+        rows = [r for r in blocked if r["version"] == vid]
+        days = [r["day_in_version"] for r in rows]
+        span = f"{_span(days)}일째"
+        v = by_v.get(vid, {})
+        head = f"{v.get('phrase') or v.get('label', '')} 뒤(버전 {vid}) " if v.get("change") else f"버전 {vid} "
+        out.append({"version": vid, "text": f"{head}{span}에도 붉은기가 평소 범위를 넘었지만, 그때는 {_facts_of(rows)} "
+                            "그래서 그날은 바꾼 탓인지 가릴 수 없어 '구분 불가'로 두었어요.",
+                    "cites": [r["id"] for r in rows]})
+    return out
 
 
 def _label(s):
@@ -107,6 +142,11 @@ def answer(qid, judged, versions):
         text = ("같은 기간 미세먼지와 습도는 평소와 비슷했어요. "
                 "기록하지 않은 요인은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
                "같은 기간 환경도 평소와 달랐어요. 그래서 어느 쪽 때문인지 가릴 수 없어요."
+        blocked = _env_blocked(judged)
+        if blocked:   # 실제 환경 값이 있을 때: 환경이 크게 달랐던 날을 따로 알려 준다
+            text += (f" 다만 기록 {_span([r['id'] for r in blocked])}에서는 {_facts_of(blocked)} "
+                     "그날은 '구분 불가'로 두었어요.")
+            cites = sorted(set(cites) | {r["id"] for r in blocked})
     elif qid == "next":
         text = "빈도를 바꾸면 새 버전으로 기록돼요. 그 뒤 붉은기가 평소 범위로 돌아오는지 2주 동안 비교해요."
         cites = []

@@ -1,4 +1,5 @@
 """판정에 쓰는 설정값. MDC95는 팀원 반복 촬영 예비 검증값이며, 사진이 늘면 다시 계산해 갱신합니다."""
+import os
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -13,6 +14,9 @@ SYMPTOM_ALERT = 2           # 증상 점수가 이 값 이상이면 '겹침'으�
 # DEMO_SHIFT_DAYS가 None이면 접속일 기준, 숫자면 그 일수로 고정합니다(예: 시연일을 11/27로 고정하려면 11).
 DEMO_BASE = date(2026, 11, 16)
 DEMO_SHIFT_DAYS = None
+# 김서연 데모에 실제 환경(에어코리아·기상청) 값을 붙일 자치구. 비워 두면 지금처럼 예시 값.
+# 예: Vercel 환경변수 DEMO_ENV_DISTRICT=서대문구 → 11/7 하루가 '신호 있음' → '구분 불가(전날 기온이 크게 바뀌었어요)'
+DEMO_ENV_DISTRICT = os.environ.get("DEMO_ENV_DISTRICT") or None
 
 
 def today_kst() -> date:
@@ -29,7 +33,6 @@ def demo_today() -> date:
     return DEMO_BASE + timedelta(days=demo_shift())
 
 
-import os
 
 # ── 계정·보안 ───────────────────────────────────────────────
 # 비밀번호 찾기는 Supabase 커스텀 SMTP를 설정한 뒤에만 켠다(기본 메일 서비스는 팀 구성원에게만 보낸다).

@@ -58,6 +58,8 @@ def judge_all(records):
             if exceeds and r["env"].get("unusual"):
                 verdict = UNKNOWN
                 res["reasons"].append("같은 시기에 환경도 크게 달라졌어요")
+                res["reasons"] += r["env"].get("facts", [])     # 실제 환경 값이 있으면 어떤 변화였는지
+                res["env_blocked"] = True
             elif exceeds and (prev_day_exceeded or max_symptom >= config.SYMPTOM_ALERT):
                 verdict = SIGNAL
                 res["reasons"].append("붉은기가 평소 범위를 넘었어요")

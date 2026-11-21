@@ -10,8 +10,10 @@ import httpx
 
 TABLE = "checkins"
 ROUTINE_TABLE = "routines"
+PROFILE_TABLE = "profiles"
 _memory: dict[str, dict[str, dict]] = {}   # {user_id: {day: symptoms}}
 _memory_routine: dict[str, dict] = {}      # {user_id: 루틴 데이터(versions 목록)}
+_memory_profile: dict[str, dict] = {}      # {user_id: {"district": "서대문구"}}
 _client: httpx.Client | None = None      # 테스트에서 바꿔 끼울 수 있음
 
 
@@ -86,6 +88,33 @@ def save_routine(uid: str, data: dict) -> None:
     r = _http().post(f"{url}/rest/v1/{ROUTINE_TABLE}", params={"on_conflict": "user_id"},
                      headers=_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
                      json={"user_id": _uid(uid), "data": data})
+    r.raise_for_status()
+
+
+def load_profile(uid: str) -> dict:
+    """사는 구 등 설정. 없거나 profiles 표를 아직 안 만들었으면 빈 값."""
+    cfg = _cfg()
+    if not cfg:
+        return dict(_memory_profile.get(uid, {}))
+    url, key = cfg
+    r = _http().get(f"{url}/rest/v1/{PROFILE_TABLE}", params={"select": "district", "user_id": f"eq.{_uid(uid)}"},
+                    headers=_headers(key))
+    if r.status_code == 404:
+        return {}
+    r.raise_for_status()
+    rows = r.json()
+    return {"district": rows[0].get("district")} if rows else {}
+
+
+def save_profile(uid: str, district: str | None) -> None:
+    cfg = _cfg()
+    if not cfg:
+        _memory_profile[uid] = {"district": district}
+        return
+    url, key = cfg
+    r = _http().post(f"{url}/rest/v1/{PROFILE_TABLE}", params={"on_conflict": "user_id"},
+                     headers=_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
+                     json={"user_id": _uid(uid), "district": district})
     r.raise_for_status()
 
 

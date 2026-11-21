@@ -9,7 +9,7 @@ const addDays = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDa
 const line = (s) => SYMPTOMS.map((k) => `${k} ${s[k] ?? 0}`).join(' · ')
 
 // 로그인한 사용자의 첫 화면: 오늘 체크인과 '평소 범위까지 N/7일'. 판정·리포트는 김서연 데모에서만 보여준다.
-export default function MyDay({ go }) {
+export default function MyDay({ go, openAccount }) {
   const q = useLoad(() => api.me(), [])
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -65,6 +65,22 @@ export default function MyDay({ go }) {
               )}
             </div>
 
+            <div className="card">
+              <h2 className="h3">오늘 우리 동네 환경</h2>
+              {d.district && d.env_today ? (
+                <>
+                  <p>{d.district} · 초미세먼지 {d.env_today.pm25 ?? '—'} · 습도 {d.env_today.humidity ?? '—'}% · <b>{d.env_today.unusual ? '평소와 달라요' : '평소와 비슷'}</b></p>
+                  {d.env_today.facts?.map((t) => <p key={t} className="muted small">{t}</p>)}
+                  <p className="muted small">피부가 달라졌을 때 '다른 이유'를 가려내는 데만 써요. 환경 때문이라고 단정하지 않아요.</p>
+                </>
+              ) : (
+                <div className="row">
+                  <div><p className="muted small">사는 구를 고르면 그날의 미세먼지·습도·기온을 기록에 함께 붙여요.</p></div>
+                  <button className="link" onClick={openAccount}>사는 구 고르기</button>
+                </div>
+              )}
+            </div>
+
             <div className="rec">
               <div className="rec-row">
                 <span className="rec-k">셀카</span>
@@ -81,7 +97,7 @@ export default function MyDay({ go }) {
               {d.recent.map((r) => (
                 <div className="ev" key={r.date}>
                   <b>{fmt.md(r.date)}</b>
-                  <div>{line(r.symptoms)}</div>
+                  <div>{line(r.symptoms)}{r.env && <span className="muted small"> · 초미세먼지 {r.env.pm25 ?? '—'} · 습도 {r.env.humidity ?? '—'}%{r.env.unusual ? ' · 평소와 달라요' : ''}</span>}</div>
                 </div>
               ))}
             </div>

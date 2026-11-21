@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 
 export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
@@ -7,6 +7,9 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [word, setWord] = useState('')
+  const [prof, setProf] = useState(null)          // { district, districts }
+
+  useEffect(() => { api.profile().then(setProf).catch(() => setProf({ district: null, districts: [] })) }, [])
 
   const run = async (name, fn, okMsg) => {
     setBusy(name); setError(null); setMsg(null)
@@ -19,6 +22,10 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
     const a = document.createElement('a'); a.href = url; a.download = 'natssi-my-data.json'; a.click()
     URL.revokeObjectURL(url)
   }, '내 데이터를 파일로 내려받았어요.')
+
+  const saveDistrict = (d) => run('district', async () => {
+    const me = await api.saveDistrict(d); setProf((p) => ({ ...p, district: me.district })); onChanged?.()
+  }, d ? `사는 구를 ${d}로 저장했어요.` : '사는 구를 지웠어요.')
 
   const reset = () => run('reset', async () => { await api.resetMine(); onChanged() }, '내 증상 체크인을 모두 지웠어요.')
   const remove = () => run('delete', async () => { await api.deleteAccount(); onLoggedOut() })
@@ -36,6 +43,17 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
         <div className="row"><div><b>체크인 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 체크인만 지워요.</p></div>
           <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
         <div className="row"><div><b>사진</b><p className="muted small">얼굴 사진은 검사 후 바로 버려서 저장된 사진이 없어요.</p></div><span className="done">저장 안 함</span></div>
+      </div>
+
+      <div className="card">
+        <h2 className="h3">사는 동네</h2>
+        <p className="muted small">고르면 그날 우리 동네 미세먼지·습도·기온을 기록에 붙여요. 붉은기가 평소 범위를 넘은 날 환경도 크게 달랐다면, 바꾼 탓이라고 단정하지 않고 '구분 불가'로 알려 드려요. 선택 사항이고 서울만 돼요.</p>
+        <label className="field"><span>서울 자치구</span>
+          <select value={prof?.district || ''} disabled={!prof || !!busy} onChange={(e) => saveDistrict(e.target.value)}>
+            <option value="">고르지 않음</option>
+            {(prof?.districts || []).map((d) => <option key={d} value={d}>{d}</option>)}
+          </select></label>
+        <p className="muted small">공공데이터: 에어코리아(미세먼지) · 기상청(기온·습도)</p>
       </div>
 
       <div className="card danger">

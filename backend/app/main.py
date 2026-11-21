@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, config, demo_data, ingredients, judge, llm, quality, ratelimit, report, store
+from . import auth, config, demo_data, env, ingredients, judge, llm, quality, ratelimit, report, store
 from . import routine as myroutine
 
 log = logging.getLogger("natssi")
@@ -70,7 +70,10 @@ def limit(bucket: str, request: Request, v=None):
 
 def records(v=None):
     """김서연 예시 기록. 로그인한 사용자의 기록은 섞지 않는다(내 기록은 /api/me)."""
-    return demo_data.build_records(offset=config.demo_shift())
+    recs = demo_data.build_records(offset=config.demo_shift())
+    if config.DEMO_ENV_DISTRICT:          # 실제 환경 값(공공데이터)으로 바꾸기. 비워 두면 예시 값 그대로
+        recs = env.attach_env(recs, config.DEMO_ENV_DISTRICT)
+    return recs
 
 
 def judged(v=None):
@@ -215,6 +218,7 @@ def export_account(request: Request, v=Depends(need_user)):
             "consent": v.get("consent"),
             "checkins": [{"day": d, "symptoms": s} for d, s in sorted(saved.items())],
             "routine": my_routine.get("versions", []),
+            "profile": _profile(v["id"]),
             "note": "얼굴 사진은 서버에 저장하지 않아 내려받을 사진이 없어요."}
 
 
@@ -318,12 +322,48 @@ def _mine(uid):
         raise _store_fail("저장소에 연결하지 못했어요.", e)
 
 
+def _profile(uid) -> dict:
+    try:
+        return store.load_profile(uid)
+    except Exception as e:            # 설정을 못 읽어도 내 기록 화면은 열리게
+        log.warning("profiles 읽기 실패: %s", store.why(e))
+        return {}
+
+
 def _me_payload(uid):
     saved = _mine(uid)
     today = config.today_kst().isoformat()
     recent = [{"date": d, "symptoms": saved[d]} for d in sorted(saved, reverse=True)[:7]]
+    district = _profile(uid).get("district")
+    env_today = None
+    if district:                      # 사는 구를 골랐으면 그날의 환경을 붙인다 (기획서 22쪽 '다른 이유')
+        today_row = [{"date": today}]
+        env.attach_env(recent + today_row, district)
+        env_today = today_row[0]["env"]
     return {"today": today, "today_checkin": saved.get(today), "days_recorded": len(saved),
-            "needed": BASELINE_DAYS, "recent": recent}
+            "needed": BASELINE_DAYS, "recent": recent, "district": district, "env_today": env_today}
+
+
+class ProfileBody(BaseModel):
+    district: Optional[str] = Field(None, max_length=10)
+
+
+@app.get("/api/me/profile")
+def my_profile(v=Depends(need_user)):
+    return {**_profile(v["id"]), "districts": env.SEOUL_DISTRICTS}
+
+
+@app.put("/api/me/profile")
+def save_my_profile(body: ProfileBody, request: Request, v=Depends(need_user)):
+    """사는 구(서울 25개 자치구 중 하나, 또는 null로 지우기)."""
+    limit("write", request, v)
+    if body.district is not None and body.district not in env.SEOUL_DISTRICTS:
+        raise HTTPException(422, "서울 25개 자치구 중에서 골라 주세요.")
+    try:
+        store.save_profile(v["id"], body.district)
+    except Exception as e:
+        raise _store_fail("사는 구를 저장하지 못했어요.", e)
+    return _me_payload(v["id"])
 
 
 @app.get("/api/me")

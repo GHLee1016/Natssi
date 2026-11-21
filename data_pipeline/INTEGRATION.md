@@ -1,5 +1,10 @@
 # 앱에 붙이기 (이건희 님께)
 
+> **환경 데이터 연결(A)은 `juhee-env-backend` 브랜치에 실제로 붙여 둔 버전이 있어요** (main 기준 + 이 폴더).
+> backend/app/env.py, main.py·judge.py·report.py·store.py·config.py 조금, 화면(내 계정 '사는 동네', 내 기록 '오늘 우리 동네 환경'),
+> supabase/patch_2026-11-21_env.sql, .github/workflows/env_daily.yml. 백엔드 테스트 64개 통과(기존 58 + 환경 6), 화면 빌드 확인.
+> 기본값은 지금 데모 그대로이고, Vercel 환경변수 `DEMO_ENV_DISTRICT=서대문구`를 넣으면 데모에 실제 환경 값이 들어가요.
+
 `data_pipeline/`은 앱 코드(backend/frontend)를 건드리지 않았어요. 아래 순서로 붙이면 돼요.
 
 ---
