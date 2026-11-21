@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { routineCopy } from '../copy/routine.js'
+import { readIngredientPhotos, wakeOcr } from '../ocr.js'
 
-// 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분 글자 → 확인. 사진으로 읽기(OCR)는 준비 중이라, 지금은 글자를 붙여 넣는다.
+// 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
+// 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
 // 서버가 식약처 성분 사전으로 표준 이름에 맞춘다(일치 / 보정 = 오타를 고침 / 확인 필요 = 사전에 없음). 지어내지 않고 사용자가 확인한다.
 const STEPS = 3
 const SAMPLE = '정제수, 글리세린, 나이아신아마이드, 판테놀, 병풀추출물, 세라마이드엔피, 향료'
@@ -36,11 +38,23 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const hints = useSuggest(editing !== null ? editText : extra)
   const [err, setErr] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(30초쯤)
   const head = useRef(null)
   const root = useRef(null)
   useEffect(() => { head.current?.focus({ preventScroll: true }); root.current?.scrollIntoView({ block: 'nearest' }) }, [step])
 
   const go = (n) => { setErr(null); setStep(n) }
+  useEffect(() => { if (ocr && step === 1) wakeOcr() }, [ocr, step])   // 잠든 OCR 서버를 미리 깨운다
+  const readPhotos = async (files) => {
+    if (!files?.length) return
+    setReading(true); setErr(null)
+    try {
+      const r = await readIngredientPhotos(files)
+      if (!r.ingredients.length) return setErr(r.message || '전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게 다시 찍거나, 글자를 붙여 넣어 주세요.')
+      setList(r.ingredients); setAsk(r.ask_families); setPicked([]); setEditing(null)
+      setStep(2)
+    } catch (e) { setErr(e.message) } finally { setReading(false) }
+  }
   const next1 = () => {
     if (!name.trim()) return setErr('제품 이름을 입력해 주세요.')
     if (!usage) return setErr('사용 빈도를 골라 주세요.')
@@ -118,6 +132,17 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           <h3 className="step-q" tabIndex={-1} ref={head}>{t.step2.title}</h3>
           <p className="muted small">{t.step2.body}</p>
           <p className="muted small">{t.step2.hint}</p>
+          {ocr && (
+            <div className="ocr-pick">
+              <label className={'btn file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
+                {reading ? '성분 읽는 중… (30초쯤)' : '전성분 사진 고르기 (최대 3장)'}
+                <input type="file" accept="image/*" multiple disabled={reading || busy}
+                  onChange={(e) => { const f = e.target.files; readPhotos(f && [...f]); e.target.value = '' }} />
+              </label>
+              <p className="muted small" aria-live="polite">{reading ? '처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.' : '상자나 용기 뒷면의 전성분 부분을 화면 가득 찍어 주세요. 얼굴이 나오지 않게 해 주세요.'}</p>
+              <p className="or"><span>또는 글자 붙여넣기</span></p>
+            </div>
+          )}
           <div className="field">
             <label htmlFor="p-text">전성분</label>
             <textarea id="p-text" rows={6} value={text} maxLength={8000} onChange={(e) => { setText(e.target.value); setErr(null) }}
@@ -127,7 +152,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {err && <p className="err" role="alert">{err}</p>}
           <div className="step-actions">
             <button className="btn ghost" onClick={() => go(0)}>이전</button>
-            <button className="btn" onClick={() => analyze(false)} disabled={busy || !text.trim()}>{busy ? '나누는 중…' : '다음'}</button>
+            <button className="btn" onClick={() => analyze(false)} disabled={busy || reading || !text.trim()}>{busy ? '나누는 중…' : '다음'}</button>
           </div>
           <button type="button" className="link skip" onClick={() => analyze(true)} disabled={busy}>{t.step2.skip}</button>
         </>

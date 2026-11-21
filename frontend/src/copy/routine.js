@@ -36,7 +36,7 @@ const now = {                                   // OCR 전: 글자 붙여넣기�
 const ocr = {                                   // OCR 후: 사진 또는 글자
   step2: { title: '전성분을 알려 주세요',
            body: "제품 뒷면의 '전성분'을 사진으로 찍거나, 복사한 글자를 붙여 넣어 주세요. 성분을 하나씩 나눠 드려요.",
-           hint: '사진은 글자를 읽는 데만 쓰고 저장하지 않아요.', skip: '성분은 나중에 입력할게요' },
+           hint: '사진은 성분 읽기 서버(허깅페이스)에서 글자만 읽고 저장하지 않아요.', skip: '성분은 나중에 입력할게요' },
 }
 
 export const routineCopy = (useOcr = false) => ({ ...base, ...(useOcr ? ocr : now) })
