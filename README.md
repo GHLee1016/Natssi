@@ -273,7 +273,6 @@ Natssi/
 │   ├── envdata/               # 에어코리아와 기상청
 │   └── scripts/               # 묶기, 평가, 환경값 갱신
 ├── supabase/                  # schema.sql(새 설치 전용), patch_*.sql(운영 DB용)
-├── natssi_blender_mockup/     # 발표용 목업
 ├── api/index.py               # Vercel 함수 입구
 └── vercel.json                # 빌드, /api 연결, 보안 헤더
 ```
