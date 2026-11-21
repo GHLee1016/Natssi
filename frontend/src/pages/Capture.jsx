@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import CheckinSteps from './CheckinSteps.jsx'
-import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame } from '../measure/browser.js'
+import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError } from '../measure/browser.js'
 import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
@@ -179,7 +179,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     setError(null); setResult(null)
     try {
       setBusy('얼굴 모델 불러오는 중…')
-      await loadLandmarker()
+      await Promise.race([loadLandmarker(), new Promise((_, no) => setTimeout(() => no(userError(
+        '얼굴 모델을 불러오지 못했어요(처음 한 번 약 10MB). 와이파이에서 다시 시도해 주세요.')), 90000))])
       setBusy('검사하는 중…')
       const features = await measurePhoto(src)
       const parts = takeCheeks()
@@ -190,7 +191,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       }
       setResult(res)
     } catch (e) {
-      setError(e?.status ? e.message : '사진을 분석하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')
+      setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진으로 다시 시도하거나, [사진 찍기]로 찍어 주세요.'))
     } finally { setBusy(null) }
   }
   const shoot = () => { armed.current = false; if (video.current) send(video.current) }

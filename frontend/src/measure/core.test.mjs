@@ -1,7 +1,7 @@
 // 측정 계산이 검증 파이프라인(파이썬·OpenCV)과 같은지 확인합니다.   실행: npm test  (또는 node src/measure/core.test.mjs)
 // 기준값은 natssi_selfie_validation/code/measure_redness.py 로 같은 그림을 재서 얻은 값이에요.
 import assert from 'node:assert/strict'
-import { srgbToLab, roiStats, polygonMask, sharpness, eulerFromMatrix, extractFeatures, roundHalfEven, median } from './core.js'
+import { srgbToLab, roiStats, polygonMask, sharpness, eulerFromMatrix, extractFeatures, roundHalfEven, median, distinctFaces } from './core.js'
 
 const REF = {"W": 640, "H": 800, "poly": [[150.4, 300.5], [260.5, 290.2], [300.7, 380.1], [240.2, 470.6], [160.9, 450.3], [120.5, 380.5]], "roi": {"n": 22668, "clip_ratio": 0.024234858594119925, "L": 56.61574359658328, "a": -0.049750771059481336, "a_mean": 0.9677647530593484, "b": 15.130836637853973}, "sharp_big": 3133.2447613400873, "sharp_small": 1144.0406893042382, "mat_col": [0.976807083442103, 0.05119229003114495, 0.20791169081775934, 0.0, -0.0807226856600027, 0.987396562469373, 0.1361318347907717, 0.0, -0.1983223884415696, -0.14975773056851757, 0.9686283355228664, 0.0, 0.5, -1.0, -42.0, 1.0], "euler": [-12.000000000000002, 7.999999999999998, 3.0000000000000004], "lab_white": [100.00000386666655, -1.6666666158293708e-05, 6.666666463317483e-06], "lab_red": [53.240794141307205, 80.09245959641115, 67.20319651585298]}
 
@@ -45,6 +45,14 @@ const tests = {
       close(e.yaw, REF.euler[0], 1e-9, 'yaw'); close(e.pitch, REF.euler[1], 1e-9, 'pitch'); close(e.roll, REF.euler[2], 1e-9, 'roll')
     }
   },
+  '같은 얼굴 중복·작은 배경 얼굴은 한 명, 떨어진 두 얼굴은 두 명'() {
+    const face = (x, y, s) => [{ x, y }, { x: x + s, y: y + s }]
+    assert.deepEqual(distinctFaces([]), { count: 0, main: -1 })
+    assert.equal(distinctFaces([face(0.3, 0.3, 0.4), face(0.31, 0.29, 0.39)]).count, 1)
+    assert.equal(distinctFaces([face(0.3, 0.3, 0.4), face(0.85, 0.05, 0.1)]).count, 1)
+    assert.equal(distinctFaces([face(0.05, 0.3, 0.35), face(0.55, 0.3, 0.35)]).count, 2)
+    assert.equal(distinctFaces([face(0.8, 0.05, 0.1), face(0.3, 0.3, 0.4)]).main, 1)
+  },
   '얼굴 없음이면 밝기·해상도만'() {
     const f = extractFeatures(testImage(), null)
     assert.equal(f.face_found, false); assert.equal(f.width, 640); assert.ok(f.brightness > 0 && f.brightness < 255)
@@ -55,3 +63,4 @@ for (const [name, fn] of Object.entries(tests)) {
   try { fn(); console.log('통과:', name) } catch (e) { failed++; console.log('실패:', name, '\n  ', e.message) }
 }
 process.exit(failed ? 1 : 0)
+

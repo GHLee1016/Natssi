@@ -237,3 +237,27 @@ export function extractFeatures(img, face) {
   out.L_diff = out.L_L - out.L_R
   return out
 }
+
+// 같은 얼굴을 두 번 찾거나(일부 안드로이드 GPU), 뒤쪽 포스터·화면 속 작은 얼굴이 잡히는 경우를 거른다.
+// faces: [[{x, y}, …], …] (0~1 좌표). 많이 겹치는 얼굴은 하나로 보고, 가장 큰 얼굴 폭의 40%보다 작은 얼굴은 세지 않는다.
+// 돌려주는 값: { count: 실제 사람 수, main: 측정에 쓸 얼굴(가장 큰 얼굴)의 번호 }
+export function distinctFaces(faces) {
+  if (!faces?.length) return { count: 0, main: -1 }
+  const boxes = faces.map((lm, i) => {
+    let x0 = 1, y0 = 1, x1 = 0, y1 = 0
+    for (const p of lm) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y) }
+    return { i, x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 }
+  }).sort((a, b) => b.w - a.w)
+  const big = boxes[0].w
+  const overlaps = (a, b) => {
+    const iw = Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)), ih = Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0))
+    return iw * ih >= 0.3 * Math.min(a.w * a.h, b.w * b.h)
+  }
+  const kept = []
+  for (const b of boxes) {
+    if (b.w < 0.4 * big) continue
+    if (kept.some((k) => overlaps(k, b))) continue
+    kept.push(b)
+  }
+  return { count: kept.length, main: boxes[0].i }
+}
