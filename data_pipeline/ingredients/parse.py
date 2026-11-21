@@ -65,6 +65,12 @@ def split_chunks(text: str) -> list[list[str]]:
     return out
 
 
+def split_tokens(text: str) -> list[str]:
+    """쉼표 단위 덩어리(공백 포함). 덩어리 안에서 어디를 끊을지는 segment가 사전을 보고 정한다."""
+    toks = (clean(tok) for tok in SPLIT.split(cut_section(text)))
+    return [t for t in toks if t and not t.replace(" ", "").isdigit()]
+
+
 def split_list(text: str) -> list[str]:
     """사전 없이 쓰는 단순 분리 (조각을 그대로 성분으로 봄, 한 글자 조각은 다음 조각에 붙임)."""
     out = []

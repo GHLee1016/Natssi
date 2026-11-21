@@ -24,6 +24,19 @@ def clean(token: str) -> str:
     return parse.clean(token)
 
 
+def canonical(name: str) -> str:
+    """같은 성분인지 가릴 때 쓰는 이름: 사전에 그대로 있으면 표준 이름('Glycerin'→'글리세린'), 없으면 정리한 글자."""
+    c = clean(name)
+    pipeline._matcher = pipeline._matcher or pipeline.Matcher()
+    hit = pipeline._matcher.exact(c) if c else None
+    return hit["kor"] if hit else c
+
+
+def same_key(name: str) -> str:
+    """공백·기호·대소문자를 무시한 비교 키."""
+    return pipeline.norm(canonical(name))
+
+
 def families_of(name: str) -> list[str]:
     return fam.tag(name)
 
