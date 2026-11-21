@@ -18,9 +18,18 @@ $env:DATA_GO_KR_KEY = "공공데이터포털 인증키"   # 코드·저장소에
 | `envdata/flags.py` | 같은 판단을 pandas 표로 (분석용) |
 | `scripts/update_env.py` | 서울 25개 구 일별 값 → Supabase `env_daily` 또는 `data/env_daily_seoul.csv` (매일 실행) |
 | `scripts/backfill_env.py` | 팀원별 일별 표 → `data/env_daily.csv` |
+| `analysis/env_skin_prelim.py` | 환경과 볼 붉은기 예비 분석 (방법을 미리 고정). 결과는 `data/prelim_result.md`, 검정력은 `data/prelim_power.csv` |
+| `analysis/photo_dates.py` | 사진 파일에서 촬영 날짜 뽑기 |
 
 ```powershell
 python scripts/backfill_env.py --start 2026-10-15        # 팀원 3명 (성북구·은평구·서대문구)
+```
+
+예비 분석에는 `pip install numpy statsmodels`가 더 필요하다(매일 도는 환경값 갱신에는 필요 없어서 requirements.txt에 넣지 않음).
+팀원 이름 대신 `팀원A`, `팀원B`, `팀원C`로 적는다. 측정 CSV의 `member` 칸도 같은 이름을 쓴다.
+```powershell
+python analysis/env_skin_prelim.py power              # 검정력 시뮬레이션
+python analysis/env_skin_prelim.py run 측정.csv        # 본 분석 (member,date,redness_a,quality_ok)
 ```
 
 앱 연결: 기록별 `env = {"pm25": ..., "humidity": ..., "unusual": ...}` 에
