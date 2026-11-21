@@ -2,6 +2,8 @@
 // 앱 서버(Vercel)는 거치지 않는다: OCR 라이브러리가 커서(약 290MB) Vercel 함수에 넣을 수 없어서.
 // 사진은 보내기 전에 이 기기에서 다시 그려(최대 1800px JPEG) 촬영 위치 같은 메타데이터(EXIF)를 지운다.
 // 주소를 바꾸면 vercel.json의 CSP connect-src도 같이 바꿔야 한다.
+import { BLUR_LIMIT, SIDE, grayOf, textSharpness } from './measure/textSharp.js'
+
 export const OCR_SPACE = 'https://alkadsdvs98py-natssi-ocr.hf.space'
 const MAX_SIDE = 1800
 
@@ -27,6 +29,19 @@ async function clean(file) {
   const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.9))
   if (!blob) throw new Error('사진을 열 수 없어요. JPG·PNG로 골라 주세요.')
   return new File([blob], 'ingredients.jpg', { type: 'image/jpeg' })
+}
+
+// 흐린 사진 고르기: 보내기 전에 이 기기에서 검사한다(사진은 밖으로 나가지 않음). 검사를 못 하면 흐리지 않은 것으로 본다.
+export async function isBlurry(file) {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const s = Math.min(1, SIDE / Math.max(bmp.width, bmp.height))
+    const w = Math.max(1, Math.round(bmp.width * s)), h = Math.max(1, Math.round(bmp.height * s))
+    const c = document.createElement('canvas'); c.width = w; c.height = h
+    const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingQuality = 'high'; g.drawImage(bmp, 0, 0, w, h)
+    bmp.close?.()
+    return textSharpness(grayOf(g.getImageData(0, 0, w, h).data, w, h), w, h) < BLUR_LIMIT
+  } catch { return false }
 }
 
 // 제품 사진 썸네일: 긴 변 240px JPEG data URL(약 10KB). 다시 그려서 EXIF(촬영 위치 등)도 지워진다. 서버가 240px 이하인지 다시 검사한다.

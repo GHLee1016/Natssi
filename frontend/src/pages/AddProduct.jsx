@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { routineCopy } from '../copy/routine.js'
-import { productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
+import { isBlurry, productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
@@ -49,6 +49,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [note, setNote] = useState(null)               // '이미 목록에 있어요' 같은 안내
   const [busy, setBusy] = useState(false)
   const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(30초쯤)
+  const [blurry, setBlurry] = useState(null)          // 흐려 보이는 사진: { files, count } — 다시 찍거나 그대로 읽기
   const [photo, setPhoto] = useState(null)            // 제품 사진(선택): 240px 썸네일 data URL
   const [ocrFile, setOcrFile] = useState(null)        // 전성분을 읽은 첫 사진(제품 사진으로 쓸 수 있게)
   const [useOcrPhoto, setUseOcrPhoto] = useState(true)
@@ -58,10 +59,14 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
 
   const go = (n) => { setErr(null); setStep(n) }
   useEffect(() => { if (ocr && step === 1) wakeOcr() }, [ocr, step])   // 잠든 OCR 서버를 미리 깨운다
-  const readPhotos = async (files) => {
+  const readPhotos = async (files, anyway = false) => {
     if (!files?.length) return
-    setReading(true); setErr(null)
+    setReading(true); setErr(null); setBlurry(null)
     try {
+      if (!anyway) {                                     // 흐린 사진은 읽기 전에 알려 준다(30초 기다린 뒤 실패하지 않게)
+        const bad = (await Promise.all(files.slice(0, 3).map(isBlurry))).filter(Boolean).length
+        if (bad) return setBlurry({ files, count: bad })
+      }
       const r = await readIngredientPhotos(files)
       setOcrFile(files[0])
       if (!r.ingredients.length) return setErr(r.message || '전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게 다시 찍거나, 글자를 붙여 넣어 주세요.')
@@ -190,6 +195,18 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                 <input type="file" accept="image/*" multiple disabled={reading || busy}
                   onChange={(e) => { const f = e.target.files; readPhotos(f && [...f]); e.target.value = '' }} />
               </label>
+              {blurry && (
+                <div className="blur-warn" role="alert">
+                  <p className="small"><b>{blurry.files.length > 1 ? `사진 ${blurry.files.length}장 중 ${blurry.count}장이` : '사진이'} 흐려 보여요.</b> 흐리면 성분을 잘못 읽거나 빠뜨려요.
+                    폰을 고정하고 화면의 글자 부분을 톡 눌러 초점을 맞춘 뒤 다시 찍어 주세요.</p>
+                  <div className="step-actions">
+                    <label className="btn file">다시 고르기
+                      <input type="file" accept="image/*" multiple onChange={(e) => { const f = e.target.files; readPhotos(f && [...f]); e.target.value = '' }} />
+                    </label>
+                    <button type="button" className="btn ghost" onClick={() => readPhotos(blurry.files, true)}>그대로 읽기</button>
+                  </div>
+                </div>
+              )}
               <p className="muted small" aria-live="polite">{reading ? '처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.' : '상자나 용기 뒷면의 전성분 부분을 화면 가득 찍어 주세요. 얼굴이 나오지 않게 해 주세요.'}</p>
               <p className="or"><span>또는 글자 붙여넣기</span></p>
             </div>
