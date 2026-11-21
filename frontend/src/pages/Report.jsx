@@ -31,13 +31,14 @@ function TechDetails({ text }) {
   )
 }
 
-// 근거 라벨: 누르면 근거가 된 첫 기록의 날짜로 이동한다(날짜를 모르면 글자로만 보여준다).
+// 근거 라벨: 기록 번호 대신 날짜로 보여 주고, 누르면 근거가 된 첫 기록의 날짜로 이동한다.
 function Cite({ item, dateOf, open }) {
   if (!item.cite_label) return null
-  const date = dateOf[item.cites?.[0]]
-  return date
-    ? <button className="cite" onClick={() => open(date)} aria-label={`${item.cite_label}, ${date.slice(5).replace('-', '월 ')}일 기록 보기`}>[{item.cite_label}]</button>
-    : <span className="cite">[{item.cite_label}]</span>
+  const dates = (item.cites || []).map((id) => dateOf[id]).filter(Boolean).sort()
+  if (!dates.length) return null
+  const md = (iso) => `${+iso.slice(5, 7)}/${+iso.slice(8)}`
+  const range = dates.length > 1 ? `${md(dates[0])}~${md(dates[dates.length - 1])}` : md(dates[0])
+  return <button className="cite" onClick={() => open(dates[0])} aria-label={`근거: ${range} 기록 보기`}>근거: {range} 기록</button>
 }
 
 const EVIDENCE_Q = '이 내용의 근거가 뭔가요?'
@@ -72,8 +73,11 @@ function evidenceLinks(items, recById) {
     const recs = (e.cites || []).map((id) => recById[id]).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))
     if (!recs.length) continue
     const first = recs[0].date, last = recs[recs.length - 1].date
-    out.push({ key: e.cite_label, date: first, label: e.cite_label.replace(/^근거: /, ''),
-               range: first === last ? md(first) : `${md(first)}~${md(last)}`, summary: summarize(recs) })
+    // 기간 안에서 근거에 빠진 날 = 사진 품질 때문에 붉은기를 재지 않은 날(측정 보류)
+    const ids = new Set(recs.map((r) => r.id))
+    const held = Object.values(recById).filter((r) => r.date > first && r.date < last && !ids.has(r.id) && r.redness == null).length
+    out.push({ key: e.cite_label, date: first, range: first === last ? md(first) : `${md(first)}~${md(last)}`,
+               days: recs.length > 1 ? `${recs.length}일치 기록${held ? ` · 측정 보류 ${held}일 제외` : ''}` : '', summary: summarize(recs) })
   }
   return out
 }
@@ -120,13 +124,13 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey }) {
                   <ul className="ev-links">
                     {evidenceLinks(m.evidence, recById).map((e) => (
                       <li key={e.key}>
-                        <b>{e.range}</b>
+                        <b>{e.range}</b> <span className="muted small">{e.days}</span>
                         <p>{e.summary}</p>
-                        <button className="link ev-open" onClick={() => onOpenDay(e.date)} aria-label={`${e.range} ${e.range.includes('~') ? '첫날' : ''} 기록 보기 (${e.label})`}>{e.range.includes('~') ? '첫날' : '그날'} 기록 보기 <span className="muted small">({e.label})</span></button>
+                        <button className="link ev-open" onClick={() => onOpenDay(e.date)}>{e.range.includes('~') ? '첫날' : '그날'} 기록 보기</button>
                       </li>
                     ))}
                   </ul>
-                  <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 번호는 판정 기록과 하나하나 대조했어요.</p>
+                  <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 기록은 판정 기록과 하나하나 대조했어요.</p>
                 </div>
               )
               : <div className="bubble ai" key={i}><p>{m.text} <Cite item={m} dateOf={dateOf} open={onOpenDay} /></p></div>)}
