@@ -16,6 +16,33 @@ const josa = (w) => {
 }
 // 같은 성분이 두 번 오면 처음 것만(사진 여러 장이 겹칠 때)
 const uniq = (items) => { const seen = new Set(); return items.filter((i) => !seen.has(key(i.name)) && seen.add(key(i.name))) }
+const MAX_PHOTOS = 3
+// 둥근 통 찍는 법: 가장자리 글자는 눌려서 잘 못 읽으니, 통을 돌려 가며 가운데에 오게 여러 장
+function RoundTip() {
+  return (
+    <details className="round-tip">
+      <summary className="small">둥근 통·병이라면 이렇게 찍어 주세요</summary>
+      <div className="round-tip-body">
+        <svg viewBox="0 0 240 72" width="240" height="72" role="img" aria-label="통을 돌려 가며 세 번 찍는 그림">
+          {[0, 1, 2].map((k) => (
+            <g key={k} transform={`translate(${k * 80 + 10} 6)`}>
+              <rect x="0" y="0" width="60" height="60" rx="10" className="rt-can" />
+              <rect x={18 - k * 8} y="16" width="40" height="30" rx="3" className="rt-label" />
+              <rect x="18" y="12" width="24" height="38" rx="3" className="rt-focus" />
+            </g>
+          ))}
+          <path d="M66 36 h10 M146 36 h10" className="rt-arrow" />
+        </svg>
+        <ol className="small">
+          <li>전성분이 시작되는 쪽이 화면 가운데에 오게 한 장</li>
+          <li>통을 조금 돌려서 다음 부분이 가운데에 오게 한 장 (앞 사진과 1/3쯤 겹치게)</li>
+          <li>끝까지 안 보이면 한 번 더 돌려서 한 장</li>
+        </ol>
+        <p className="muted small">세 장을 한꺼번에 고르면 겹친 성분은 하나로 합쳐요. 가장자리에서 휘어 보이는 글자는 잘 못 읽어요.</p>
+      </div>
+    </details>
+  )
+}
 const SAMPLE = '정제수, 글리세린, 나이아신아마이드, 판테놀, 병풀추출물, 세라마이드엔피, 향료'
 
 // 성분 이름 자동완성(식약처 사전). 글자를 칠 때 0.25초 기다렸다가 묻는다.
@@ -51,7 +78,9 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(30초쯤)
   const [blurry, setBlurry] = useState(null)          // 흐려 보이는 사진: { files, count } — 다시 찍거나 그대로 읽기
   const [photo, setPhoto] = useState(null)            // 제품 사진(선택): 240px 썸네일 data URL
-  const [ocrFile, setOcrFile] = useState(null)        // 전성분을 읽은 첫 사진(제품 사진으로 쓸 수 있게)
+  const [ocrFiles, setOcrFiles] = useState([])        // 전성분을 읽은 사진들(첫 장은 제품 사진으로 쓸 수 있게, 더 찍어 다시 읽을 때 합침)
+  const [fromPhotos, setFromPhotos] = useState(false)  // 지금 목록이 사진에서 읽은 것인가(사진 더하기 안내)
+  const ocrFile = ocrFiles[0] || null
   const [useOcrPhoto, setUseOcrPhoto] = useState(true)
   const head = useRef(null)
   const root = useRef(null)
@@ -59,18 +88,21 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
 
   const go = (n) => { setErr(null); setStep(n) }
   useEffect(() => { if (ocr && step === 1) wakeOcr() }, [ocr, step])   // 잠든 OCR 서버를 미리 깨운다
-  const readPhotos = async (files, anyway = false) => {
+  // files: 읽을 사진 전부(최대 3장). checked: 이미 흐림 검사를 넘긴 앞쪽 장 수(사진을 더할 때 새 사진만 검사)
+  const readPhotos = async (files, anyway = false, checked = 0) => {
     if (!files?.length) return
+    files = files.slice(0, MAX_PHOTOS)
     setReading(true); setErr(null); setBlurry(null)
     try {
       if (!anyway) {                                     // 흐린 사진은 읽기 전에 알려 준다(30초 기다린 뒤 실패하지 않게)
-        const bad = (await Promise.all(files.slice(0, 3).map(isBlurry))).filter(Boolean).length
-        if (bad) return setBlurry({ files, count: bad })
+        const fresh = files.slice(checked)
+        const bad = (await Promise.all(fresh.map(isBlurry))).filter(Boolean).length
+        if (bad) return setBlurry({ files, total: fresh.length, count: bad })
       }
       const r = await readIngredientPhotos(files)
-      setOcrFile(files[0])
+      setOcrFiles(files)
       if (!r.ingredients.length) return setErr(r.message || '전성분을 찾지 못했어요. 전성분 글자가 화면을 가득 채우게 다시 찍거나, 글자를 붙여 넣어 주세요.')
-      setList(uniq(r.ingredients)); setAsk(r.ask_families); setPicked([]); setEditing(null); setNote(null)
+      setList(uniq(r.ingredients)); setAsk(r.ask_families); setPicked([]); setEditing(null); setNote(null); setFromPhotos(true)
       setStep(2)
     } catch (e) { setErr(e.message) } finally { setReading(false) }
   }
@@ -84,7 +116,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     try {
       if (skip || !text.trim()) { setList([]); setAsk(askFamilies) }
       else { const r = await api.analyzeIngredients(text); setList(uniq(r.ingredients)); setAsk(r.ask_families) }
-      setNote(null)
+      setNote(null); setFromPhotos(false)
       setPicked([]); setEditing(null)
       setStep(2)
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
@@ -132,6 +164,21 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   }
   const review = list.filter((i) => i.status === '확인 필요').length
   const fixed = list.filter((i) => i.status === '보정')
+
+  const pickInput = (onFiles) => (
+    <input type="file" accept="image/*" multiple disabled={reading || busy}
+      onChange={(e) => { const f = e.target.files; if (f?.length) onFiles([...f]); e.target.value = '' }} />
+  )
+  const blurBox = blurry && (
+    <div className="blur-warn" role="alert">
+      <p className="small"><b>{blurry.total > 1 ? `사진 ${blurry.total}장 중 ${blurry.count}장이` : '사진이'} 흐려 보여요.</b> 흐리면 성분을 잘못 읽거나 빠뜨려요.
+        폰을 고정하고 화면의 글자 부분을 톡 눌러 초점을 맞춘 뒤 다시 찍어 주세요.</p>
+      <div className="step-actions">
+        <label className="btn file">다시 고르기{pickInput((f) => readPhotos(step === 2 ? [...ocrFiles, ...f] : f, false, step === 2 ? ocrFiles.length : 0))}</label>
+        <button type="button" className="btn ghost" onClick={() => readPhotos(blurry.files, true)}>그대로 읽기</button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="card steps" ref={root}>
@@ -191,23 +238,12 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {ocr && (
             <div className="ocr-pick">
               <label className={'btn file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
-                {reading ? '성분 읽는 중… (30초쯤)' : '전성분 사진 고르기 (최대 3장)'}
-                <input type="file" accept="image/*" multiple disabled={reading || busy}
-                  onChange={(e) => { const f = e.target.files; readPhotos(f && [...f]); e.target.value = '' }} />
+                {reading ? '성분 읽는 중… (30초쯤)' : `전성분 사진 고르기 (최대 ${MAX_PHOTOS}장)`}
+                {pickInput((f) => readPhotos(f))}
               </label>
-              {blurry && (
-                <div className="blur-warn" role="alert">
-                  <p className="small"><b>{blurry.files.length > 1 ? `사진 ${blurry.files.length}장 중 ${blurry.count}장이` : '사진이'} 흐려 보여요.</b> 흐리면 성분을 잘못 읽거나 빠뜨려요.
-                    폰을 고정하고 화면의 글자 부분을 톡 눌러 초점을 맞춘 뒤 다시 찍어 주세요.</p>
-                  <div className="step-actions">
-                    <label className="btn file">다시 고르기
-                      <input type="file" accept="image/*" multiple onChange={(e) => { const f = e.target.files; readPhotos(f && [...f]); e.target.value = '' }} />
-                    </label>
-                    <button type="button" className="btn ghost" onClick={() => readPhotos(blurry.files, true)}>그대로 읽기</button>
-                  </div>
-                </div>
-              )}
+              {blurBox}
               <p className="muted small" aria-live="polite">{reading ? '처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.' : '상자나 용기 뒷면의 전성분 부분을 화면 가득 찍어 주세요. 얼굴이 나오지 않게 해 주세요.'}</p>
+              {!reading && <RoundTip />}
               <p className="or"><span>또는 글자 붙여넣기</span></p>
             </div>
           )}
@@ -266,6 +302,17 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
             <button type="button" className="btn ghost" onClick={addExtra} disabled={busy}>추가</button>
           </div>
           {note && <p className="muted small" role="status">{note}</p>}
+          {fromPhotos && ocrFiles.length < MAX_PHOTOS && (
+            <div className="more-photos">
+              <p className="small"><b>빠진 성분이 있나요?</b> 둥근 통이면 통을 조금 돌려 찍은 사진을 더해 다시 읽을 수 있어요
+                (지금 {ocrFiles.length}장, 최대 {MAX_PHOTOS}장). 다시 읽으면 위 목록에서 고친 내용은 새 결과로 바뀌어요.</p>
+              <label className={'btn ghost file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
+                {reading ? '다시 읽는 중… (30초쯤)' : '돌려 찍은 사진 더해서 다시 읽기'}
+                {pickInput((f) => readPhotos([...ocrFiles, ...f], false, ocrFiles.length))}
+              </label>
+              {blurBox}
+            </div>
+          )}
           {ask.length > 0 && (
             <fieldset className="ask-fam">
               <legend className="small">{t.step3.ask}</legend>
