@@ -9,7 +9,7 @@
     "prebuild": "node scripts/copy-mediapipe.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node src/measure/core.test.mjs && node src/measure/guide.test.mjs"
+    "test": "node src/measure/core.test.mjs && node src/measure/guide.test.mjs && node src/measure/textSharp.test.mjs"
   },
   "dependencies": {
     "@gradio/client": "^2.8.0",
