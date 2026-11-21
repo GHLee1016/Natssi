@@ -477,3 +477,9 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 /* 사진에서 성분이 적게 읽혔을 때(AddProduct FEW) */
 .few-read{margin:10px 0 4px;padding:10px 12px;border-radius:10px;background:#fff6ee;border:1px solid #f3d9c6;font-size:13.5px;line-height:1.5}
 .few-read p{margin:0 0 6px}.few-read .btn{margin-top:2px}.few-read .btn.disabled{opacity:.6;pointer-events:none}
+/* 확인 화면의 라벨 순서 번호 */
+.ing{padding:0}
+.ing-no{display:inline-block;min-width:18px;margin-right:6px;font-size:11.5px;font-weight:700;color:var(--sub);text-align:right;font-variant-numeric:tabular-nums}
+.ing-no.added{min-width:0;font-weight:600;color:var(--accent-ink)}
+.ing li.editing .ing-no{margin-left:8px}
+.fixed-list .ing-no{min-width:0;margin-right:6px}

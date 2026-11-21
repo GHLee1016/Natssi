@@ -141,7 +141,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     const have = new Set(list.map((i) => key(i.name)))
     const fresh = found.filter((i) => !have.has(key(i.name)) && have.add(key(i.name)))
     const dup = found.filter((i) => !fresh.includes(i)).map((i) => i.name)
-    if (fresh.length) setList([...list, ...fresh])
+    if (fresh.length) setList([...list, ...fresh.map((i) => ({ ...i, added: true }))])   // 직접 추가: 라벨 순서 번호를 붙이지 않는다
     if (dup.length) setNote(`${dup.join(', ')}${josa(dup[dup.length - 1])} 이미 목록에 있어요.`)
     setExtra(''); setBusy(false)
   }
@@ -155,7 +155,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     if (other) {          // 이미 있는 성분으로 고쳤으면 하나로 합친다
       setList(list.filter((i) => i.name !== was))
       setNote(`${other.name}${josa(other.name)} 이미 목록에 있어서 하나로 합쳤어요.`)
-    } else setList(list.map((i) => (i.name === was ? { ...first, ocr: i.ocr } : i)))
+    } else setList(list.map((i) => (i.name === was ? { ...first, ocr: i.ocr, added: i.added } : i)))
   }
   const togglePick = (f) => setPicked(picked.includes(f) ? picked.filter((x) => x !== f) : [...picked, f])
   const save = async () => {
@@ -168,6 +168,9 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   }
   const review = list.filter((i) => i.status === '확인 필요').length
   const fixed = list.filter((i) => i.status === '보정')
+  // 라벨 순서 번호(1, 2, 3…): 사진이나 글자에서 읽은 성분만. 지우면 번호가 다시 매겨진다
+  const no = {}
+  list.filter((i) => !i.added).forEach((i, n) => { no[i.name] = n + 1 })
 
   const pickInput = (onFiles) => (
     <input type="file" accept="image/*" multiple disabled={reading || busy}
@@ -291,25 +294,27 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                 </div>
               )}
               <p className="muted small">{review > 0 ? t.step3.review : t.step3.fix}</p>
-              <ul className="ing">
+              <ol className="ing">
                 {list.map((i) => (editing === i.name ? (
                   <li key={i.name} className="editing">
+                    <span className="ing-no" aria-hidden="true">{no[i.name] || '추가'}</span>
                     <input autoFocus value={editText} list="ing-hints" aria-label={`${i.name} 고쳐 쓰기`} onChange={(e) => setEditText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit() } if (e.key === 'Escape') setEditing(null) }} />
                     <button type="button" className="ok" onClick={saveEdit}>확인</button>
                   </li>
                 ) : (
                   <li key={i.name} className={i.status === '확인 필요' ? 'chk' : i.status === '보정' ? 'fix' : ''}>
+                    <span className={'ing-no' + (no[i.name] ? '' : ' added')} aria-hidden="true">{no[i.name] || '추가'}</span>
                     {i.name}
                     {i.status === '확인 필요' && <button type="button" className="edit" onClick={() => { setEditing(i.name); setEditText(i.name) }} aria-label={`${i.name} 고치기`}>고치기</button>}
                     <button type="button" aria-label={`${i.name} 지우기`} onClick={() => setList(list.filter((x) => x.name !== i.name))}>×</button>
                   </li>
                 )))}
-              </ul>
+              </ol>
               {fixed.length > 0 && (
                 <div className="fixed-list">
                   <p className="muted small">{t.step3.fixed}</p>
-                  <ul>{fixed.map((i) => <li key={i.name}><s>{i.ocr}</s> → <b>{i.name}</b></li>)}</ul>
+                  <ul>{fixed.map((i) => <li key={i.name}>{no[i.name] && <span className="ing-no" aria-hidden="true">{no[i.name]}</span>}<s>{i.ocr}</s> → <b>{i.name}</b></li>)}</ul>
                 </div>
               )}
             </>
