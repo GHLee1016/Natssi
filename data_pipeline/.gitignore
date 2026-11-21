@@ -10,3 +10,5 @@ build/
 .pytest_cache/
 ~$*
 private/
+# 모델 파일(휜 사진 펴기 uvdoc.onnx 등)은 크기가 커서 올리지 않는다. README 참고
+models/

@@ -1,6 +1,6 @@
 import time
 
-from . import families, ocr, parse
+from . import families, ocr, parse, unwarp
 from .match import Matcher, jamo, norm
 from .segment import segment
 
@@ -97,20 +97,27 @@ def from_text(text: str, select_lines: bool = True) -> dict:
 
 
 def register(image_paths: list) -> dict:
-    """전성분표 사진 여러 장(원통형 용기는 돌려 가며 2~3장) → 성분 목록."""
+    """전성분표 사진 여러 장(원통형 용기는 돌려 가며 2~3장) → 성분 목록.
+
+    사진마다: 원래 사진을 읽고(적게 읽히면 다른 설정으로 다시), 휜 사진 펴기 모델이 있으면
+    편 사진도 한 번 더 읽어 글자를 합친다(unwarp.py). 같은 성분은 from_text의 dedupe가 하나로 남긴다."""
     t0 = time.perf_counter()
     def good(t):  # 사전과 맞은 성분 수
         return sum(i["status"] != "확인 필요" for i in from_text(t)["ingredients"])
 
     texts, used = [], []
     for p in image_paths:
-        best_v, best_t = "base", ocr.read_text(p, "base")
+        img = ocr.load(p)
+        best_v, best_t = "base", ocr.read_image(img, "base")
         best = good(best_t)
         if best < 15:   # 적게 읽었으면 다른 설정으로 다시 (계단식)
             for v in ocr.VARIANTS[1:]:
-                t = ocr.read_text(p, v)
+                t = ocr.read_image(img, v)
                 if (g := good(t)) > best:
                     best_v, best_t, best = v, t, g
+        if unwarp.available():
+            best_t += "\n" + ocr.read_image(unwarp.unwarp(img), "base")
+            best_v += "+unwarp"
         texts.append(best_t)
         used.append(best_v)
     text = "\n".join(texts)

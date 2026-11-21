@@ -28,6 +28,9 @@ except ImportError:             # 로컬·일반 CPU Space
 # OCR 모델(약 20MB)을 미리 받아 둔다 → 첫 요청이 느리지 않게
 ocr._engine(1.6)
 ocr._engine(1.3)
+from ingredients import unwarp  # noqa: E402
+if unwarp.available():
+    unwarp._session()           # 휜 사진 펴기 모델(약 32MB)도 미리 읽어 둔다
 
 
 def g_ocr(images):

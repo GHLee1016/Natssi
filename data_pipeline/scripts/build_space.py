@@ -46,6 +46,13 @@ def main():
     shutil.copytree(ROOT / "ocr_server", OUT / "ocr_server", ignore=ignore)
     (OUT / "data").mkdir()
     shutil.copy(ROOT / "data" / "ingredient_dict.csv", OUT / "data" / "ingredient_dict.csv")
+    # 휜 사진 펴기 모델(선택). 없으면 Space는 펴기 없이 지금처럼 돈다.
+    uv = ROOT / "models" / "uvdoc.onnx"
+    if uv.exists():
+        (OUT / "models").mkdir()
+        shutil.copy(uv, OUT / "models" / "uvdoc.onnx")
+    else:
+        print("주의: models/uvdoc.onnx 가 없어 휜 사진 펴기 없이 묶어요 (README '휜 사진 펴기')")
     # Gradio Space 규칙: 맨 위 app.py 실행, requirements.txt 설치.
     # packages.txt(apt)는 쓰지 않는다: 기본 이미지에 libgl1·ffmpeg가 이미 있고,
     # 윈도우에서 만든 파일은 줄 끝(CRLF) 때문에 apt가 패키지 이름을 못 읽었다(첫 빌드 실패 원인).

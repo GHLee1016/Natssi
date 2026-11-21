@@ -45,13 +45,22 @@ def load(src, invert: bool = False) -> np.ndarray:
     if max(h, w) > 3000:
         s = 3000 / max(h, w)
         img = cv2.resize(img, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
-    if invert:
-        g = 255 - cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img = cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)
-    return img
+    return invert_img(img) if invert else img
+
+
+def invert_img(img: np.ndarray) -> np.ndarray:
+    """흑백 반전(어두운 바탕에 흰 글씨)."""
+    import cv2
+    g = 255 - cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)
+
+
+def read_image(img: np.ndarray, variant: str = "base") -> str:
+    """이미 연 사진(BGR) → 글자. 같은 사진을 여러 설정·편 사진으로 읽을 때 다시 열지 않게."""
+    eng = _engine(1.3 if variant == "tight" else 1.6)
+    r = eng(invert_img(img) if variant == "invert" else img)
+    return "\n".join(r.txts or [])
 
 
 def read_text(path, variant: str = "base") -> str:
-    eng = _engine(1.3 if variant == "tight" else 1.6)
-    r = eng(load(path, invert=(variant == "invert")))
-    return "\n".join(r.txts or [])
+    return read_image(load(path), variant)

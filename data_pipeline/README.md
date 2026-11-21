@@ -54,3 +54,24 @@ python scripts/build_space.py                                     # 허깅페이
 
 엔진 선택과 계단식 재시도는 이건희의 소비기한 OCR 저장소(itda3-dscover-capybara)를 참고했다.
 같은 합성 라벨에서 EasyOCR 대비 장당 32초 → 4초, 한글 오타 6개 → 1개.
+
+### 휜 사진 펴기 (`ingredients/unwarp.py`)
+둥근 통·병의 라벨은 휘어 찍혀서 줄을 통째로 놓친다. 사진마다 **원래 사진 + 편 사진**을 둘 다 읽고 글자를 합친다
+(PaddleOCR의 문서 펴기 모델 UVDoc, Apache-2.0, ONNX 32MB, 장당 0.3초). 둘은 서로 다른 줄을 찾아서 합치면 늘어난다.
+
+| 둥근 통 사진 | 펴기 없이 | 펴기 함께 |
+|---|---|---|
+| 닥터자르트 미스트(정답 49) | 30개, 재현율 0.55 | 44개, 재현율 0.82 (정밀도 0.90 → 0.91) |
+| 가스비 폼(정답 22) | 17개, 재현율 0.77 | 18개 (정밀도 1.00 → 0.94) |
+| 그라펜 포마드 | 20개 | 29개 |
+| 5장 걸린 시간(CPU 4개) | 21.5초 | 35.4초 |
+
+- 모델 파일 `models/uvdoc.onnx`는 저장소에 올리지 않는다(.gitignore). `build_space.py`가 있으면 Space 폴더에 넣고, 없으면 펴기 없이 묶는다.
+- **끄기**: 환경변수 `NATSSI_UNWARP=0` (Space는 Settings → Variables and secrets). 코드 배포 없이 원래대로 돌아간다.
+- 모델 만들기(파이썬 3.12, Paddle 3.3):
+  ```powershell
+  pip install paddlepaddle paddleocr paddle2onnx
+  python -c "from paddleocr import TextImageUnwarping; TextImageUnwarping(model_name='UVDoc')"   # ~/.paddlex/official_models/UVDoc 내려받기
+  paddle2onnx --model_dir ~/.paddlex/official_models/UVDoc --model_filename inference.json --params_filename inference.pdiparams --save_file models/uvdoc.onnx --opset_version 14
+  ```
+  ('onnx_graphsurgeon' 경고는 무시해도 된다. 결과는 Paddle과 같다: 평균 픽셀 차 0.5)
