@@ -56,9 +56,13 @@ export async function productThumbnail(file, side = 240) {
 }
 
 // 사진 1~3장 → {ingredients:[{name, status, ocr, families}], ask_families, message?} (글자 붙여넣기와 같은 모양)
-export async function readIngredientPhotos(files) {
+// onStage(n): 1 사진 정리(위치 정보 지우기) → 2 읽기 서버 연결 → 3 글자 읽고 성분 사전과 맞추기. 화면의 분석 단계 표시용.
+export async function readIngredientPhotos(files, onStage = () => {}) {
+  onStage(1)
   const photos = await Promise.all([...files].slice(0, 3).map(clean))
+  onStage(2)
   const [{ handle_file }, app] = await Promise.all([import('@gradio/client'), connect()])
+  onStage(3)
   let out
   try {
     out = await app.predict('/ocr', { images: photos.map((f) => handle_file(f)) })

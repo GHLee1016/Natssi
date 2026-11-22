@@ -3,7 +3,7 @@ import { api, fmt } from '../api.js'
 import { routineCopy } from '../copy/routine.js'
 import { isBlurry, productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
 import ThumbPicker from './ThumbPicker.jsx'
-import KV from '../kv.jsx'
+import { useDesk, QR } from './Capture.jsx'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
@@ -47,6 +47,36 @@ function RoundTip() {
     </details>
   )
 }
+// 전성분 촬영 안내 그림: 좋은 사진 하나와 피할 사진 셋(기록 탭 안내 화면과 같은 배치)
+const LINES = [0, 1, 2, 3, 4, 5].map((k) => <rect key={k} x="34" y={52 + k * 13} width={k % 3 === 2 ? 70 : 112} height="6" rx="3" className="lb-line" />)
+function Label({ kind }) {
+  return (
+    <svg viewBox="0 0 180 150" aria-hidden="true" className={'lb lb-' + kind}>
+      {kind === 'blur' && <defs><filter id="lb-blur"><feGaussianBlur stdDeviation="2.4" /></filter></defs>}
+      {kind === 'glare' ? (
+        <>
+          <rect x="24" y="10" width="132" height="132" rx="40" className="lb-bottle" />
+          <rect x="34" y="34" width="112" height="6" rx="3" className="lb-head" />{LINES}
+          <path d="M112 14 L70 140 L92 140 L134 14 Z" className="lb-glare" />
+        </>
+      ) : (
+        <>
+          <rect x={kind === 'cut' ? 56 : 20} y="16" width="140" height="118" rx="10" className="lb-box" />
+          <g filter={kind === 'blur' ? 'url(#lb-blur)' : undefined} transform={kind === 'cut' ? 'translate(36 0)' : undefined}>
+            <rect x="34" y="34" width="60" height="8" rx="4" className="lb-head" />{LINES}
+          </g>
+          {kind === 'good' && <rect x="24" y="24" width="132" height="108" rx="8" className="lb-frame" />}
+          {kind === 'cut' && <rect x="10" y="24" width="110" height="108" rx="8" className="lb-frame" />}
+        </>
+      )}
+    </svg>
+  )
+}
+const BAD_OCR = [['glare', '둥근 병은 빛이 비치지 않게', '조금씩 돌려 가며 찍어 주세요'], ['blur', '흔들리지 않게 폰을 고정하고', '글자를 눌러 초점을 맞춰 주세요'], ['cut', '전성분이 잘리지 않게', '처음부터 끝까지 담아 주세요']]
+const BAN_OCR = <svg className="cap-ban" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M5.600 5.600l12.800 12.800" /></svg>
+// 분석 단계(실제로 하는 일 순서). 0은 이 기기에서 하는 흐림 검사, 1~3은 ocr.js가 알려 준다.
+const OCR_STAGES = ['사진 선명도 확인', '사진 정리(위치 정보 지우기)', '읽기 서버 연결', '글자 읽고 성분 사전과 맞추기']
+
 const SAMPLE = '정제수, 글리세린, 나이아신아마이드, 판테놀, 병풀추출물, 세라마이드엔피, 향료'
 
 // 성분 이름 자동완성(식약처 사전). 글자를 칠 때 0.25초 기다렸다가 묻는다.
@@ -87,6 +117,46 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [fromPhotos, setFromPhotos] = useState(false)  // 지금 목록이 사진에서 읽은 것인가(사진 더하기 안내)
   const ocrFile = ocrFiles[0] || null
   const [useOcrPhoto, setUseOcrPhoto] = useState(true)
+  const desk = useDesk()
+  const [stage, setStage] = useState(0)                // 분석 단계(OCR_STAGES 번호)
+  const [secs, setSecs] = useState(0)                  // 읽기 시작한 뒤 지난 초(오래 걸리면 안내)
+  const [cam, setCam] = useState('idle')               // 전성분 카메라: idle | on | blocked
+  const [shots, setShots] = useState([])               // 카메라로 찍은 사진(최대 3장)
+  const [shotHint, setShotHint] = useState(null)       // 찍은 직후 안내(흔들림 등)
+  const video = useRef(null)
+  const stream = useRef(null)
+  useEffect(() => {
+    if (!reading) return undefined
+    setSecs(0); const id = setInterval(() => setSecs((n) => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [reading])
+  const stopCam = () => { stream.current?.getTracks().forEach((tr) => tr.stop()); stream.current = null; setCam('idle') }
+  useEffect(() => () => stream.current?.getTracks().forEach((tr) => tr.stop()), [])
+  const startCam = async () => {
+    setErr(null); setShots([]); setShotHint(null)
+    try {
+      stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
+      video.current.srcObject = stream.current
+      await video.current.play()
+      setCam('on')
+    } catch { setCam('blocked') }
+  }
+  // 카메라 화면 한 장을 사진 파일로. 흔들렸으면 바로 알려 주고 넣지 않는다.
+  const snap = async () => {
+    const v = video.current
+    if (!v?.videoWidth || reading) return
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight
+    c.getContext('2d').drawImage(v, 0, 0)
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.92))
+    if (!blob) return
+    const f = new File([blob], `ingredients-${shots.length + 1}.jpg`, { type: 'image/jpeg' })
+    if (await isBlurry(f)) return setShotHint({ bad: true, text: '흔들렸어요. 폰을 고정하고 글자를 눌러 초점을 맞춘 뒤 다시 찍어 주세요.' })
+    const next = [...shots, f]
+    setShots(next)
+    if (next.length >= MAX_PHOTOS) return finishCam(next)
+    setShotHint({ bad: false, text: `${next.length}장 찍었어요. 전성분이 더 있으면 이어서 찍고, 다 찍었으면 완료를 눌러 주세요.` })
+  }
+  const finishCam = (list) => { stopCam(); if (list.length) readPhotos(list, true) }
   const head = useRef(null)
   const root = useRef(null)
   useEffect(() => { head.current?.focus({ preventScroll: true }); root.current?.scrollIntoView({ block: 'nearest' }) }, [step])
@@ -97,14 +167,14 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const readPhotos = async (files, anyway = false, checked = 0) => {
     if (!files?.length) return
     files = files.slice(0, MAX_PHOTOS)
-    setReading(true); setErr(null); setBlurry(null)
+    setReading(true); setErr(null); setBlurry(null); setStage(0)
     try {
       if (!anyway) {                                     // 흐린 사진은 읽기 전에 알려 준다(30초 기다린 뒤 실패하지 않게)
         const fresh = files.slice(checked)
         const bad = (await Promise.all(fresh.map(isBlurry))).filter(Boolean).length
         if (bad) return setBlurry({ files, total: fresh.length, count: bad })
       }
-      const r = await readIngredientPhotos(files)
+      const r = await readIngredientPhotos(files, setStage)
       setOcrFiles(files)
       // 전성분을 못 찾았을 때는 앱 문구로(쇼핑몰 캡처 안내 포함). 사진을 못 연 경우 같은 다른 안내는 서버 문구 그대로
       if (!r.ingredients.length) return setErr(!r.message || r.message.startsWith('전성분을 찾지') ? NOT_FOUND : r.message)
@@ -170,6 +240,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   }
   const review = list.filter((i) => i.status === '확인 필요').length
   const fixed = list.filter((i) => i.status === '보정')
+  const fams = [...new Set(list.flatMap((i) => i.families || []))]
   // 라벨 순서 번호(1, 2, 3…): 사진이나 글자에서 읽은 성분만. 지우면 번호가 다시 매겨진다
   const no = {}
   list.filter((i) => !i.added).forEach((i, n) => { no[i.name] = n + 1 })
@@ -189,8 +260,40 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     </div>
   )
 
+  const camView = ocr && (
+    <div className={'camview ocr-cam' + (cam === 'on' ? ' on' : '')} hidden={cam !== 'on'} role="dialog" aria-modal="true" aria-label="전성분 촬영">
+      <video ref={video} playsInline muted />
+      <div className="ocr-box" />
+      <div className="cam-top">
+        <button className="cam-pill" onClick={() => { stopCam(); setShots([]) }}>촬영 가이드</button>
+        <span className="cam-pill" aria-live="polite">{shots.length}/{MAX_PHOTOS}장</span>
+      </div>
+      <p className={'cam-hint' + (shotHint && !shotHint.bad ? ' ok' : '')} role="status">
+        {shotHint && !shotHint.bad && <i aria-hidden="true">✓</i>}{shotHint ? shotHint.text : '전성분이 네모 안에 가득 차게 맞춰 주세요'}</p>
+      {shots.length > 0 && <div className="ocr-shots" aria-hidden="true">{shots.map((f) => <img key={f.name} src={URL.createObjectURL(f)} alt="" />)}</div>}
+      <div className="cam-bar">
+        <label className="cam-side">앨범<input type="file" accept="image/*" multiple onChange={(e) => { const f = e.target.files; e.target.value = ''; if (f?.length) { stopCam(); readPhotos([...f]) } }} /></label>
+        <button className="shutter" onClick={snap} aria-label="전성분 찍기" />
+        <button className="cam-side" onClick={() => finishCam(shots)} disabled={!shots.length}>{shots.length ? `완료(${shots.length}장)` : '완료'}</button>
+      </div>
+    </div>
+  )
+  const analyzing = reading && (
+    <div className="analyze" role="status" aria-live="polite">
+      <div className="an-orb" aria-hidden="true" />
+      <h2>전성분을 읽고 있어요</h2>
+      <p className="muted small">사진에서 글자만 읽고, 사진은 저장하지 않아요.</p>
+      <ul>
+        {OCR_STAGES.map((x, n) => <li key={x} className={n < stage ? 'done' : n === stage ? 'now' : ''}><i aria-hidden="true" />{x}{n < stage && <span className="sr-only"> 완료</span>}</li>)}
+      </ul>
+      <p className="muted small an-wait">{secs >= 15 ? `${secs}초째예요. 처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.` : '보통 10~20초 걸려요.'}</p>
+    </div>
+  )
+
   return (
     <div className="card steps" ref={root}>
+      {camView}
+      {analyzing}
       <div className="step-bars" role="img" aria-label={`${STEPS}단계 중 ${step + 1}번째`}>
         {Array.from({ length: STEPS }, (_, n) => <i key={n} className={n <= step ? 'on' : ''} />)}
       </div>
@@ -240,19 +343,39 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           <p className="muted small">{t.step2.body}</p>
           <p className="muted small">{t.step2.hint}</p>
           {ocr && (
-            <div className="ocr-pick">
-              <label className={'btn file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
-                {reading ? '성분 읽는 중… (10~20초)' : `전성분 사진 고르기 (최대 ${MAX_PHOTOS}장)`}
-                {pickInput((f) => readPhotos(f))}
-              </label>
+            <div className="ocr-guide">
+              <div className="cap-cols">
+                <section className="cap-col">
+                  <h4 className="cap-sec ok"><i aria-hidden="true">✓</i>이런 사진이 좋아요</h4>
+                  <figure className="cap-good"><div className="cap-frame lb-wrap"><Label kind="good" /></div>
+                    <figcaption>상자 뒷면의 전성분이<br />화면을 가득 채우게 찍어 주세요</figcaption></figure>
+                </section>
+                <section className="cap-col">
+                  <h4 className="cap-sec no"><i aria-hidden="true">!</i>이런 사진은 피해 주세요</h4>
+                  <div className="cap-bad" tabIndex={0} aria-label="피해야 할 사진 예시, 옆으로 넘겨 보세요">
+                    {BAD_OCR.map(([k, a1, b1]) => <figure key={k}>{BAN_OCR}<Label kind={k} /><figcaption>{a1}<br />{b1}</figcaption></figure>)}
+                  </div>
+                </section>
+              </div>
+              <RoundTip />
               {blurBox}
-              {reading
-                ? <p className="muted small" aria-live="polite">처음 쓰거나 오래 안 썼으면 1~2분 걸릴 수 있어요. 이 화면에서 기다려 주세요.</p>
-                : <div className="muted small" aria-live="polite">
-                    <p>전성분은 보통 상자 뒷면에 있어요. 얼굴이 나오지 않게, 전성분 부분을 화면 가득 찍어 주세요.</p>
-                    <p>상자가 없으면 쇼핑몰 상세 화면을 캡처해서 올려도 돼요.</p>
-                  </div>}
-              {!reading && <RoundTip />}
+              {cam === 'blocked' && <p className="err" role="alert">카메라를 쓸 수 없어요. 브라우저에서 카메라 권한을 허용하거나, 사진을 골라 주세요.</p>}
+              {desk ? (
+                <div className="ocr-actions">
+                  <label className={'btn dark file' + (reading ? ' disabled' : '')} aria-disabled={reading}>사진 고르기 (쇼핑몰 캡처도 돼요){pickInput((f) => readPhotos(f))}</label>
+                  <details className="ocr-phone">
+                    <summary className="small">폰으로 찍고 싶다면</summary>
+                    <div><QR text={`${window.location.origin}/?tab=routine`} />
+                      <p className="small">폰 카메라로 QR을 비추면 낯씨 루틴 화면이 열려요. 거기서 제품 추가를 눌러 찍어 주세요.</p></div>
+                  </details>
+                </div>
+              ) : (
+                <div className="ocr-actions two">
+                  <button type="button" className="btn dark" onClick={startCam} disabled={reading}>카메라로 찍기</button>
+                  <label className={'btn ghost file' + (reading ? ' disabled' : '')} aria-disabled={reading}>사진 고르기{pickInput((f) => readPhotos(f))}</label>
+                </div>
+              )}
+              <p className="muted small">최대 {MAX_PHOTOS}장까지 읽어요. 상자가 없으면 쇼핑몰 상세 화면을 캡처해 올려도 돼요.</p>
               <p className="or"><span>또는 글자 붙여넣기</span></p>
             </div>
           )}
@@ -278,7 +401,12 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           <datalist id="ing-hints">{hints.map((h) => <option key={h.name} value={h.name}>{h.inci}</option>)}</datalist>
           {list.length === 0 ? <p className="muted">{t.step3.none}</p> : (
             <>
-              <KV items={[['성분', `${list.length}개`], ['자동으로 고침', fixed.length > 0 && `${fixed.length}개`], ['확인 필요', review > 0 && <b className="warn">{review}개</b>]]} />
+              <div className="ocr-sum">
+                <div><p>{fromPhotos ? '읽은 성분' : '나눈 성분'}</p><b>{list.length}개</b></div>
+                <div><p>고친 오타</p><b>{fixed.length}개</b></div>
+                <div className={review ? 'warn' : ''}><p>확인 필요</p><b>{review}개</b></div>
+              </div>
+              {fams.length > 0 && <p className="ocr-fams"><span className="muted small">찾은 성분 계열</span>{fams.map((f) => <b key={f}>{f}</b>)}</p>}
               {fromPhotos && list.length < FEW && (
                 <div className="few-read" role="status">
                   <p><b>성분이 {list.length}개만 읽혔어요.</b> 전성분이 사진에 다 들어갔는지 확인해 주세요.</p>

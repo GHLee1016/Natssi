@@ -50,7 +50,7 @@ const GUIDE_KEY = 'natssi_guide'
 const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return true } }
 
 export default function App() {
-  const [tab, setTab] = useState('diary')
+  const [tab, setTab] = useState(() => { const t = new URLSearchParams(window.location.search).get('tab'); return TAB_TITLES[t] ? t : 'diary' })   // PC의 QR로 열면 ?tab=capture
   const [resetToken, setResetToken] = useState(() => { const h = linkParams(); return h.get('type') === 'recovery' ? h.get('access_token') : null })
   const [linkExpired] = useState(() => !!linkParams().get('error_code'))
   const [page, setPage] = useState(() => (resetToken || linkExpired ? 'auth' : null))          // null | 'auth' | 'legal' | 'account'
@@ -95,6 +95,7 @@ export default function App() {
     <>
     <div className="shell">
       <aside className="side">
+        <div className="side-in">{/* 메뉴는 화면에 붙어 있고, 흰 바탕과 경계선은 페이지 길이만큼 이어진다 */}
         <button className="brand" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
           {TABS.map((t) => (
@@ -107,6 +108,7 @@ export default function App() {
         <div className="side-foot">
           <p>매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
           <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
+        </div>
         </div>
       </aside>
 

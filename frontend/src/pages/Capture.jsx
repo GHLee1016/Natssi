@@ -4,7 +4,31 @@ import CheckinSteps from './CheckinSteps.jsx'
 import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError } from '../measure/browser.js'
 import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 import KV, { symptomItems } from '../kv.jsx'
+import qrcode from 'qrcode-generator'
 
+// 마우스를 쓰는 넓은 화면(PC)인가. PC에서는 카메라 대신 폰으로 여는 QR을 보여 준다:
+// 웹캠과 폰 카메라는 색을 다르게 잡아서, 섞어 찍으면 날마다 붉은기를 비교할 수 없다.
+const DESK_Q = '(min-width: 900px) and (hover: hover) and (pointer: fine)'
+export function useDesk() {
+  const [desk, setDesk] = useState(() => window.matchMedia?.(DESK_Q).matches ?? false)
+  useEffect(() => {
+    const m = window.matchMedia?.(DESK_Q); if (!m) return undefined
+    const on = () => setDesk(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on)
+  }, [])
+  return desk
+}
+
+// 이 주소를 폰으로 여는 QR(그리기만 한다. 주소는 바깥으로 보내지 않음)
+export function QR({ text }) {
+  const q = qrcode(0, 'M'); q.addData(text); q.make()
+  const n = q.getModuleCount(); let d = ''
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`
+  return <svg className="qr" viewBox={`-2 -2 ${n + 4} ${n + 4}`} role="img" aria-label="폰 카메라로 비추면 낯씨 기록 화면이 열리는 QR 코드" shapeRendering="crispEdges"><rect x="-2" y="-2" width={n + 4} height={n + 4} fill="#fff" /><path d={d} fill="#1f2a37" /></svg>
+}
+
+// 분석하는 동안 보여 줄 단계(실제로 하는 일 순서). 각 단계는 끝난 뒤에 ✓가 붙는다.
+const STAGES = ['얼굴 모델 준비', '얼굴과 고개 각도 찾기', '양 볼 색 재기', '사진 품질 판정']
+const wait = (ms) => new Promise((ok) => setTimeout(ok, ms))
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
 
 // 촬영 전 안내: 좋은 사진 한 장과 피해야 할 사진들(캐릭터 동작은 Face, 끝 자세가 그 모습)
@@ -118,7 +142,9 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [auto, setAuto] = useState(true)     // 정렬이 맞으면 자동으로 찍기
   const [kept, setKept] = useState(false)    // [선택 동의] 볼 조각을 서버에 보관했는가
   const [symptomsOnly, setSymptomsOnly] = useState(false)   // 사진이 계속 안 될 때 증상만 먼저 남기기
-  const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3·2·1
+  const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3, 2, 1
+  const desk = useDesk()
+  const [stage, setStage] = useState(0)      // 분석 단계(STAGES 번호). STAGES.length면 모두 끝남
   const streak = useRef(0)                   // 맞는 프레임이 이어진 수
   const armed = useRef(true)                 // 자동 촬영을 할 수 있는 상태(한 번 찍으면 내려감)
   const flags = useRef({ busy: false, auto: true, passed: false })
@@ -187,21 +213,27 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   // 사진(또는 카메라 화면)을 이 기기에서 재고, 숫자만 서버로 보내 품질 판정을 받음
   const send = async (src) => {
     setError(null); setResult(null)
+    // 단계가 너무 빨리 지나가 안 보이지 않게, 단계마다 잠깐(0.2초) 머문다. 순서와 내용은 실제로 하는 일 그대로.
+    const step = async (n) => { setStage(n); await wait(200) }
     try {
-      setBusy('얼굴 모델 불러오는 중…')
+      setBusy('얼굴 모델 불러오는 중…'); await step(0)
       await Promise.race([loadLandmarker(), new Promise((_, no) => setTimeout(() => no(userError(
         '얼굴 모델을 불러오지 못했어요(처음 한 번 약 10MB). 와이파이에서 다시 시도해 주세요.')), 90000))])
-      setBusy('검사하는 중…')
+      setBusy('검사하는 중…'); await step(1)
       const features = await measurePhoto(src)
+      if (stream.current) { stop(); setCam('idle') }   // 찍은 뒤에는 카메라를 끈다(통과하든 못 하든 결과 화면으로)
+      await step(2)
       const parts = takeCheeks()
+      await step(3)
       const res = await api.capture(features)
       setKept(false)
       if (res.saved_on && viewer?.cheeks && parts) {   // 볼 부분 사진 보관에 동의한 사람만, 그날 처음 저장된 기록에
         try { await api.saveCheeks(parts); setKept(true) } catch { /* 조각만 못 남김: 숫자 기록은 그대로 */ }
       }
+      await step(STAGES.length)
       setResult(res)
-      if (res.passed) { stop(); setCam('idle') }   // 잘 찍혔으면 카메라를 끄고 결과만 보여 준다
     } catch (e) {
+      if (stream.current) { stop(); setCam('idle') }
       setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진으로 다시 시도하거나, [사진 찍기]로 찍어 주세요.'))
     } finally { setBusy(null) }
   }
@@ -210,8 +242,18 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   // 카메라를 켜기 전, 결과가 없을 때는 안내 화면(좋은 사진, 피할 사진, 아래 큰 버튼 두 개)을 보여 준다.
   // 카메라 화면(video)은 안내 화면 아래에 숨겨 두고 그대로 둔다: 켜는 동안 같은 video 요소에 영상을 붙여야 해서.
   const guideMode = cam !== 'on' && !result && !busy
-  const done = !!result?.passed && cam !== 'on'   // 통과한 뒤: 카메라 화면 없이 결과만
   const again = () => { setResult(null); setSymptomsOnly(false); start() }
+  const close = () => { cancelAuto(); stop(); setCam('idle') }   // 카메라 닫고 안내 화면으로
+  // 결과 항목: 고칠 것은 바로 보이게, 통과한 것은 접어 둔다
+  const bad = result ? result.checks.filter((c) => c.ok === false) : []
+  const rest = result ? result.checks.filter((c) => c.ok !== false) : []
+  const item = (c) => (
+    <div className={'res-item ' + (c.ok === null ? 'na' : c.ok ? 'ok' : 'no')} key={c.name}>
+      <span className="res-chip">{c.ok === null ? '확인 못 함' : c.ok ? '좋아요' : '아쉬워요'}</span>
+      <b>{c.name}</b>
+      <p className="small">{c.detail}</p>
+    </div>
+  )
 
   if (needConsent) {
     return (
@@ -233,9 +275,11 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     )
   }
 
+  const title = guideMode ? <>얼굴이 잘 보이는 사진을<br />찍거나 골라 주세요</>
+    : result ? (result.passed ? '사진이 잘 찍혔어요' : '한 번 더 찍어 볼까요?') : viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'
   return (
     <section className="capture">
-      <header className="page-head"><div><h1>{guideMode ? <>얼굴이 잘 보이는 사진을<br />찍거나 골라 주세요</> : viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'}</h1></div></header>
+      <header className="page-head"><div><h1>{title}</h1></div></header>
       {guideMode && (
         <div className="cap-guide">
           <p className="muted cap-lead">사진은 이 기기 안에서만 분석하고, 서버에는 볼 색 숫자만 보내요.</p>
@@ -258,80 +302,90 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           </div>
           {cam === 'blocked' && <p className="err" role="alert">카메라를 쓸 수 없어요. 브라우저에서 카메라 권한을 허용하거나, 사진을 골라 주세요.</p>}
           {error && <p className="err" role="alert">{error}</p>}
-          <div className="cap-actions">
-            <button className="btn dark" onClick={start}>카메라로 촬영하기</button>
-            <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
-          </div>
+          {desk ? (
+            <div className="cap-qr">
+              <QR text={`${window.location.origin}/?tab=capture`} />
+              <div>
+                <h2>폰으로 찍어 주세요</h2>
+                <p>폰 카메라로 QR을 비추면 낯씨 기록 화면이 열려요.{viewer ? ' 폰에서도 같은 계정으로 로그인해 주세요.' : ''}</p>
+                <p className="muted small">컴퓨터 카메라와 폰 카메라는 색을 다르게 잡아요. 매일 같은 폰으로 찍어야 붉은기를 비교할 수 있어요.</p>
+                <label className="link file">이 컴퓨터에 있는 사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+              </div>
+            </div>
+          ) : (
+            <div className="cap-actions">
+              <button className="btn dark" onClick={start}>카메라로 촬영하기</button>
+              <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+            </div>
+          )}
         </div>
       )}
-      <div className={'grid2' + (done ? ' done' : '')} hidden={guideMode}>
-        <div className={'view' + (cam === 'on' ? ' on' : '')} hidden={done}>
-          <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
-          {cam === 'on' && <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />}
-          {cam === 'on' && guide && !count && <p className={'guide-hint' + (guide.ok ? ' ok' : '')} role="status">{guide.hint}</p>}
-          {cam === 'on' && count && (
-            <div className="countdown" role="status" aria-label={`${count}초 뒤에 찍어요`}>
-              <b>{count}</b>
-              <button className="btn ghost" onClick={cancelAuto}>취소</button>
-            </div>
-          )}
-          {cam !== 'on' && (
-            <div className="view-empty">
-              <p>{cam === 'blocked' ? '카메라를 쓸 수 없어요. 브라우저에서 카메라 권한을 허용하거나, 사진을 골라 주세요.' : '얼굴이 타원 안에 들어오게 정면을 봐 주세요.'}</p>
-              <button className="btn" onClick={start}>카메라 켜기</button>
-            </div>
-          )}
+      {/* 카메라: 켜면 화면 전체를 덮는다. video는 늘 붙어 있어야 해서(켜는 동안 영상을 붙임) 숨겨 둘 뿐 지우지 않는다 */}
+      <div className={'camview' + (cam === 'on' ? ' on' : '')} hidden={cam !== 'on'} role="dialog" aria-modal="true" aria-label="얼굴 촬영">
+        <video ref={video} playsInline muted />
+        <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />
+        <div className="cam-top">
+          <button className="cam-pill" onClick={close}>촬영 가이드</button>
+          {guide && <label className="cam-pill"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />자동 촬영</label>}
         </div>
-        <div>
-          <div className="actions left" hidden={done}>
-            <button className="btn" onClick={shoot} disabled={cam !== 'on' || !!busy}>{busy || '사진 찍기'}</button>
-            <label className="btn ghost file">사진 고르기
-              <input type="file" accept="image/*" disabled={!!busy} onChange={pick} />
-            </label>
+        {!count && <p className={'cam-hint' + (guide?.ok ? ' ok' : '')} role="status">{guide?.ok && <i aria-hidden="true">✓</i>}{guide ? guide.hint : '얼굴이 타원 안에 들어오게 정면을 봐 주세요'}</p>}
+        {count && (
+          <div className="countdown" role="status" aria-label={`${count}초 뒤에 찍어요`}>
+            <b>{count}</b>
+            <button className="btn ghost" onClick={cancelAuto}>취소</button>
           </div>
-          {cam === 'on' && guide && (
-            <label className="row-check auto-shot"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />
-              타원에 맞으면 자동으로 찍기</label>
-          )}
-          {error && <p className="err" role="alert">{error}</p>}
-          {result && (
-            <div className="card">
-              <h2 className="h3">{result.passed ? '사진이 잘 찍혔어요' : '한 번 더 찍어 볼까요?'}</h2>
-              {result.passed ? <p className="muted small">{result.message}</p> : (
-                <ul className="fix-list" aria-label="다시 찍을 때 고칠 점">
-                  {result.checks.filter((c) => c.ok === false).map((c) => <li key={c.name}><b>{c.name}</b> {c.detail}</li>)}
-                </ul>
-              )}
-              {result.redness !== null && (
-                <div className="row">
-                  <div><b>볼 붉은기 (a*)</b><p className="muted small">측정 오차 ±{mdc95}</p><p className="muted small">같은 폰으로 같은 장소에서 찍은 날끼리 비교해요.</p></div>
-                  <b>{result.redness.toFixed(1)}</b>
-                </div>
-              )}
-              <p className="muted small">{result.note}{kept ? ' 볼 부분 사진(양 볼 네모)도 함께 보관했어요.' : ''}</p>
-              {done && <button className="link" onClick={again}>다시 찍기</button>}
-              {!result.passed && viewer && !symptomsOnly && (
-                <button className="link" onClick={() => setSymptomsOnly(true)}>사진은 나중에 하고 증상만 먼저 남기기</button>
-              )}
-              <details className="tech checks-more"><summary>검사 항목 {result.checks.length}개 자세히</summary>
-                {result.checks.map((c) => (
-                  <div className="row" key={c.name}>
-                    <div><b>{c.name}</b><p className="muted small">{c.detail}</p></div>
-                    <span className={c.ok === null ? 'muted small' : c.ok ? 'done' : 'warn'}>{c.ok === null ? '확인 못 함' : c.ok ? '좋아요 ✓' : '아쉬워요'}</span>
-                  </div>
-                ))}
-                {result.checks.map((c) => <p key={c.name + 't'}>{c.name}: {c.tech}</p>)}
-              </details>
-            </div>
-          )}
-          {viewer && go && ((result?.passed && result.saved) || symptomsOnly) && <TodaySymptoms photoDone={!!result?.saved} go={go} />}
+        )}
+        <div className="cam-bar">
+          <label className="cam-side">앨범<input type="file" accept="image/*" disabled={!!busy} onChange={pick} /></label>
+          <button className="shutter" onClick={shoot} disabled={!!busy} aria-label="사진 찍기" />
+          <button className="cam-side" onClick={close}>취소</button>
         </div>
       </div>
+      {busy && (
+        <div className="analyze" role="status" aria-live="polite">
+          <div className="an-orb" aria-hidden="true" />
+          <h2>얼굴 날씨를 재고 있어요</h2>
+          <p className="muted small">사진은 이 기기 안에서만 분석해요.</p>
+          <ul>
+            {STAGES.map((t, n) => <li key={t} className={n < stage ? 'done' : n === stage ? 'now' : ''}><i aria-hidden="true" />{t}{n < stage && <span className="sr-only"> 완료</span>}</li>)}
+          </ul>
+        </div>
+      )}
+      {result && !busy && cam !== 'on' && (
+        <div className="res">
+          {result.passed && result.redness !== null && (
+            <div className="res-hero">
+              <p>오늘 볼 붉은기</p>
+              <b>{result.redness.toFixed(1)}</b>
+              <p className="small">측정 오차 ±{mdc95}. 같은 폰으로 같은 자리에서 찍은 날끼리 비교해요.</p>
+            </div>
+          )}
+          <p className="res-msg">{result.passed ? result.message : '아쉬운 항목을 고쳐서 다시 찍어 주세요.'}</p>
+          {bad.length > 0 && <><h2 className="res-sec">고칠 항목</h2><div className="res-grid">{bad.map(item)}</div></>}
+          <details className="res-more">
+            <summary>{bad.length ? `통과한 항목 ${rest.length}개` : `검사 항목 ${rest.length}개 모두 좋아요`}</summary>
+            <div className="res-grid">{rest.map(item)}</div>
+            <div className="tech">{result.checks.map((c) => <p key={c.name}>{c.name}: {c.tech}</p>)}</div>
+          </details>
+          <p className="muted small">{result.note}{kept ? ' 볼 부분 사진(양 볼 네모)도 함께 보관했어요.' : ''}</p>
+          <div className="res-actions">
+            <button className="btn dark" onClick={desk ? () => setResult(null) : again}>{desk ? '처음으로' : '다시 찍기'}</button>
+            <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+          </div>
+          {!result.passed && viewer && !symptomsOnly && (
+            <button className="link" onClick={() => setSymptomsOnly(true)}>사진은 나중에 하고 증상만 먼저 남기기</button>
+          )}
+        </div>
+      )}
+      {error && !guideMode && <p className="err" role="alert">{error}</p>}
+      {viewer && go && ((result?.passed && result.saved) || symptomsOnly) && <TodaySymptoms photoDone={!!result?.saved} go={go} />}
+      {guideMode && (
   <div className="notice sentences wide">
-    <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
-    <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기, 노란기, 밝기)만 오늘 기록에 남겨요.</p>
-    <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
-  </div>
+      <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
+      <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기, 노란기, 밝기)만 오늘 기록에 남겨요.</p>
+      <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
+    </div>
+      )}
     </section>
   )
 }

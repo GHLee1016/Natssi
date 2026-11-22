@@ -9,6 +9,7 @@ import KV, { symptomItems } from '../kv.jsx'
 import Calendar from './Calendar.jsx'
 import { useSub, SubPage, AskButtons, AskHead, ICONS } from './Sub.jsx'
 import Recap from './Recap.jsx'
+import { Dashboard, useMedia, WIDE } from './Dash.jsx'
 import { DayHero, WeekStrip, weekOf, symptomText, ChangeDays, usePeriod, PeriodToggle, EmptyDay } from './DayParts.jsx'
 
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
@@ -73,6 +74,13 @@ function PastDay({ rec, ver, district, changes }) {
     <>
       <DayHero record={rec} version={ver} district={district} />
       {changes}
+      <PastLog rec={rec} ver={ver} />
+    </>
+  )
+}
+
+function PastLog({ rec, ver }) {
+  return (
       <div className="rec-sec">
         <h3>이날의 기록</h3>
         <div className="rec">
@@ -92,7 +100,6 @@ function PastDay({ rec, ver, district, changes }) {
           )}
         </div>
       </div>
-    </>
   )
 }
 
@@ -104,6 +111,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   const [error, setError] = useState(null)
   const [note, setNote] = useState('')               // 스크린리더에 읽어 주는 저장 결과
   const d = q.data
+  const wide = useMedia(WIDE)                         // PC: 대시보드 배치
 
   const save = async (vals) => {
     setSaving(true); setError(null)
@@ -143,6 +151,64 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   const DESC = { baseline: '내 사진 기록으로 만든 볼 붉은기의 평소 범위예요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
   const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     d.unlocked && { id: 'baseline', icon: ICONS.range, label: ASK.baseline }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
+  // 오늘 화면 조각들: 폰(한 열)과 PC 대시보드가 같은 조각을 다른 자리에 놓는다
+  const todayHero = d && (
+    v ? (rec
+  ? <DayHero record={rec} version={ver} district={d.district} isToday mine showEnv={false} />
+  : (
+    <div className={'hero ' + LEVEL_CLASS[v.level]}>
+      <HeroSky level={v.level} />
+      <p className="hero-label">오늘의 내 얼굴 날씨</p>
+      <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
+      <p className="hero-msg">{v.message}</p>
+      {v.reasons.length > 0 && <ul className="hero-reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
+      {v.baseline && <Gauge value={d.today_redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />}
+    </div>
+  )) : <EmptyDay isToday action={<button className="btn" onClick={() => go('capture')}>오늘 기록하기</button>} />)
+  const todayRow = d && (
+    <div className="rec rec-wide">
+  <div className="rec-row">
+    <span className="rec-k">셀카</span>
+    <div className="rec-v"><div>{
+      d.today_redness == null ? '사진 한 장과 증상 네 가지로 오늘 기록을 남겨요. 1분이면 돼요.'
+        : !d.today_checkin ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요. 증상도 남기면 오늘 기록이 끝나요.`
+          : `오늘 기록을 마쳤어요. 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}`}</div></div>
+    {d.today_cheeks && (
+      <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
+    )}
+    {d.today_redness == null && <button className="btn" onClick={() => go('capture')}>오늘 기록하기</button>}
+    {d.today_redness != null && !d.today_checkin && !draft && (
+      <button className="btn" onClick={() => { setDraft({}); setTimeout(() => document.getElementById('today-checkin')?.scrollIntoView({ block: 'center' }), 0) }}>증상 남기기</button>
+    )}
+  </div>
+</div>
+  )
+  const checkinCard = d && (
+    <div className="card" id="today-checkin">
+  <h2 className="h3">오늘의 증상 체크인</h2>
+  {draft ? (
+    <CheckinSteps initial={draft} saving={saving} error={error}
+      onSave={(vals) => save(vals)} onCancel={() => { setDraft(null); setError(null) }} />
+  ) : d.today_checkin ? (
+    <div className="row">
+      <div><b>저장했어요</b><KV className="small" items={symptomItems(d.today_checkin)} /></div>
+      <button className="link" onClick={() => setDraft({ ...BLANK, ...d.today_checkin })}>수정하기</button>
+    </div>
+  ) : (
+    <div className="row">
+      <div><b>오늘은 아직이에요</b><p className="muted small">따가움, 화끈, 가려움, 당김을 0~3으로 남겨요.</p></div>
+      <button className="btn" onClick={() => setDraft({})}>체크인하기</button>
+    </div>
+  )}
+    </div>
+  )
+  const notice = d && (
+    <div className="notice wide">
+  <p>얼굴 날씨는 내 평소 기록과 비교한 결과예요. 진단이 아니에요.</p>
+  <p>따가움이나 화끈거림이 계속되면 제품 사용을 멈추고 보건소나 피부과 전문의와 상담해 주세요.</p>
+  {!d.unlocked && <p>사진 기록이 {d.needed}일 쌓이면 달력, 변화, 리포트도 내 기록으로 볼 수 있어요. 지금 {d.redness_days}일이에요.</p>}
+</div>
+  )
   if (d && sub) return (
     <SubPage head={<header className="page-head"><div><h1>{fmt.full(day)}</h1></div></header>} tabs={tabs}>
       {sub !== 'recap' && <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />}
@@ -158,82 +224,47 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
         {d && (
           <div className="head-actions">
             {past && <button className="btn ghost" onClick={() => setDate(null)}>오늘로 가기</button>}
-            {tl.data && first && <PeriodToggle value={period} onChange={setPeriod} />}
+            {tl.data && first && !wide && <PeriodToggle value={period} onChange={setPeriod} />}
           </div>
         )}
       </header>
       {tabs}
-      {tl.data && first && (period === 'month'
+      {!wide && tl.data && first && (period === 'month'
         ? <Calendar date={day} first={first} today={d.today} onPick={pick} load={loadMine} />
         : <WeekStrip date={day} week={weekOf(day, records)} first={first} today={d.today} setDate={pick} />)}
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
-      {d && past && (
+      {d && wide && tl.data && first && (
+        <>
+        <PolicyNotice mine={viewer?.consent_version} current={policyVersion} onLegal={onLegal} onConsented={onConsented} />
+        <Dashboard today={d.today} first={first} date={day} records={records} versions={tl.data.versions} rec={rec}
+          onPick={pick} load={loadMine}
+          empty={past ? <p className="muted">이날은 기록이 없어요.</p>
+            : <><p>오늘은 아직 사진이 없어요.</p><button className="btn" onClick={() => go('capture')}>오늘 기록하기</button></>}
+          log={past ? (rec ? <PastLog rec={rec} ver={ver} /> : <p className="card muted">이날은 기록이 없어요. 달력에서 다른 날을 골라 보세요.</p>)
+            : <><EnvToday district={d.district} env={d.env} today={d.today} onAccount={onAccount} />{todayRow}{checkinCard}</>}
+          after={!past && notice} />
+        </>
+      )}
+      {d && !(wide && tl.data && first) && past && (
         <PastDay rec={rec} ver={ver} district={d.district} changes={changes} />
       )}
-      {d && !past && (
+      {d && !(wide && tl.data && first) && !past && (
         <>
         <PolicyNotice mine={viewer?.consent_version} current={policyVersion} onLegal={onLegal} onConsented={onConsented} />
         <EnvToday district={d.district} env={d.env} today={d.today} onAccount={onAccount} />
-        {v && (rec
-          ? <DayHero record={rec} version={ver} district={d.district} isToday mine showEnv={false} />
-          : (
-            <div className={'hero ' + LEVEL_CLASS[v.level]}>
-              <HeroSky level={v.level} />
-              <p className="hero-label">오늘의 내 얼굴 날씨</p>
-              <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
-              <p className="hero-msg">{v.message}</p>
-              {v.reasons.length > 0 && <ul className="hero-reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
-              {v.baseline && <Gauge value={d.today_redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />}
-            </div>
-          ))}
+        {v && todayHero}
         {changes}
-        <div className="rec rec-wide">
-          <div className="rec-row">
-            <span className="rec-k">셀카</span>
-            <div className="rec-v"><div>{
-              d.today_redness == null ? '사진 한 장과 증상 네 가지로 오늘 기록을 남겨요. 1분이면 돼요.'
-                : !d.today_checkin ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요. 증상도 남기면 오늘 기록이 끝나요.`
-                  : `오늘 기록을 마쳤어요. 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}`}</div></div>
-            {d.today_cheeks && (
-              <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
-            )}
-            {d.today_redness == null && <button className="btn" onClick={() => go('capture')}>오늘 기록하기</button>}
-            {d.today_redness != null && !d.today_checkin && !draft && (
-              <button className="btn" onClick={() => { setDraft({}); setTimeout(() => document.getElementById('today-checkin')?.scrollIntoView({ block: 'center' }), 0) }}>증상 남기기</button>
-            )}
-          </div>
-        </div>
+        {todayRow}
         <InstallHint />
         <div className="today-cards">
           <div>
             {!d.unlocked && baselineCard}
-            <div className="card" id="today-checkin">
-              <h2 className="h3">오늘의 증상 체크인</h2>
-              {draft ? (
-                <CheckinSteps initial={draft} saving={saving} error={error}
-                  onSave={(vals) => save(vals)} onCancel={() => { setDraft(null); setError(null) }} />
-              ) : d.today_checkin ? (
-                <div className="row">
-                  <div><b>저장했어요</b><KV className="small" items={symptomItems(d.today_checkin)} /></div>
-                  <button className="link" onClick={() => setDraft({ ...BLANK, ...d.today_checkin })}>수정하기</button>
-                </div>
-              ) : (
-                <div className="row">
-                  <div><b>오늘은 아직이에요</b><p className="muted small">따가움, 화끈, 가려움, 당김을 0~3으로 남겨요.</p></div>
-                  <button className="btn" onClick={() => setDraft({})}>체크인하기</button>
-                </div>
-              )}
-            </div>
-
+            {checkinCard}
           </div>
 
         </div>
-        <div className="notice wide">
-          <p>얼굴 날씨는 내 평소 기록과 비교한 결과예요. 진단이 아니에요.</p>
-          <p>따가움이나 화끈거림이 계속되면 제품 사용을 멈추고 보건소나 피부과 전문의와 상담해 주세요.</p>
-          {!d.unlocked && <p>사진 기록이 {d.needed}일 쌓이면 달력, 변화, 리포트도 내 기록으로 볼 수 있어요. 지금 {d.redness_days}일이에요.</p>}
-        </div>
+        {notice}
         </>
       )}
     </section>
