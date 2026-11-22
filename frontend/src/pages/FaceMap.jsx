@@ -38,6 +38,7 @@ export default function FaceMap({ record }) {
         <h3>얼굴에서 보기</h3>
         <p>{s.text}</p>
         <p className="muted small">네모는 낯씨가 붉은기를 재는 곳(양 볼)이에요. 여드름 같은 트러블은 찾지 않고, 진단하지 않아요. 사진은 AI로 만든 예시예요.</p>
+        <p className="muted small">실제 기록에서는 얼굴 사진을 저장하지 않고, 이 부위의 색만 칩으로 보여 줘요. 선택 동의하면 작은 볼 조각 사진도 함께 보관해요.</p>
       </div>
     </div>
   )
