@@ -6,8 +6,10 @@ const STEPS = [
   ['평소와 달라진 날을 날씨로 봐요', '내 평소 범위와 비교해 맑음이나 흐림처럼 보여 드려요. 진단이 아니에요.'],
 ]
 
-// 처음 들어온 사람에게 한 번만 보여주는 사용법. 지금 화면이 가상 예시라는 점도 여기서 알린다.
-export default function Welcome({ onClose, onStart }) {
+// 사용법 시트. 처음 들어온 사람에게 한 번 보여 주고, 위쪽 '?' 버튼으로 다시 연다.
+// 로그인 전(mine=false)에는 지금 화면이 가상 예시라는 점을 알리고, '예시 둘러보기'로 예시 다이어리 첫 화면에 데려간다.
+// 로그인한 사람(mine)에게는 예시 안내 대신 '오늘 기록하기'를 보여 준다.
+export default function Welcome({ onClose, onStart, onExplore, onRecord, mine = false }) {
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   const opener = useRef(document.activeElement)       // 열기 전에 포커스가 있던 곳(자동 포커스보다 먼저 읽는다)
@@ -32,10 +34,19 @@ export default function Welcome({ onClose, onStart }) {
             <li key={title}><i aria-hidden="true">{i + 1}</i><div><b>{title}</b><p className="muted small">{body}</p></div></li>
           ))}
         </ol>
-        <p className="muted small">지금 보이는 화면은 김서연(가상 페르소나)의 4주치 예시예요.</p>
+        {!mine && <p className="muted small">지금 보이는 화면은 김서연(가상 페르소나)의 4주치 예시예요.</p>}
         <div className="actions">
-          {onStart && <button className="btn ghost" onClick={onStart}>내 기록 시작하기</button>}
-          <button className="btn" onClick={onClose} autoFocus>예시 둘러보기</button>
+          {mine ? (
+            <>
+              <button className="btn ghost" onClick={onClose}>닫기</button>
+              <button className="btn" onClick={onRecord} autoFocus>오늘 기록하기</button>
+            </>
+          ) : (
+            <>
+              {onStart && <button className="btn ghost" onClick={onStart}>내 기록 시작하기</button>}
+              <button className="btn" onClick={onExplore} autoFocus>예시 둘러보기</button>
+            </>
+          )}
         </div>
       </div>
     </div>

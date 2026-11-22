@@ -197,11 +197,13 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
       setStep(2)
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
-  // 사용자가 넣은 이름을 서버 사전으로 표준 이름에 맞춘다('Glycerin'→'글리세린'). 서버에 닿지 못하면 쓴 그대로.
+  // 사용자가 넣은 이름을 서버 사전으로 표준 이름에 맞춘다('Glycerin'→'글리세린'). 사전과 딱 맞을 때만 바꾸고,
+  // 오타로 보고 고치는 경우(보정)는 사용자가 쓴 그대로 둔다: 사용자가 사진을 보고 직접 고친 이름이 다시 바뀌지 않게.
+  // 서버에 닿지 못하면 쓴 그대로.
   const standardize = async (n) => {
     try {
       const r = await api.analyzeIngredients(n)
-      if (r.ingredients.length) return r.ingredients.map((i) => ({ ...i, status: i.status === '일치' ? '일치' : '직접 입력' }))
+      if (r.ingredients.length) return r.ingredients.map((i) => (i.status === '일치' ? i : { ...i, name: i.ocr || n, status: '직접 입력', families: i.status === '보정' ? [] : i.families }))
     } catch { /* 아래로 */ }
     return [{ name: n, status: '직접 입력', ocr: n, families: [] }]
   }
@@ -228,6 +230,12 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
       setList(list.filter((i) => i.name !== was))
       setNote(`${other.name}${josa(other.name)} 이미 목록에 있어서 하나로 합쳤어요.`)
     } else setList(list.map((i) => (i.name === was ? { ...first, ocr: i.ocr, added: i.added } : i)))
+  }
+  // 자동으로 고친 이름이 틀렸으면 사진에서 읽은 글자로 되돌린다(사용자가 확인한 이름으로 표시).
+  const undoFix = (i) => {
+    if (list.some((x) => x !== i && key(x.name) === key(i.ocr))) return setNote(`${i.ocr}${josa(i.ocr)} 이미 목록에 있어요.`)
+    setList(list.map((x) => (x === i ? { ...x, name: i.ocr, status: '직접 입력', families: [] } : x)))
+    setNote(`${i.name}을(를) 읽은 그대로 ${i.ocr}(으)로 되돌렸어요. 이름을 눌러 다시 고칠 수 있어요.`)
   }
   const togglePick = (f) => setPicked(picked.includes(f) ? picked.filter((x) => x !== f) : [...picked, f])
   const save = async () => {
@@ -430,8 +438,9 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                 ) : (
                   <li key={i.name} className={i.status === '확인 필요' ? 'chk' : i.status === '보정' ? 'fix' : ''}>
                     <span className={'ing-no' + (no[i.name] ? '' : ' added')} aria-hidden="true">{no[i.name] || '추가'}</span>
-                    {i.name}
-                    {i.status === '확인 필요' && <button type="button" className="edit" onClick={() => { setEditing(i.name); setEditText(i.name) }} aria-label={`${i.name} 고치기`}>고치기</button>}
+                    {/* 사전에 있는 이름이어도 잘못 읽었거나 잘못 고쳐졌을 수 있어서, 어느 성분이든 눌러 고칠 수 있다 */}
+                    <button type="button" className="ing-name" onClick={() => { setEditing(i.name); setEditText(i.name) }} aria-label={`${i.name} 고치기`}>{i.name}</button>
+                    {i.status === '확인 필요' && <button type="button" className="edit" onClick={() => { setEditing(i.name); setEditText(i.name) }} aria-hidden="true" tabIndex={-1}>고치기</button>}
                     <button type="button" aria-label={`${i.name} 지우기`} onClick={() => setList(list.filter((x) => x.name !== i.name))}>×</button>
                   </li>
                 )))}
@@ -439,7 +448,10 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
               {fixed.length > 0 && (
                 <div className="fixed-list">
                   <p className="muted small">{t.step3.fixed}</p>
-                  <ul>{fixed.map((i) => <li key={i.name}>{no[i.name] && <span className="ing-no" aria-hidden="true">{no[i.name]}</span>}<s>{i.ocr}</s> → <b>{i.name}</b></li>)}</ul>
+                  <ul>{fixed.map((i) => (
+                    <li key={i.name}>{no[i.name] && <span className="ing-no" aria-hidden="true">{no[i.name]}</span>}<s>{i.ocr}</s> → <b>{i.name}</b>
+                      <button type="button" className="link undo" onClick={() => undoFix(i)} aria-label={`${i.name}을 읽은 그대로 ${i.ocr}(으)로 되돌리기`}>읽은 그대로</button></li>
+                  ))}</ul>
                 </div>
               )}
             </>

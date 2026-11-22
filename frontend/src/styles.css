@@ -598,7 +598,7 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .recap-map i{display:block;aspect-ratio:1;border-radius:4px}
 .recap-map .rm-dow{aspect-ratio:auto;font-style:normal;font-size:10px;color:var(--sub);text-align:center}
 .rm.ok{background:#f2c14e}.rm.watch{background:#8fb9e0}.rm.signal{background:#6f7f92}.rm.unknown{background:#d5d9de}
-.rm.nophoto{background:#fff;box-shadow:inset 0 0 0 1.500px #d5d9de}.rm.none{background:#f4f0ec}.rm.future{background:transparent;box-shadow:inset 0 0 0 1px #f0ebe6}
+.rm.nophoto{background:transparent;border:1.500px dashed #8f8780;box-sizing:border-box}.rm.none{background:#ece5de}.rm.future{background:transparent;box-shadow:inset 0 0 0 1px #ece5de}
 
 /* 윗줄: 사용법, 내 계정 아이콘만(예시 화면이라는 안내는 사용법 첫 화면이 알려 줌) */
 .topline{justify-content:flex-end;min-height:44px;margin-bottom:4px}
@@ -622,28 +622,15 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ask-head h2{font-size:22px;font-weight:800;letter-spacing:-.03em}
 .ask-head .icon-btn svg{width:22px;height:22px}
 /* 월간 Recap 카드 슬라이드(pages/Recap.jsx) */
-.rs{display:grid;gap:10px;max-width:520px}
-.rs-bars{display:flex;gap:4px}.rs-bars i{flex:1;height:4px;border-radius:2px;background:#e9e2db}.rs-bars i.done,.rs-bars i.on{background:var(--ink)}
-.rs-card{min-height:420px;padding:26px 22px;border-radius:28px;display:flex;flex-direction:column;justify-content:center;gap:10px;outline:none;animation:rs-in .35s cubic-bezier(.2,.8,.2,1)}
 .rs-card:focus-visible{box-shadow:0 0 0 3px var(--accent)}
 .rs-card.t-ok{background:linear-gradient(160deg,#ffe58a,#ffc95c);color:#4b3300}
 .rs-card.t-watch{background:linear-gradient(160deg,#cfe4f7,#9cc3e8);color:#163a5e}
-.rs-card.t-signal{background:linear-gradient(160deg,#9aa8b8,#5f6f82);color:#fff}
+.rs-card.t-signal{background:linear-gradient(160deg,#e4e9f0,#c5cfdb);color:#1b2a3a}
 .rs-card.t-unknown{background:linear-gradient(160deg,#eef0f2,#cdd2d8);color:#2c3440}
 .rs-card.t-accent{background:linear-gradient(160deg,#ffb86b,#ff8a65);color:#3b1606}
 .rs-card.t-paper{background:var(--card);border:1px solid var(--line);color:var(--ink)}
-.rs-kicker{font-size:15px;font-weight:600;opacity:.85}
-.rs-big{display:flex;align-items:center;gap:12px;font-size:56px;font-weight:800;letter-spacing:-.04em;line-height:1.05}.rs-big .wi{margin:0;color:inherit}
-.rs-title{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.2}
-.rs-sub{font-size:16px;font-weight:500;line-height:1.5;opacity:.9}
+.rs-card.t-routine{background:linear-gradient(160deg,#f7f1ea,#eadfd3);color:#3a2a1c}
 .rs-note{display:inline-block;align-self:flex-start;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.22);font-size:14px;font-weight:700}
-.rs-counts{list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;padding:0;font-size:13px}.rs-counts li{display:inline-flex;align-items:center;gap:4px}.rs-counts .wi{margin:0;color:inherit}
-.rs-list{list-style:none;padding:0;display:grid;gap:8px;font-size:15px}.rs-list b{margin-right:6px}
-.rs-ring{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin:6px 0}
-.rs-ring svg{position:absolute;inset:0;width:100%;height:100%}.rs-ring .rr-bg{stroke:rgba(255,255,255,.35);stroke-width:12}.rs-ring .rr-fg{stroke:#fff;stroke-width:12}
-.rs-ring span{position:relative;font-size:16px;font-weight:600}.rs-ring span b{font-size:40px}
-.rs-map{max-width:none}.rs-lines{margin:4px 0 0 18px;font-size:14px;line-height:1.6}
-.rs-nav{display:flex;align-items:center;justify-content:space-between}
 @keyframes rs-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.rs-card{animation:none}}
 
@@ -683,8 +670,6 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
   .cap-bad .face{width:96px;margin:0}
   .cap-bad .cap-ban{top:50%;margin-top:-16px;width:32px;height:32px}
   .cap-actions{grid-template-columns:1fr 1fr}
-  .rs{max-width:none}
-  .rs-card{min-height:440px;padding:40px 48px}
 }
 
 /* Recap 제목 줄: 대제목 하나에 달 이동 화살표 */
@@ -706,12 +691,6 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ov-item .small,.ov-item .kv.small{font-size:15px}
 .overlap>.ov-note .small{font-size:14px;line-height:1.55}
 .ov-note{margin-top:6px}
-@media (min-width:900px){
-  .rs-card{min-height:480px;padding:48px 56px}
-  .rs-big{font-size:72px}.rs-title{font-size:40px}.rs-sub{font-size:18px}.rs-kicker{font-size:17px}
-  .rs-counts{font-size:15px}.rs-list{font-size:17px}.rs-lines{font-size:15px}
-  .rs-ring{width:180px;height:180px}
-}
 /* 폰: 루틴 제품 줄에서 버튼을 이름 아래 줄로 내려 이름이 깨지지 않게 */
 @media (max-width:899px){
   .prod-list .row{flex-wrap:wrap;row-gap:0}
@@ -903,3 +882,107 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 /* 소개 페이지 위쪽: 로그인, 무료로 시작하기(가입) */
 .ld-top{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-bottom:-56px}
 .ld-top .link{font-size:15px;font-weight:700;color:var(--ink)}.ld-top .ld-signup{min-height:44px;padding:0 20px;font-size:15px}
+/* 성분 이름을 눌러 고치기(어느 성분이든) */
+.ing li button.ing-name{width:auto;height:auto;min-height:32px;padding:0 4px;border-radius:8px;font-size:14px;color:var(--ink);text-align:left;cursor:text}
+.ing li button.ing-name:hover{background:rgba(0,0,0,.05);text-decoration:underline dotted}
+.fixed-list li{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.fixed-list .link.undo{min-height:28px;min-width:0;padding:0 6px;font-size:12.500px}
+
+/* Recap 카드: 이야기 카드(스토리) 모양. 위에 진행 막대와 '낯씨 N월 Recap', 글과 큰 그림 */
+.rs{display:grid;gap:10px}
+.rs-card{position:relative;overflow:hidden;min-height:520px;padding:64px 22px 26px;border-radius:28px;display:flex;flex-direction:column;gap:18px;outline:none;animation:rs-in .35s cubic-bezier(.2,.8,.2,1)}
+.rs-card::before{content:"";position:absolute;right:-90px;top:-90px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.22);pointer-events:none}
+.rs-card.t-paper::before{background:#fbf3ec}
+.rs-top{position:absolute;left:18px;right:18px;top:14px;display:grid;gap:10px}
+.rs-bars{display:flex;gap:4px}.rs-bars i{flex:1;height:4px;border-radius:2px;background:rgba(0,0,0,.14)}.rs-bars i.done,.rs-bars i.on{color:inherit;background:currentColor}
+.rs-brand{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}.rs-brand img{width:20px;height:20px}
+.rs-text{position:relative;display:grid;gap:10px;align-content:center}
+.rs-kicker{font-size:16px;font-weight:600}
+.rs-big{font-size:64px;font-weight:800;letter-spacing:-.05em;line-height:1}
+.rs-title{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1.2}
+.rs-sub{font-size:16px;font-weight:500;line-height:1.5}
+.rs-note{display:inline-block;justify-self:start;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.22);font-size:14px;font-weight:700}
+.rs-lines{margin:4px 0 0 18px;font-size:15px;line-height:1.65}
+.rs-vis{position:relative;display:grid;gap:14px;justify-items:center;align-content:center;flex:1}
+.rs-icon{display:inline-flex;align-items:center;justify-content:center;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.35)}.rs-icon .wi{margin:0;color:inherit}
+.rs-bars2{list-style:none;margin:0;padding:0;display:grid;gap:8px;width:100%;max-width:360px}
+.rs-bars2 li{display:grid;grid-template-columns:96px 1fr 36px;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.rs-bars2 span{display:inline-flex;align-items:center;gap:4px}.rs-bars2 .wi{margin:0;color:inherit}
+.rs-bars2 i{height:10px;border-radius:5px;background:rgba(255,255,255,.4);overflow:hidden}
+.rs-bars2 i b{display:block;height:100%;border-radius:5px;background:currentColor;min-width:4px}
+.rs-bars2 em{font-style:normal;text-align:right}
+.rs-ring{position:relative;width:190px;height:190px;display:flex;align-items:center;justify-content:center}
+.rs-ring svg{position:absolute;inset:0;width:100%;height:100%}.rs-ring .rr-bg{stroke:rgba(255,255,255,.35);stroke-width:12}.rs-ring .rr-fg{stroke:#fff;stroke-width:12;stroke-linecap:round}
+.rs-ring span{position:relative;font-size:16px;font-weight:600}.rs-ring span b{font-size:48px}
+.rs-panel{background:rgba(255,255,255,.92);border-radius:18px;padding:14px;width:100%;max-width:320px;color:var(--ink)}
+.rs-timeline{list-style:none;margin:0;padding:0 0 0 18px;display:grid;gap:14px;width:100%;max-width:360px;border-left:2px solid rgba(22,58,94,.25)}
+.rs-timeline li{position:relative;display:grid;gap:2px;font-size:15px}
+.rs-timeline li::before{content:"";position:absolute;left:-25px;top:4px;width:12px;height:12px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(255,255,255,.7)}
+.rs-timeline b{font-size:13px;opacity:.8}
+@media (min-width:900px){
+  .rs-card{min-height:440px;padding:72px 64px 40px;display:grid;grid-template-columns:1.1fr 1fr;gap:32px;align-items:center}
+  .rs-card>.rs-text:only-of-type{grid-column:1/-1}
+  .rs-big{font-size:88px}.rs-title{font-size:44px}.rs-sub{font-size:18px}.rs-kicker{font-size:18px}
+  .rs-top{left:28px;right:28px;top:20px}
+  .rs-icon{width:180px;height:180px}
+  .rs-ring{width:230px;height:230px}.rs-ring span b{font-size:56px}
+  .rs-bars2 li{font-size:14px}
+}
+
+/* Recap: 폰에서는 전체 화면 이야기 모드(아래 탭 바를 덮고, 닫기로 돌아감) */
+@media (max-width:899px){
+  .recap-root{position:fixed;inset:0;z-index:250;background:var(--bg);display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom));overflow:hidden}
+  .recap-root .rs-head{margin:0 0 8px}
+  .recap-root .rs-wrap,.recap-root .rs{flex:1;min-height:0;display:flex;flex-direction:column}
+  .recap-root .rs-card{flex:1;min-height:0;overflow-y:auto}
+  body.rs-lock{overflow:hidden}
+}
+.rs-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;max-width:420px;margin:0}
+.rs-facts>div{background:rgba(255,255,255,.7);border-radius:16px;padding:12px}
+.rs-facts dt{font-size:13px;font-weight:600;line-height:1.3}.rs-facts dd{margin:4px 0 0;font-size:24px;font-weight:800;letter-spacing:-.03em}
+@media (min-width:900px){.rs-facts dd{font-size:30px}.rs-facts>div{padding:14px 16px}}
+.rs-sum{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px;font-size:16px;line-height:1.55}
+.rs-end{font-size:17px;font-weight:800;margin-top:6px;color:var(--accent-ink)}
+.rs-again{justify-self:start;margin-top:4px}
+@media (prefers-reduced-motion:reduce){.rs-card{animation:none}.an-orb{animation:none}}
+
+/* Recap: 버튼 없이 눌러 넘기기(왼쪽 1/3 이전, 나머지 다음). 글과 그림은 누름을 통과시키고, 카드 안 버튼만 따로 누른다 */
+.rs-tap{position:absolute;top:0;bottom:0;z-index:1;background:transparent;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rs-tap.prev{left:0;width:33%}.rs-tap.next{right:0;width:67%}
+.rs-tap:disabled{cursor:default}
+.rs-tap:focus-visible{outline:3px solid var(--accent);outline-offset:-6px;border-radius:24px}
+.rs-top,.rs-text,.rs-vis{pointer-events:none}
+.rs-again{pointer-events:auto;position:relative;z-index:2}
+.rs-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);margin:0;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.75);color:#2a2f36;font-size:12.500px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:2}
+@media (hover:hover){
+  .rs-tap::after{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.85);color:var(--ink);font-size:22px;line-height:40px;text-align:center;opacity:0;transition:opacity .15s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .rs-tap.prev::after{content:'‹';left:12px}.rs-tap.next::after{content:'›';right:12px}
+  .rs-tap:not(:disabled):hover::after{opacity:1}
+}
+/* 한눈에 달력: 날짜와 날씨 아이콘 */
+.rm-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;max-width:340px}
+.rm-cal .rm-dow{font-style:normal;font-size:11px;color:#5b6470;text-align:center}
+.rm-d{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:44px;border-radius:10px;background:#f6f1ec}
+.rm-d b{font-size:11px;font-weight:600;color:#4a525c;line-height:1}
+.rm-d .wi{margin:0}
+.rm-d.future{background:transparent}.rm-d.future b{color:#a39b93}
+.rm-mark{display:block;width:12px;height:12px;border-radius:50%}
+.rm-mark.nophoto,.rm-d.nophoto .rm-mark{border:1.500px dashed #6f6861;box-sizing:border-box}
+.rm-mark.none,.rm-d.none .rm-mark{width:6px;height:6px;margin:3px;background:#b9b0a7}
+.rm-d.future .rm-mark{visibility:hidden}
+.rm-legend{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.500px;color:#3d4652;max-width:340px}
+.rm-legend li{display:inline-flex;align-items:center;gap:4px}.rm-legend .wi{margin:0}
+
+/* PC: 사용법과 계정은 왼쪽 메뉴 아래(위쪽 아이콘은 숨김), 내용은 넓은 화면에서 가운데 */
+.side-tools{display:none}
+@media (min-width:900px){
+  .side-tools{display:flex;flex-direction:column;gap:2px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+  .side-tools button{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px;border-radius:12px;font-size:14px;color:var(--sub);text-align:left}
+  .side-tools button:hover{background:#faf6f2}
+  .side-tools button.on{background:var(--tint);color:var(--accent-ink);font-weight:700}
+  .side-tools svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.800;stroke-linecap:round;stroke-linejoin:round}
+  .side-tools+.side-foot{margin-top:14px}
+  .top-actions{display:none}
+  .topline:not(:has(.demo-note)){display:none}
+  .main{max-width:1240px;margin:0 auto}
+}

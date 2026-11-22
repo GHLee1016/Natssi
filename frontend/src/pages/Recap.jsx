@@ -39,19 +39,58 @@ function MonthMap({ r, today }) {
   const lead = new Date(y, m - 1, 1).getDay()
   const lv = Object.fromEntries(r.cal.map((x) => [x.date, x.level]))
   return (
-    <div className="recap-map rs-map" aria-label={`${m}월 날짜별 얼굴 날씨`}>
+    <div className="rm-cal" role="img" aria-label={`${m}월 날짜별 얼굴 날씨. 맑음 ${r.weather['신호 없음']}일, 구름 조금 ${r.weather['관찰 중']}일, 흐림 ${r.weather['신호 있음']}일, 안개 ${r.weather['구분 불가']}일`}>
       {[...'일월화수목금토'].map((w) => <i className="rm-dow" key={w}>{w}</i>)}
       {Array.from({ length: lead }, (_, k) => <i key={'b' + k} />)}
       {Array.from({ length: days }, (_, k) => {
         const iso = `${r.month}-${pad2(k + 1)}`, l = lv[iso]
-        const cls = k + 1 > end ? 'future' : l ? WEATHER[l].cls : iso in lv ? 'nophoto' : 'none'
-        return <i key={iso} className={'rm ' + cls} title={`${m}/${k + 1} ${l ? WEATHER[l].name : iso in lv ? '사진 없음' : k + 1 > end ? '' : '기록 없음'}`} />
+        const kind = k + 1 > end ? 'future' : l ? 'w' : iso in lv ? 'nophoto' : 'none'
+        return (
+          <span key={iso} className={'rm-d ' + kind}>
+            <b>{k + 1}</b>{l ? <WeatherIcon level={l} size={18} /> : <i className="rm-mark" />}
+          </span>
+        )
       })}
     </div>
   )
 }
 
-function slides(r, today) {
+// 달력 범례(날씨 네 가지, 사진 없이 증상만 남긴 날, 기록 없는 날)
+function MapLegend() {
+  return (
+    <ul className="rm-legend" aria-hidden="true">
+      {LEVELS.map((lv) => <li key={lv}><WeatherIcon level={lv} size={16} />{WEATHER[lv].name}</li>)}
+      <li><i className="rm-mark nophoto" />사진 없음</li>
+      <li><i className="rm-mark none" />기록 없음</li>
+    </ul>
+  )
+}
+
+// 날씨 네 가지를 막대로(가장 많은 날씨가 꽉 찬 막대)
+function Bars({ r }) {
+  const max = Math.max(1, ...LEVELS.map((lv) => r.weather[lv]))
+  return (
+    <ul className="rs-bars2" aria-label="날씨별 일수">
+      {LEVELS.map((lv) => (
+        <li key={lv}><span><WeatherIcon level={lv} size={18} />{WEATHER[lv].name}</span>
+          <i>{r.weather[lv] > 0 && <b className={WEATHER[lv].cls} style={{ width: `${(r.weather[lv] / max) * 100}%` }} />}</i><em>{r.weather[lv]}일</em></li>
+      ))}
+    </ul>
+  )
+}
+
+// 카드 한 장 = 글(text) + 그림(vis). 폰은 위아래, PC는 좌우로 놓는다.
+// 마지막 카드 요약 2~3줄: 서버 Recap에서 센 숫자만 쓴다(원인은 말하지 않는다).
+function summary(r) {
+  const w = r.weather
+  const out = [`사진 ${r.photo_days}일 가운데 맑음 ${w['신호 없음']}일, 흐림 ${w['신호 있음']}일이었어요.`]
+  if (r.changes.length) out.push(`루틴을 ${r.changes.length}번 바꿨어요.${r.signal_spans.length ? ` 흐렸던 때는 ${r.signal_spans.join(', ')}예요.` : ''}`)
+  else if (r.signal_spans.length) out.push(`흐렸던 때는 ${r.signal_spans.join(', ')}예요.`)
+  if (r.back_on) out.push(`${fmt.md(r.back_on)}부터 다시 맑아졌어요.`)
+  return out.slice(0, 3)
+}
+
+function slides(r, today, restart) {
   const m = +r.month.slice(5)
   const photoLv = LEVELS.filter((lv) => r.weather[lv] > 0)
   const top = photoLv.length ? photoLv.reduce((a, b) => (r.weather[b] > r.weather[a] ? b : a)) : null
@@ -59,50 +98,56 @@ function slides(r, today) {
   return [
     {
       key: 'weather', tone: top ? WEATHER[top].cls : 'unknown',
-      body: top ? (
+      text: top ? (
         <>
           <p className="rs-kicker">{m}월의 얼굴 날씨는</p>
-          <p className="rs-big"><WeatherIcon level={top} size={56} />{WEATHER[top].name}</p>
+          <p className="rs-big">{WEATHER[top].name}</p>
           <p className="rs-sub">{r.weather[top]}일로 가장 많았어요.</p>
-          <ul className="rs-counts">{LEVELS.map((lv) => <li key={lv}><WeatherIcon level={lv} size={18} />{WEATHER[lv].name} <b>{r.weather[lv]}</b></li>)}</ul>
         </>
-      ) : <><p className="rs-kicker">{m}월의 얼굴 날씨는</p><p className="rs-sub">아직 사진 기록이 없어요.</p></>,
+      ) : <><p className="rs-kicker">{m}월의 얼굴 날씨는</p><p className="rs-title">아직 몰라요</p><p className="rs-sub">사진 기록이 쌓이면 알려 드려요.</p></>,
+      vis: top && <><span className="rs-icon"><WeatherIcon level={top} size={120} /></span><Bars r={r} /></>,
     },
     {
       key: 'photos', tone: 'accent',
-      body: (
+      text: (
         <>
           <p className="rs-kicker">{m}월에</p>
-          <p className="rs-title">{r.photo_days}일 동안 사진을 남겼어요</p>
-          <Ring value={r.photo_days} total={s.n} />
+          <p className="rs-title">{r.photo_days}일 동안<br />사진을 남겼어요</p>
           <p className="rs-sub">{r.days > r.photo_days ? `증상만 남긴 날까지 더하면 ${r.days}일 기록했어요.` : '같은 자리, 같은 조명이면 비교가 더 정확해져요.'}</p>
         </>
       ),
+      vis: <Ring value={r.photo_days} total={s.n} />,
     },
     {
       key: 'cloudy', tone: r.signal_spans.length ? 'signal' : 'ok',
-      body: r.signal_spans.length ? (
+      text: r.signal_spans.length ? (
         <>
           <p className="rs-kicker">가장 흐렸던 때</p>
           <p className="rs-title">{r.signal_spans.join(', ')}</p>
           <p className="rs-sub">볼 붉은기가 평소 범위를 넘었던 날이 {r.weather['신호 있음']}일 있었어요.</p>
-          {r.back_on && <p className="rs-note">{fmt.md(r.back_on)}부터 다시 맑아졌어요.</p>}
+          {r.back_on && <p className="rs-note">{fmt.md(r.back_on)}부터 다시 맑아졌어요</p>}
         </>
       ) : (
         <>
           <p className="rs-kicker">흐렸던 때</p>
-          <p className="rs-title">이달은 흐린 날이 없었어요</p>
+          <p className="rs-title">이달은 흐린 날이<br />없었어요</p>
           <p className="rs-sub">볼 붉은기가 평소 범위를 넘은 날이 없었어요.</p>
         </>
       ),
+      vis: r.signal_spans.length > 0 && (
+        <dl className="rs-facts">
+          <div><dt>흐린 날</dt><dd>{r.weather['신호 있음']}일</dd></div>
+          <div><dt>흐렸던 기간</dt><dd>{r.signal_spans.length}번</dd></div>
+          {r.back_on && <div><dt>다시 맑아진 날</dt><dd>{fmt.md(r.back_on)}</dd></div>}
+        </dl>
+      ),
     },
     {
-      key: 'routine', tone: 'watch',
-      body: r.changes.length ? (
+      key: 'routine', tone: 'routine',
+      text: r.changes.length ? (
         <>
           <p className="rs-kicker">이달 바꾼 루틴</p>
-          <p className="rs-title">{r.changes.length}번</p>
-          <ul className="rs-list">{r.changes.map((c) => <li key={c.date + c.change}><b>{fmt.md(c.date)}</b> {fmt.plain(c.change)}</li>)}</ul>
+          <p className="rs-big">{r.changes.length}번</p>
           <p className="rs-sub">한 번에 하나씩 바꾸면 무엇 때문인지 알기 쉬워요.</p>
         </>
       ) : (
@@ -112,16 +157,21 @@ function slides(r, today) {
           <p className="rs-sub">루틴을 바꾸지 않은 달은 다음 변화를 비교할 좋은 기준이 돼요.</p>
         </>
       ),
+      vis: r.changes.length > 0 && (
+        <ol className="rs-timeline">{r.changes.map((c) => <li key={c.date + c.change}><b>{fmt.md(c.date)}</b><span>{fmt.plain(c.change)}</span></li>)}</ol>
+      ),
     },
     {
       key: 'map', tone: 'paper',
-      body: (
+      text: (
         <>
           <p className="rs-kicker">{m}월 한눈에</p>
-          <MonthMap r={r} today={today} />
-          <ul className="rs-lines">{r.lines.slice(1).map((t) => <li key={t}>{t}</li>)}</ul>
+          <ul className="rs-sum">{summary(r).map((t) => <li key={t}>{t}</li>)}</ul>
+          <p className="rs-end">다음 달에도 한 번에 하나만 바꿔 봐요.</p>
+          {restart}
         </>
       ),
+      vis: <><MonthMap r={r} today={today} /><MapLegend /></>,
     },
   ]
 }
@@ -134,6 +184,17 @@ export default function Recap({ mine, today, desc, onClose }) {
   const touch = useRef(null)
   const box = useRef(null)
   useEffect(() => { setI(0) }, [r?.month])
+  const refocus = useRef(false)
+  const swiped = useRef(false)
+  useEffect(() => { if (refocus.current) { refocus.current = false; box.current?.querySelector('.rs-card')?.focus({ preventScroll: true }) } }, [i])
+  // 폰 이야기 모드: 뒤 화면 스크롤을 막고, Esc로 닫는다(포커스가 어디 있든)
+  const closeRef = useRef(onClose); closeRef.current = onClose
+  useEffect(() => {
+    document.body.classList.add('rs-lock')
+    const esc = (e) => { if (e.key === 'Escape') closeRef.current?.() }
+    window.addEventListener('keydown', esc)
+    return () => { document.body.classList.remove('rs-lock'); window.removeEventListener('keydown', esc) }
+  }, [])
   const ym = r?.month || today.slice(0, 7)
   const k = r ? r.months.indexOf(r.month) : -1
   const head = (
@@ -151,32 +212,38 @@ export default function Recap({ mine, today, desc, onClose }) {
       </button>}
     </div>
   )
-  if (!r) return <>{head}<Status {...q} /></>
-  if (r.empty || !r.cal) return <>{head}<div className="card"><p className="muted">아직 Recap을 만들 기록이 없어요.</p></div></>
-  const list = slides(r, today)
-  const go = (n) => setI((x) => Math.max(0, Math.min(list.length - 1, x + n)))
+  // 폰(900px 미만)에서는 .recap-root가 화면 전체를 덮는다(아래 탭 바 위로). Esc로도 닫는다.
+  const root = (body) => (
+    <div className="recap-root" role="region" aria-label="Recap">{head}{body}</div>
+  )
+  if (!r) return root(<Status {...q} />)
+  if (r.empty || !r.cal) return root(<div className="card"><p className="muted">아직 Recap을 만들 기록이 없어요.</p></div>)
+  const restart = () => { setI(0); setTimeout(() => box.current?.querySelector('.rs-card')?.focus(), 0) }   // 첫 카드로 가고 포커스도 옮긴다
+  const list = slides(r, today, <button className="btn dark rs-again" onClick={restart}>처음부터 다시 보기</button>)
+  // 카드를 넘기면 새 카드가 그려지므로, 키보드로 넘길 때는 포커스를 새 카드로 옮긴다(←/→를 이어서 누를 수 있게)
+  const go = (n) => { refocus.current = box.current?.contains(document.activeElement); setI((x) => Math.max(0, Math.min(list.length - 1, x + n))) }
+  const tap = (n) => { if (swiped.current) { swiped.current = false; return } go(n) }
   const s = list[i]
-  return (
-    <>
-    {head}
+  return root(
     <div className="rs-wrap">
     <div className="rs" ref={box}>
-      <div className="rs-bars" aria-hidden="true">{list.map((x, n) => <i key={x.key} className={n < i ? 'done' : n === i ? 'on' : ''} />)}</div>
       <section className={'rs-card t-' + s.tone} key={r.month + s.key} aria-roledescription="카드" aria-label={`${list.length}장 중 ${i + 1}번째`}
         tabIndex={0} onKeyDown={(e) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1) }}
         onTouchStart={(e) => { touch.current = e.touches[0].clientX }}
-        onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); touch.current = null }}>
-        {s.body}
+        onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (Math.abs(dx) > 40) { swiped.current = true; go(dx < 0 ? 1 : -1) } touch.current = null }}>
+        {/* 이야기 카드처럼 화면을 눌러 넘긴다: 왼쪽 1/3은 이전 카드, 나머지는 다음 카드. 밀어서 넘긴 직후의 누름은 무시 */}
+        <button type="button" className="rs-tap prev" onClick={() => tap(-1)} disabled={i === 0} aria-label="이전 카드" />
+        <button type="button" className="rs-tap next" onClick={() => tap(1)} disabled={i === list.length - 1} aria-label="다음 카드" />
+        <div className="rs-top" aria-hidden="true">
+          <div className="rs-bars">{list.map((x, n) => <i key={x.key} className={n < i ? 'done' : n === i ? 'on' : ''} />)}</div>
+          <p className="rs-brand"><img src="/logo.svg" alt="" />낯씨 {+r.month.slice(5)}월 Recap</p>
+        </div>
+        <div className="rs-text">{s.text}</div>
+        {s.vis && <div className="rs-vis">{s.vis}</div>}
+        {i === 0 && <p className="rs-hint" aria-hidden="true">화면을 누르면 다음 카드로 넘어가요</p>}
       </section>
-      <div className="rs-nav">
-        <button className="btn ghost" onClick={() => go(-1)} disabled={i === 0}>‹ 이전</button>
-        <span className="muted small" aria-live="polite">{i + 1} / {list.length}</span>
-        {i < list.length - 1
-          ? <button className="btn" onClick={() => go(1)}>다음 ›</button>
-          : <button className="btn ghost" onClick={() => setI(0)}>처음부터</button>}
-      </div>
+      <p className="sr-only" aria-live="polite">{list.length}장 중 {i + 1}번째 카드</p>
     </div>
     </div>
-    </>
   )
 }

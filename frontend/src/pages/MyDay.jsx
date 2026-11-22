@@ -147,7 +147,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
               <p className="muted small">같은 폰으로, 같은 장소와 시간대에 찍어야 비교할 수 있어요. 사진은 서버에 남기지 않아요.</p>
             </div>
   )
-  const ASK = d && { baseline: '평소 범위 보기', recap: `${+d.today.slice(5, 7)}월 Recap` }
+  const ASK = d && { baseline: '평소 범위 보기', recap: 'Recap' }
   const DESC = { baseline: '내 사진 기록으로 만든 볼 붉은기의 평소 범위예요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
   const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     d.unlocked && { id: 'baseline', icon: ICONS.range, label: ASK.baseline }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />

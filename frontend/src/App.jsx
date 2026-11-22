@@ -126,6 +126,18 @@ export default function App() {
             </button>
           ))}
         </nav>
+        {meta.data && (
+          <div className="side-tools">{/* PC: 사용법과 계정은 위쪽 아이콘 대신 왼쪽 메뉴 아래에 */}
+            <button onClick={() => setGuide(true)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.600 9.300a2.500 2.500 0 1 1 3.400 2.300c-.700.300-1 .800-1 1.500v.6" /><circle cx="12" cy="17" r=".6" /></svg>사용법
+            </button>
+            {meta.data.auth && (
+              <button className={page === 'account' || page === 'auth' ? 'on' : ''} aria-current={page === 'account' || page === 'auth' ? 'page' : undefined} onClick={() => setPage(viewer ? 'account' : 'auth')}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.500" r="3.800" /><path d="M4.500 20a7.500 7.500 0 0 1 15 0" /></svg>{viewer ? '내 계정' : '로그인 또는 가입'}
+              </button>
+            )}
+          </div>
+        )}
         <div className="side-foot">
           <p>매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
           <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
@@ -178,7 +190,8 @@ export default function App() {
         ))}
       </nav>
     </div>
-    {guide && <Welcome onClose={closeGuide} onStart={canStart ? () => { closeGuide(); setPage('auth') } : null} />}
+    {guide && <Welcome onClose={closeGuide} mine={!!viewer} onStart={canStart ? () => { closeGuide(); setPage('auth') } : null}
+      onExplore={() => { closeGuide(); goHome() }} onRecord={() => { closeGuide(); setPage(null); setTab('capture'); window.scrollTo(0, 0) }} />}
     </>
   )
 }
