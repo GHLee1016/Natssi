@@ -145,8 +145,8 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
     d.unlocked && { id: 'baseline', icon: ICONS.range, label: ASK.baseline }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
   if (d && sub) return (
     <SubPage head={<header className="page-head"><div><h1>{fmt.full(day)}</h1></div></header>} tabs={tabs}>
-      <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
-      {sub === 'baseline' ? baselineCard : <Recap mine today={d.today} />}
+      {sub !== 'recap' && <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />}
+      {sub === 'baseline' ? baselineCard : <Recap mine today={d.today} desc={DESC.recap} onClose={closeSub} />}
     </SubPage>
   )
   return (

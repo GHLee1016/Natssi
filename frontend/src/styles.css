@@ -598,7 +598,6 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .recap-map .rm-dow{aspect-ratio:auto;font-style:normal;font-size:10px;color:var(--sub);text-align:center}
 .rm.ok{background:#f2c14e}.rm.watch{background:#8fb9e0}.rm.signal{background:#6f7f92}.rm.unknown{background:#d5d9de}
 .rm.nophoto{background:#fff;box-shadow:inset 0 0 0 1.500px #d5d9de}.rm.none{background:#f4f0ec}.rm.future{background:transparent;box-shadow:inset 0 0 0 1px #f0ebe6}
-.routine-now,.today-cards{max-width:760px}
 
 /* 윗줄: 사용법, 내 계정 아이콘만(예시 화면이라는 안내는 사용법 첫 화면이 알려 줌) */
 .topline{justify-content:flex-end;min-height:44px;margin-bottom:4px}
@@ -607,7 +606,6 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .icon-btn:hover,.icon-btn.on{background:#f1ebe5;color:var(--ink)}
 .icon-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.800;stroke-linecap:round;stroke-linejoin:round}
 .icon-btn:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
-.icon-dot{position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
 .page-head.sr-head{margin:0}
 
 /* 질문형 버튼 줄(pages/Sub.jsx AskButtons): 누르면 그 질문이 제목인 세부 화면 */
@@ -624,7 +622,6 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ask-head .icon-btn svg{width:22px;height:22px}
 /* 월간 Recap 카드 슬라이드(pages/Recap.jsx) */
 .rs{display:grid;gap:10px;max-width:520px}
-.rs-months{display:flex;align-items:center;justify-content:space-between}.rs-months b{font-size:15px}.rs-months .btn{min-width:44px;padding:0 12px}
 .rs-bars{display:flex;gap:4px}.rs-bars i{flex:1;height:4px;border-radius:2px;background:#e9e2db}.rs-bars i.done,.rs-bars i.on{background:var(--ink)}
 .rs-card{min-height:420px;padding:26px 22px;border-radius:28px;display:flex;flex-direction:column;justify-content:center;gap:10px;outline:none;animation:rs-in .35s cubic-bezier(.2,.8,.2,1)}
 .rs-card:focus-visible{box-shadow:0 0 0 3px var(--accent)}
@@ -661,7 +658,7 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .cap-frame::after{content:"";position:absolute;left:50%;top:50%;width:62%;aspect-ratio:3/4;transform:translate(-50%,-52%);border-radius:50%;border:2.500px solid #fff}
 .cap-good .face{width:74%;height:auto}
 .cap-good figcaption,.cap-bad figcaption{font-size:15px;font-weight:600;line-height:1.45;color:var(--ink)}
-.cap-bad{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:0 16px 4px;scrollbar-width:none}
+.cap-bad{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 16px;margin:0 -16px;padding:0 16px 4px;scrollbar-width:none}
 .cap-bad::-webkit-scrollbar{display:none}
 .cap-bad figure{position:relative;flex:none;width:78%;max-width:300px;scroll-snap-align:start}
 .cap-bad .face{width:62%;height:auto;margin:6px auto 10px;display:block}
@@ -672,5 +669,52 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 @media (min-width:900px){.cap-actions{bottom:12px}.cap-bad{margin:0;padding:0 0 4px}.cap-bad figure{width:46%}}
 [hidden]{display:none!important}
 .ask-head p{margin-top:2px}
+
+/* 넓은 화면: 오른쪽 빈 공간 없이 폭을 채운다 */
+.cap-cols,.cap-col{display:grid;gap:12px;min-width:0}.cap-cols>*{min-width:0}
+@media (min-width:900px){
+  .prod-list{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start}
+  .cap-guide{max-width:none}
+  .cap-cols{grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+  .cap-good{padding:28px 20px 22px}.cap-frame{width:min(300px,80%)}
+  .cap-bad{display:grid;gap:10px;overflow:visible}
+  .cap-bad figure{width:auto;max-width:none;display:grid;grid-template-columns:96px 1fr;align-items:center;gap:16px;padding:12px 56px 12px 14px;text-align:left}
+  .cap-bad .face{width:96px;margin:0}
+  .cap-bad .cap-ban{top:50%;margin-top:-16px;width:32px;height:32px}
+  .cap-actions{grid-template-columns:1fr 1fr}
+  .rs{max-width:none}
+  .rs-card{min-height:440px;padding:40px 48px}
+}
+
+/* Recap 제목 줄: 대제목 하나에 달 이동 화살표 */
+.rs-head h2{display:flex;align-items:center;gap:2px}
+.rs-arrow{font-size:24px;line-height:1;color:var(--ink);width:36px;min-width:36px}.rs-arrow:disabled{opacity:.25}
+.rs-head h2 .rs-arrow:first-child{margin-left:-8px}
+/* 촬영 통과 뒤: 카메라 화면 없이 결과 한 열 */
+.grid2.done{grid-template-columns:1fr}
+/* 루틴 목록 글자 키우기 */
+.prod-list .row{font-size:15px}
+.prod-list .row b{font-size:17px}
+.prod-list .kv.small,.prod-list .small{font-size:14px}
+.prod-list .link{font-size:14.500px}
+.prod-list .fam span{font-size:13px}
+.routine-now .h3,.prod-list~.h3{font-size:18px}
+/* 흐린 날 살펴보기 글자 키우기 */
+.ov-item{padding:12px 0}
+.ov-item>p:first-child{font-size:17px;line-height:1.5;margin-bottom:4px}
+.ov-item .small,.ov-item .kv.small{font-size:15px}
+.overlap>.ov-note .small{font-size:14px;line-height:1.55}
+.ov-note{margin-top:6px}
+@media (min-width:900px){
+  .rs-card{min-height:480px;padding:48px 56px}
+  .rs-big{font-size:72px}.rs-title{font-size:40px}.rs-sub{font-size:18px}.rs-kicker{font-size:17px}
+  .rs-counts{font-size:15px}.rs-list{font-size:17px}.rs-lines{font-size:15px}
+  .rs-ring{width:180px;height:180px}
+}
+/* 폰: 루틴 제품 줄에서 버튼을 이름 아래 줄로 내려 이름이 깨지지 않게 */
+@media (max-width:899px){
+  .prod-list .row{flex-wrap:wrap;row-gap:0}
+  .prod-list .row>.ask{flex-basis:100%;display:flex;justify-content:flex-start;gap:4px;padding-left:56px;margin-top:-6px}
+}
 /* 로그인 전: 지금 보는 기록이 가상 인물 예시라는 표시(위쪽 바 왼쪽) */
 .topline:has(.demo-note){justify-content:space-between}.demo-note{margin:0;font-size:12.500px;color:var(--sub);white-space:nowrap}

@@ -200,6 +200,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         try { await api.saveCheeks(parts); setKept(true) } catch { /* 조각만 못 남김: 숫자 기록은 그대로 */ }
       }
       setResult(res)
+      if (res.passed) { stop(); setCam('idle') }   // 잘 찍혔으면 카메라를 끄고 결과만 보여 준다
     } catch (e) {
       setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진으로 다시 시도하거나, [사진 찍기]로 찍어 주세요.'))
     } finally { setBusy(null) }
@@ -209,6 +210,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   // 카메라를 켜기 전, 결과가 없을 때는 안내 화면(좋은 사진, 피할 사진, 아래 큰 버튼 두 개)을 보여 준다.
   // 카메라 화면(video)은 안내 화면 아래에 숨겨 두고 그대로 둔다: 켜는 동안 같은 video 요소에 영상을 붙여야 해서.
   const guideMode = cam !== 'on' && !result && !busy
+  const done = !!result?.passed && cam !== 'on'   // 통과한 뒤: 카메라 화면 없이 결과만
+  const again = () => { setResult(null); setSymptomsOnly(false); start() }
 
   if (needConsent) {
     return (
@@ -236,16 +239,22 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       {guideMode && (
         <div className="cap-guide">
           <p className="muted cap-lead">사진은 이 기기 안에서만 분석하고, 서버에는 볼 색 숫자만 보내요.</p>
+          <div className="cap-cols">
+          <section className="cap-col">
           <h2 className="cap-sec ok"><i aria-hidden="true">✓</i>이런 사진이 좋아요</h2>
           <figure className="cap-good">
             <div className="cap-frame"><Face kind="front" /></div>
             <figcaption>밝은 곳에서 정면을 보고<br />매번 같은 자리에서 찍어 주세요</figcaption>
           </figure>
+          </section>
+          <section className="cap-col">
           <h2 className="cap-sec no"><i aria-hidden="true">!</i>이런 사진은 피해 주세요</h2>
           <div className="cap-bad" tabIndex={0} aria-label="피해야 할 사진 예시, 옆으로 넘겨 보세요">
             {BAD.map(([k, a, b]) => (
               <figure key={k}>{BAN}<Face kind={k} /><figcaption>{a}<br />{b}</figcaption></figure>
             ))}
+          </div>
+          </section>
           </div>
           {cam === 'blocked' && <p className="err" role="alert">카메라를 쓸 수 없어요. 브라우저에서 카메라 권한을 허용하거나, 사진을 골라 주세요.</p>}
           {error && <p className="err" role="alert">{error}</p>}
@@ -255,8 +264,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           </div>
         </div>
       )}
-      <div className="grid2" hidden={guideMode}>
-        <div className={'view' + (cam === 'on' ? ' on' : '')}>
+      <div className={'grid2' + (done ? ' done' : '')} hidden={guideMode}>
+        <div className={'view' + (cam === 'on' ? ' on' : '')} hidden={done}>
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
           {cam === 'on' && <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />}
           {cam === 'on' && guide && !count && <p className={'guide-hint' + (guide.ok ? ' ok' : '')} role="status">{guide.hint}</p>}
@@ -274,7 +283,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           )}
         </div>
         <div>
-          <div className="actions left">
+          <div className="actions left" hidden={done}>
             <button className="btn" onClick={shoot} disabled={cam !== 'on' || !!busy}>{busy || '사진 찍기'}</button>
             <label className="btn ghost file">사진 고르기
               <input type="file" accept="image/*" disabled={!!busy} onChange={pick} />
@@ -300,6 +309,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
                 </div>
               )}
               <p className="muted small">{result.note}{kept ? ' 볼 부분 사진(양 볼 네모)도 함께 보관했어요.' : ''}</p>
+              {done && <button className="link" onClick={again}>다시 찍기</button>}
               {!result.passed && viewer && !symptomsOnly && (
                 <button className="link" onClick={() => setSymptomsOnly(true)}>사진은 나중에 하고 증상만 먼저 남기기</button>
               )}

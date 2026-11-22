@@ -123,7 +123,6 @@ export default function App() {
                 <button className={'icon-btn' + (page === 'account' || page === 'auth' ? ' on' : '')} onClick={() => setPage(viewer ? 'account' : 'auth')}
                   aria-label={viewer ? '내 계정' : '로그인 또는 가입'} title={viewer ? '내 계정' : '로그인 또는 가입'}>
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.500" r="3.800" /><path d="M4.500 20a7.500 7.500 0 0 1 15 0" /></svg>
-                  {!viewer && <i className="icon-dot" aria-hidden="true" />}
                 </button>
               )}
             </div>

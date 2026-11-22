@@ -29,8 +29,8 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
     { id: 'face', icon: ICONS.target, label: ASK.face }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
   if (d && sub) return (
     <SubPage head={<header className="page-head"><div><h1>{fmt.full(date)}</h1></div></header>} tabs={tabs}>
-      <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
-      {sub === 'face' ? <FaceMap record={d.record} /> : <Recap mine={false} today={meta.today} />}
+      {sub !== 'recap' && <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />}
+      {sub === 'face' ? <FaceMap record={d.record} /> : <Recap mine={false} today={meta.today} desc={DESC.recap} onClose={closeSub} />}
     </SubPage>
   )
 

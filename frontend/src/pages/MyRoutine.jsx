@@ -74,6 +74,7 @@ export default function MyRoutine({ ocr }) {
             {!adding && (r.current ? (
               <div className="card">
                 <h2 className="h3">{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
+                <div className="prod-list">
                 {r.current.items.map((it) => (
                   <div key={it.key}>
                     <div className="row">
@@ -127,6 +128,7 @@ export default function MyRoutine({ ocr }) {
                     )}
                   </div>
                 ))}
+                </div>
                 {error && <p className="err" role="alert">{error}</p>}
               </div>
             ) : (

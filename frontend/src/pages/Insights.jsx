@@ -65,6 +65,7 @@ export function OverlapCard({ data }) {
   if (!data.length) return null
   return (
     <div className="card overlap">
+      <div className="ov-items">
       {data.map((o) => (
         <div className="ov-item" key={o.version}>
           <p><b>{fmt.plain(o.change)}</b> 뒤 {o.spans.join(', ')}에 붉은기가 평소 범위를 넘었어요.</p>
@@ -79,8 +80,11 @@ export function OverlapCard({ data }) {
           )}
         </div>
       ))}
-      <p className="muted small">시기가 겹쳤을 뿐, 원인이라는 뜻은 아니에요. 다음 제품을 고를 때 참고해 보세요.</p>
-      <p className="muted small">증상이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
+      </div>
+      <div className="ov-note">
+        <p className="muted small">시기가 겹쳤을 뿐, 원인이라는 뜻은 아니에요. 다음 제품을 고를 때 참고해 보세요.</p>
+        <p className="muted small">증상이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
+      </div>
     </div>
   )
 }

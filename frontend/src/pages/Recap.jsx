@@ -126,7 +126,7 @@ function slides(r, today) {
   ]
 }
 
-export default function Recap({ mine, today }) {
+export default function Recap({ mine, today, desc, onClose }) {
   const [month, setMonth] = useState(null)
   const q = useInsights(mine, month)
   const r = q.data?.recap
@@ -134,19 +134,33 @@ export default function Recap({ mine, today }) {
   const touch = useRef(null)
   const box = useRef(null)
   useEffect(() => { setI(0) }, [r?.month])
-  if (!r) return <Status {...q} />
-  if (r.empty || !r.cal) return <div className="card"><p className="muted">아직 Recap을 만들 기록이 없어요.</p></div>
+  const ym = r?.month || today.slice(0, 7)
+  const k = r ? r.months.indexOf(r.month) : -1
+  const head = (
+    <div className="ask-head rs-head">
+      <div>
+        <h2>
+          {r && <button className="icon-btn rs-arrow" disabled={k <= 0} onClick={() => setMonth(r.months[k - 1])} aria-label="이전 달">‹</button>}
+          <span>{ym.slice(0, 4) !== today.slice(0, 4) && `${+ym.slice(0, 4)}년 `}{+ym.slice(5)}월 Recap</span>
+          {r && <button className="icon-btn rs-arrow" disabled={k >= r.months.length - 1} onClick={() => setMonth(r.months[k + 1])} aria-label="다음 달">›</button>}
+        </h2>
+        {desc && <p className="muted small">{desc}</p>}
+      </div>
+      {onClose && <button type="button" className="icon-btn" onClick={onClose} aria-label="닫고 돌아가기">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>}
+    </div>
+  )
+  if (!r) return <>{head}<Status {...q} /></>
+  if (r.empty || !r.cal) return <>{head}<div className="card"><p className="muted">아직 Recap을 만들 기록이 없어요.</p></div></>
   const list = slides(r, today)
   const go = (n) => setI((x) => Math.max(0, Math.min(list.length - 1, x + n)))
-  const k = r.months.indexOf(r.month)
   const s = list[i]
   return (
+    <>
+    {head}
+    <div className="rs-wrap">
     <div className="rs" ref={box}>
-      <div className="rs-months">
-        <button className="btn ghost" disabled={k <= 0} onClick={() => setMonth(r.months[k - 1])} aria-label="이전 달">‹</button>
-        <b>{+r.month.slice(0, 4)}년 {+r.month.slice(5)}월 Recap</b>
-        <button className="btn ghost" disabled={k >= r.months.length - 1} onClick={() => setMonth(r.months[k + 1])} aria-label="다음 달">›</button>
-      </div>
       <div className="rs-bars" aria-hidden="true">{list.map((x, n) => <i key={x.key} className={n < i ? 'done' : n === i ? 'on' : ''} />)}</div>
       <section className={'rs-card t-' + s.tone} key={r.month + s.key} aria-roledescription="카드" aria-label={`${list.length}장 중 ${i + 1}번째`}
         tabIndex={0} onKeyDown={(e) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1) }}
@@ -162,5 +176,7 @@ export default function Recap({ mine, today }) {
           : <button className="btn ghost" onClick={() => setI(0)}>처음부터</button>}
       </div>
     </div>
+    </div>
+    </>
   )
 }

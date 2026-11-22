@@ -27,7 +27,7 @@ export default function Routine() {
               <h2>{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
               {r.current.change && <p className="small">최근 바꾼 것: {fmt.plain(r.current.change)} (이유: {r.current.reason})</p>}
             </div>
-            <div className="card">
+            <div className="card prod-list">
               {r.current.items.map((it) => (
                 <div className="row" key={it.key}>
                   <ProductIcon name={it.key} tone={TONE[it.family] || '#e8f2f8'} />
