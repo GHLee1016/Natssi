@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { WEATHER, WeatherIcon } from '../weather.jsx'
@@ -10,6 +10,7 @@ const pad = (n) => String(n).padStart(2, '0')
 export default function Calendar({ date, first, today, onPick, load = api.timeline }) {
   const q = useLoad(() => load(), [load])
   const [ym, setYm] = useState(date.slice(0, 7))
+  useEffect(() => { setYm(date.slice(0, 7)) }, [date])          // 주간 화살표 등으로 날짜가 다른 달로 넘어가면 따라간다
   const [y, m] = ym.split('-').map(Number)
   const level = Object.fromEntries((q.data?.records || []).map((r) => [r.date, r.verdict.level]))
   const lead = new Date(y, m - 1, 1).getDay()
@@ -32,7 +33,7 @@ export default function Calendar({ date, first, today, onPick, load = api.timeli
             {Array.from({ length: days }, (_, i) => {
               const iso = `${ym}-${pad(i + 1)}`, lv = level[iso]
               return (
-                <button key={iso} disabled={!lv} className={'cd' + (iso === date ? ' on' : '') + (iso === today ? ' today' : '')}
+                <button key={iso} disabled={iso < first || iso > today} className={'cd' + (iso === date ? ' on' : '') + (iso === today ? ' today' : '') + (lv ? '' : ' empty')}
                   onClick={() => onPick(iso)} aria-pressed={iso === date}
                   aria-label={`${fmt.full(iso)}${iso === today ? ' 오늘' : ''} ${lv ? WEATHER[lv].name : '기록 없음'}`}>
                   <span>{i + 1}</span>{lv && <WeatherIcon level={lv} size={18} />}

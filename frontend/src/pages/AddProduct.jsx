@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, fmt } from '../api.js'
 import { routineCopy } from '../copy/routine.js'
 import { isBlurry, productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
+import ThumbPicker from './ThumbPicker.jsx'
 import KV from '../kv.jsx'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
@@ -81,6 +82,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const [reading, setReading] = useState(false)       // 사진에서 성분 읽는 중(사진 1장 10초 안팎)
   const [blurry, setBlurry] = useState(null)          // 흐려 보이는 사진: { files, count } — 다시 찍거나 그대로 읽기
   const [photo, setPhoto] = useState(null)            // 제품 사진(선택): 240px 썸네일 data URL
+  const [icon, setIcon] = useState(null)              // 사진 대신 고른 모양 아이콘(null = 성분 계열로 자동)
   const [ocrFiles, setOcrFiles] = useState([])        // 전성분을 읽은 사진들(첫 장은 제품 사진으로 쓸 수 있게, 더 찍어 다시 읽을 때 합침)
   const [fromPhotos, setFromPhotos] = useState(false)  // 지금 목록이 사진에서 읽은 것인가(사진 더하기 안내)
   const ocrFile = ocrFiles[0] || null
@@ -161,8 +163,8 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   const save = async () => {
     setBusy(true); setErr(null)
     try {
-      const pic = photo || (useOcrPhoto && ocrFile ? await productThumbnail(ocrFile) : null)
-      onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent, photo: pic }))
+      const pic = photo || (!icon && useOcrPhoto && ocrFile ? await productThumbnail(ocrFile) : null)   // 아이콘을 직접 골랐으면 전성분 사진을 쓰지 않는다
+      onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent, photo: pic, icon: pic ? null : icon }))
     }
     catch (e) { setErr(e.message); setBusy(false) }
   }
@@ -219,15 +221,10 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           )}
           {first && <small id="p-recent-help" className="muted">{t.recent.help}</small>}
           <div className="field prod-photo-field">
-            <span className="muted small">제품 사진 (선택)</span>
-            <div className="prod-photo-row">
-              {photo && <img className="prod-photo" src={photo} alt="고른 제품 사진" />}
-              <label className="btn ghost file">{photo ? '다른 사진' : '사진 찍거나 고르기'}
-                <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { try { setPhoto(await productThumbnail(f)) } catch { setErr('사진을 열 수 없어요. JPG나 PNG로 골라 주세요.') } } }} />
-              </label>
-              {photo && <button type="button" className="link" onClick={() => setPhoto(null)}>빼기</button>}
-            </div>
-            <small className="muted">루틴 목록에서 제품을 알아보기 쉽게 작게 줄여 저장해요.</small>
+            <span className="muted small">섬네일 (선택)</span>
+            <ThumbPicker photo={photo} icon={icon} onError={setErr}
+              onPhoto={(p) => setPhoto(p)} onIcon={(k) => { setIcon(k); setPhoto(null) }} />
+            <small className="muted">사진은 작게 줄여 저장해요. 루틴 목록에서 언제든 바꿀 수 있어요.</small>
           </div>
           {err && <p className="err" role="alert">{err}</p>}
           <div className="step-actions">
@@ -346,7 +343,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
               ))}
             </fieldset>
           )}
-          {!photo && ocrFile && (
+          {!photo && !icon && ocrFile && (
             <label className="row-check">
               <input type="checkbox" checked={useOcrPhoto} onChange={(e) => setUseOcrPhoto(e.target.checked)} />
               전성분을 읽은 사진을 제품 사진으로 쓰기(작게 줄여 저장)

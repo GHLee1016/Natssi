@@ -261,3 +261,38 @@ def test_misread_header_is_not_an_ingredient():
     for head in ("전성부", "전섬분", "전성분"):
         r = ingredients.analyze(f"{head} 정제수, 글리세린, 부틸렌글라이콜")
         assert [i["name"] for i in r["ingredients"]] == ["정제수", "글리세린", "부틸렌글라이콜"], head
+
+
+def test_product_icon_instead_of_photo(env):
+    """사진 대신 모양 아이콘을 고를 수 있다. 정해진 아이콘만 받고, 사진이 있으면 사진이 우선이다."""
+    _, c = env
+    h = join(c, "icon@test.kr")
+    base = {"usage": "매일 저녁", "ingredients": []}
+    assert c.post("/api/me/routine/items", json={**base, "name": "미스트", "icon": "rocket"}, headers=h).status_code == 400
+    c.post("/api/me/routine/items", json={**base, "name": "미스트", "icon": "mist"}, headers=h)
+    c.post("/api/me/routine/items", json={**base, "name": "세럼", "icon": "tube", "photo": _jpeg(200)}, headers=h)
+    r = c.post("/api/me/routine/items", json={**base, "name": "크림"}, headers=h).json()
+    by = {i["name"]: i for i in r["current"]["items"]}
+    assert by["미스트"]["icon"] == "mist" and by["미스트"]["photo"] is None
+    assert by["세럼"]["icon"] is None and by["세럼"]["photo"]            # 사진을 함께 보내면 사진만 남긴다
+    assert by["크림"]["icon"] is None                                     # 고르지 않으면 화면이 성분 계열로 정한다
+
+
+def test_change_look_later_without_new_version(env):
+    """루틴 목록에서 섬네일만 바꾸면 새 버전이 생기지 않고, 같은 제품이 든 모든 버전에 반영된다."""
+    _, c = env
+    h = join(c, "look@test.kr")
+    r = c.post("/api/me/routine/items", json={"name": "세럼", "usage": "매일 저녁", "ingredients": []}, headers=h).json()
+    key = r["current"]["items"][0]["key"]
+    url = f"/api/me/routine/items/{key}/look"
+    assert c.put(url, json={"icon": "rocket"}, headers=h).status_code == 400
+    assert c.put("/api/me/routine/items/nope/look", json={"icon": "tube"}, headers=h).status_code == 400
+    r = c.put(url, json={"icon": "tube"}, headers=h).json()
+    assert len(r["versions"]) == 1 and r["current"]["items"][0]["icon"] == "tube"
+    r = c.put(url, json={"photo": _jpeg(200), "icon": "mist"}, headers=h).json()
+    it = r["current"]["items"][0]
+    assert it["photo"].startswith("data:image/jpeg") and it["icon"] is None        # 사진이 있으면 사진만
+    r = c.put(url, json={"icon": None}, headers=h).json()
+    it = r["current"]["items"][0]
+    assert it["photo"] is None and it["icon"] is None                              # 자동 아이콘으로
+    assert c.put(url, json={"icon": "tube"}).status_code == 401                     # 로그인 필요

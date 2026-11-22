@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useCallback } from 'react'
 import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import Calendar from './Calendar.jsx'
 import StartCard from './StartCard.jsx'
 import FaceMap from './FaceMap.jsx'
-import { DayHero, WeekStrip, ChangeDays, symptomText } from './DayParts.jsx'
+import { DayHero, WeekStrip, ChangeDays, symptomText, weekOf, usePeriod, PeriodToggle, EmptyDay } from './DayParts.jsx'
+import { useSub, SubPage, AskButtons, AskHead, ICONS } from './Sub.jsx'
+import Recap from './Recap.jsx'
 
 // 데모 첫 화면(오늘 = 맑음)만 보면 흐림 → 빈도 조정 → 맑음 이야기가 안 보인다. 이야기의 날들로 바로 가는 줄.
 function Story({ date, setDate }) {
@@ -15,32 +17,45 @@ function Story({ date, setDate }) {
 
 export default function Diary({ date, setDate, meta, go, askLogin }) {
   const q = useLoad(() => api.day(date), [date])
-  const [calOpen, setCalOpen] = useState(false)
+  const tl = useLoad(() => api.timeline(), [])                 // 주간 줄과 달력에 날마다 날씨를 붙인다
+  const [period, setPeriod] = usePeriod()
+  const loadTl = useCallback(() => Promise.resolve(tl.data), [tl.data])
   const d = q.data
+  const isToday = date === meta.today
+  const [sub, openSub, closeSub] = useSub()
+  const ASK = { face: '재는 법 보기', recap: `${+meta.today.slice(5, 7)}월 Recap` }
+  const DESC = { face: '낯씨는 양 볼의 붉은기만 재요. 트러블은 찾지 않고, 진단하지 않아요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
+  const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
+    { id: 'face', icon: ICONS.target, label: ASK.face }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
+  if (d && sub) return (
+    <SubPage head={<header className="page-head"><div><h1>{fmt.full(date)}</h1></div></header>} tabs={tabs}>
+      <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
+      {sub === 'face' ? <FaceMap record={d.record} /> : <Recap mine={false} today={meta.today} />}
+    </SubPage>
+  )
 
   return (
     <section>
       <header className="page-head">
         <div>
-          <p className="eyebrow">{date === meta.today ? '오늘' : '지난 기록'}</p>
           <h1>{fmt.full(date)}</h1>
         </div>
         <div className="head-actions">
-          {date !== meta.today && <button className="btn ghost" onClick={() => setDate(meta.today)}>오늘로 가기</button>}
-          <button className="btn ghost" onClick={() => setCalOpen((o) => !o)} aria-expanded={calOpen}>{calOpen ? '달력 닫기' : '달력'}</button>
+          {!isToday && <button className="btn ghost" onClick={() => setDate(meta.today)}>오늘로 가기</button>}
+          <PeriodToggle value={period} onChange={setPeriod} />
         </div>
       </header>
-      {calOpen && <Calendar date={date} first={meta.first} today={meta.today} onPick={(iso) => { setDate(iso); setCalOpen(false) }} />}
-      <Status {...q} />
+      {tabs}
+      {tl.data && (period === 'month'
+        ? <Calendar date={date} first={meta.first} today={meta.today} onPick={setDate} load={loadTl} />
+        : <WeekStrip date={date} week={weekOf(date, tl.data.records)} first={meta.first} today={meta.today} setDate={setDate} />)}
+      {q.error && !d ? <EmptyDay isToday={isToday} /> : <Status {...q} />}
       {d && (
         <>
           <DayHero record={d.record} version={d.version} district={meta.env_district} isToday={date === meta.today} />
 
           <Story date={date} setDate={setDate} />
-          <FaceMap record={d.record} />
           {meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}
-
-          <WeekStrip date={date} week={d.week} first={meta.first} today={meta.today} setDate={setDate} />
 
           <div className="rec-sec">
             <h3>{date === meta.today ? '오늘의 기록' : '이날의 기록'}</h3>

@@ -3,25 +3,28 @@ import KV from '../kv.jsx'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
 import { routineCopy } from '../copy/routine.js'
-import { RoutineInsights } from './Insights.jsx'
+import { RoutineTabs, RoutineView } from './Insights.jsx'
+import { useSub } from './Sub.jsx'
 
 const TONE = { 레티노이드: '#ffe6da', LED: '#ffe6da', '자외선 차단': '#fff3d9' }
 
 export default function Routine() {
   const q = useLoad(() => api.routine(), [])
   const r = q.data
+  const [sub, openSub, closeSub] = useSub()
   return (
     <section>
-      <header className="page-head"><div><p className="eyebrow">지금 쓰는 제품과 기기</p><h1>내 루틴</h1></div></header>
+      <header className="page-head sr-head"><div><h1 className="sr-only">내 루틴</h1></div></header>
+      {r && <RoutineTabs value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} />}
       <Status {...q} />
-      {r && (
+      {r && sub && <div role="tabpanel"><RoutineView mine={false} which={sub} versions={r.versions} /></div>}
+      {r && !sub && (
         <>
-        <RoutineInsights mine={false} />
-        <div className="grid2">
+        <div className="routine-now">
           <div>
             <div className="card dark">
               <p className="small">지금 루틴</p>
-              <h2>버전 {r.current.id}<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
+              <h2>{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
               {r.current.change && <p className="small">최근 바꾼 것: {fmt.plain(r.current.change)} (이유: {r.current.reason})</p>}
             </div>
             <div className="card">
@@ -33,16 +36,6 @@ export default function Routine() {
                 </div>
               ))}
             </div>
-          </div>
-          <div className="card">
-            <h3>지난 버전</h3>
-            {[...r.versions].reverse().map((v) => (
-              <div className="ev" key={v.id}>
-                <b>버전 {v.id}</b>
-                <div>{fmt.plain(v.change) || v.label}
-                  <p className="muted small">{fmt.md(v.start)} 시작</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
-              </div>
-            ))}
           </div>
         </div>
         <p className="notice wide">{routineCopy().demo}</p>

@@ -17,7 +17,7 @@ export default function Gauge({ value, low, high, base }) {
       <details className="gauge-more">
         <summary>숫자로 보기</summary>
         <KV items={[['오늘', sign(value)], ['평소 범위', `${sign(low)} ~ ${sign(high)}`]]} />
-        {base && <p>평소 범위는 처음 쓰던 루틴(버전 {base}) 기간의 기록으로 만들었어요.</p>}
+        {base && <p>평소 범위는 {base === 1 ? '처음 쓰던 루틴' : `${base}번째 루틴`} 기간의 기록으로 만들었어요.</p>}
       </details>
     </div>
   )

@@ -3,8 +3,10 @@ import { api, fmt } from '../api.js'
 import KV from '../kv.jsx'
 import { useLoad, Status } from '../useLoad.jsx'
 import { ProductIcon } from '../icons.jsx'
+import ThumbPicker from './ThumbPicker.jsx'
 import AddProduct from './AddProduct.jsx'
-import { RoutineInsights } from './Insights.jsx'
+import { RoutineTabs, RoutineView } from './Insights.jsx'
+import { useSub } from './Sub.jsx'
 import { routineCopy } from '../copy/routine.js'
 
 const TONE = { 레티노이드: '#ffe6da', '자외선 차단': '#fff3d9' }
@@ -23,7 +25,10 @@ export default function MyRoutine({ ocr }) {
   const [warn, setWarn] = useState([])
   const [note, setNote] = useState('')
   const [error, setError] = useState(null)
+  const [look, setLook] = useState(null)              // 섬네일을 바꾸는 제품 key
+  const [lookBusy, setLookBusy] = useState(false)
   const r = q.data
+  const [sub, openSub, closeSub] = useSub()
 
   const saved = (data) => { q.setData(data); setAdding(false); setWarn(data.warnings || []); setNote('루틴에 등록했어요.') }
   const openEdit = (it) => { setEditing(it.key); setNewUsage(''); setReason(''); setAsking(null); setError(null) }
@@ -31,6 +36,12 @@ export default function MyRoutine({ ocr }) {
     setError(null); setSaving(true)
     try { const data = await api.changeRoutineUsage(key, newUsage, r.setup_day ? '' : reason); q.setData(data); setEditing(null); setWarn(data.warnings || []); setNote('사용 빈도를 바꿨어요.') }
     catch (e) { setError(e.message) } finally { setSaving(false) }
+  }
+  // 섬네일만 바꾼다(새 버전을 만들지 않음). photo가 있으면 사진, 없으면 아이콘(null = 자동)
+  const setLookOf = async (key, photo, icon) => {
+    setError(null); setLookBusy(true)
+    try { q.setData(await api.changeRoutineLook(key, photo, icon)); setNote('섬네일을 바꿨어요.') }
+    catch (e) { setError(e.message) } finally { setLookBusy(false) }
   }
   const stop = async (key) => {
     setError(null)
@@ -40,15 +51,16 @@ export default function MyRoutine({ ocr }) {
 
   return (
     <section>
-      <header className="page-head"><div><p className="eyebrow">지금 쓰는 제품</p><h1>내 루틴</h1></div>
+      <header className="page-head"><div><h1 className="sr-only">내 루틴</h1></div>
         {r && r.current && !adding && <button className="btn" onClick={() => { setAdding(true); setNote(''); setWarn([]) }}>제품 추가</button>}
       </header>
-      {r?.current && !adding && <RoutineInsights mine />}
+      {r && !adding && <RoutineTabs value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} />}
+      {r && !adding && sub && <div role="tabpanel"><RoutineView mine which={sub} versions={r.versions} go={() => closeSub()} /></div>}
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
-      {r && (
+      {r && !(sub && !adding) && (
         <>
-        <div className="grid2">
+        <div className="routine-now">
           <div>
             {warn.map((w) => <p className="notice warn-note" role="alert" key={w}>{w}</p>)}
             {adding && <AddProduct usages={r.usages} askFamilies={r.ask_families} ocr={ocr} first={!r.current || r.setup_day} onSaved={saved} onCancel={() => setAdding(false)} />}
@@ -61,12 +73,12 @@ export default function MyRoutine({ ocr }) {
             )}
             {!adding && (r.current ? (
               <div className="card">
-                <h2 className="h3">버전 {r.current.id}<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
+                <h2 className="h3">{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
                 {r.current.items.map((it) => (
                   <div key={it.key}>
                     <div className="row">
                       {it.photo ? <img className="prod-photo" src={it.photo} alt={`${it.name} 사진`} />
-                        : <ProductIcon name={ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />}
+                        : <ProductIcon name={it.icon || ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />}
                       <div><b>{it.name}</b>
                         <KV className="small" items={[['사용', fmt.plain(it.usage)], ['성분', it.ingredients.length ? `${it.ingredients.length}개` : '미입력']]} />
                         {it.families.length > 0 && <p className="fam">{it.families.map((f) => <span key={f}>{f}</span>)}</p>}
@@ -75,11 +87,19 @@ export default function MyRoutine({ ocr }) {
                         <span className="ask"><button className="link" onClick={() => stop(it.key)}>중단할게요</button><button className="link" onClick={() => setAsking(null)}>취소</button></span>
                       ) : (
                         <span className="ask">
-                          <button className="link" onClick={() => openEdit(it)} aria-label={`${it.name} 사용 빈도 바꾸기`}>빈도 바꾸기</button>
+                          <button className="link" onClick={() => { setLook(look === it.key ? null : it.key); setEditing(null); setAsking(null) }} aria-expanded={look === it.key} aria-label={`${it.name} 섬네일 바꾸기`}>섬네일</button>
+                          <button className="link" onClick={() => { openEdit(it); setLook(null) }} aria-label={`${it.name} 사용 빈도 바꾸기`}>빈도 바꾸기</button>
                           <button className="link" onClick={() => { setAsking(it.key); setEditing(null) }} aria-label={`${it.name} 사용 중단`}>사용 중단</button>
                         </span>
                       )}
                     </div>
+                    {look === it.key && (
+                      <div className="edit-look">
+                        <ThumbPicker photo={it.photo} icon={it.icon} autoIcon={ICON[it.family] || 'cream'} busy={lookBusy} onError={setError}
+                          onPhoto={(p) => setLookOf(it.key, p, null)} onIcon={(k) => setLookOf(it.key, null, k)} />
+                        <button type="button" className="link" onClick={() => setLook(null)}>다 바꿨어요</button>
+                      </div>
+                    )}
                     {editing === it.key && (
                       <div className="edit-usage">
                         <p className="small"><b>{it.name}</b>을 얼마나 자주 쓰나요? <span className="muted">(지금: {fmt.plain(it.usage)})</span></p>
@@ -117,23 +137,6 @@ export default function MyRoutine({ ocr }) {
               </div>
             ))}
           </div>
-          {r.versions.length > 0 ? (
-            <div className="card">
-              <h3>{t.history.title}</h3>
-              {[...r.versions].reverse().map((v) => (
-                <div className="ev" key={v.id}>
-                  <b>버전 {v.id}</b>
-                  <div>{fmt.plain(v.change) || '처음 등록한 루틴'}
-                    <p className="muted small">{fmt.md(v.start)} 시작</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="card hist-empty">
-              <h3>{t.history.title}</h3>
-              <p className="muted">{t.history.empty}</p>
-            </div>
-          )}
         </div>
         <p className="notice wide">{t.guide.pre}<b>{t.guide.strong}</b>{t.guide.post}</p>
         </>

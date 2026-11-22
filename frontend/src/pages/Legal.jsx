@@ -9,7 +9,7 @@ export default function Legal({ anchor, back, version }) {
 
   return (
     <section className="legal">
-      <header className="page-head"><div><p className="eyebrow">시행 기준 {version}</p><h1>약관과 개인정보 처리방침</h1></div>
+      <header className="page-head"><div><h1>약관과 개인정보 처리방침</h1><p className="muted small">시행 기준 {version}</p></div>
         <button className="btn ghost" onClick={back}>돌아가기</button></header>
       <p className="notice">공모전 시연용 <b>초안</b>이에요. 실제 서비스 전에 법률 검토를 받아야 해요.
         증상 점수는 건강에 관한 정보로 볼 수 있어 별도 동의가 필요한지 확인이 필요해요.</p>

@@ -41,7 +41,7 @@ section>*+*{margin-top:12px}
 .notice{background:#fff8f3;color:#7a4a35;border-radius:16px;padding:12px 14px;font-size:12.500px;line-height:1.55;margin-top:12px}
 
 .week{display:flex;align-items:stretch;gap:2px}
-.week .wd{flex:1;min-width:0;min-height:64px;text-align:center;font-size:12px;color:var(--sub);border-radius:14px;padding:4px 0}
+.week .wd{flex:1;min-width:0;min-height:64px;text-align:center;font-size:12px;color:var(--sub);border-radius:14px;padding:4px 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px}
 .week .wd b{display:block;font-size:16px;color:var(--ink);margin:4px auto 0;width:36px;line-height:32px;border-radius:12px}
 .week .wd.on b{background:var(--fill);color:var(--ink)}
 .week-nav{width:28px;font-size:22px;color:var(--sub)}
@@ -119,7 +119,9 @@ section>*+*{margin-top:12px}
   .grid2{grid-template-columns:1fr 1fr;gap:18px;align-items:start}
   .grid2.wide-left{grid-template-columns:1.6fr 1fr}
   .grid2 .card+.card{margin-top:0}.grid2>div>.card+.card{margin-top:18px}
-  .week{max-width:520px}
+  .week{gap:6px}.week .wd{min-height:72px;font-size:13px}.week .wd b{font-size:18px;width:44px;line-height:38px}
+  /* 촬영 화면: 카메라 칸이 오른쪽 안내와 같은 높이(카메라를 켜면 3:4 화면 비율로) */
+  .capture>.grid2{align-items:stretch}.capture .view:not(.on){max-height:none;min-height:420px}.capture .view.on{align-self:start}
 }
 
 /* ── 로그인·계정·약관 ── */
@@ -517,6 +519,24 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .inapp-banner .actions{margin-top:8px}
 .prod-photo{width:44px;height:44px;border-radius:12px;object-fit:cover;flex:none;background:var(--unk-bg)}
 .prod-photo-row{display:flex;align-items:center;gap:10px;margin:6px 0 4px}
+.thumb-links{display:grid;gap:2px;min-width:0}.thumb-acts{display:flex;flex-wrap:wrap;gap:4px 14px}
+.thumb-acts .link{padding:0;min-height:32px}.link.file{position:relative;cursor:pointer;display:inline-flex;align-items:center}
+.link.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+/* 아이콘 고르기 판: 섬네일 바로 아래에 펼쳐진다(앱 카드 모양) */
+.icon-panel{margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 8px 24px rgba(31,42,55,.08);animation:icon-panel .16s ease-out}
+.icon-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:14px}
+.icon-panel-x{width:32px;height:32px;border-radius:50%;color:var(--sub);font-size:14px}.icon-panel-x:hover{background:#f4f1ee}
+.icon-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.icon-grid button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px 6px;border:2px solid transparent;border-radius:14px;background:none;font-size:12px;color:var(--sub);cursor:pointer}
+.icon-grid button:hover{background:#faf6f2}
+.icon-grid button.on{border-color:var(--accent);background:var(--tint);color:var(--accent-ink);font-weight:700}
+.icon-grid button.on::after{content:"✓";position:absolute;top:4px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.icon-grid .prod-ico,.icon-auto{width:44px;height:44px}
+.icon-auto{display:flex;align-items:center;justify-content:center;border-radius:14px;background:#f4f1ee;font-style:normal;font-size:13px;font-weight:700;color:var(--accent-ink)}
+.link.file.off{opacity:.5;pointer-events:none}
+.edit-look{margin:2px 0 12px;padding:10px 12px;border-radius:16px;background:#faf6f2}.edit-look>.link{margin-top:6px;padding:0}
+@keyframes icon-panel{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.icon-panel{animation:none}}
 .round-tip{margin:8px 0 2px}.round-tip summary{cursor:pointer;color:var(--sub)}
 .round-tip-body{margin-top:8px}.round-tip-body ol{margin:8px 0 6px;padding-left:20px}.round-tip-body li{margin:2px 0}
 .round-tip svg{display:block;max-width:100%;height:auto}
@@ -546,3 +566,111 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ing-no.added{min-width:0;font-weight:600;color:var(--accent-ink)}
 .ing li.editing .ing-no{margin-left:8px}
 .fixed-list .ing-no{min-width:0;margin-right:6px}
+
+/* 탭 안 보기 전환(pages/Sub.jsx): 밑줄 탭. 폭이 좁으면 옆으로 밀어 본다 */
+.view-tabs{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.view-tabs::-webkit-scrollbar{display:none}
+.view-tabs button{position:relative;flex:none;min-height:44px;padding:0 14px;background:none;font-size:15px;font-weight:600;color:var(--sub);white-space:nowrap}
+.view-tabs button.on{color:var(--accent-ink);font-weight:700}
+.view-tabs button.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--accent)}
+.view-tabs button:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;border-radius:8px}
+/* 주간 / 월간 전환 */
+.period{display:inline-flex;padding:3px;border-radius:12px;background:#efe9e3}
+.period button{min-height:36px;padding:0 14px;border-radius:9px;font-size:14px;font-weight:600;color:var(--sub);background:none}
+.period button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(31,42,55,.12)}
+.period button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+/* 기록이 없는 날 */
+.empty-day{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:28px 16px 30px;margin:4px 0 12px;border-radius:24px;background:var(--card);border:1px dashed #e3dad1}
+.empty-face{width:84px;height:84px;margin-bottom:4px;filter:grayscale(.35);opacity:.9;animation:empty-bob 3.2s ease-in-out infinite}
+.empty-title{font-size:17px;font-weight:700}
+@keyframes empty-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
+@media (prefers-reduced-motion:reduce){.empty-face{animation:none}}
+.wd.empty b,.cd.empty span{color:var(--sub)}
+/* 월간 Recap: 사진 기록 고리와 날짜 칸 지도 */
+.recap-top{display:flex;align-items:center;gap:18px;margin:12px 0 4px}
+.recap-ring{position:relative;flex:none;width:96px;height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.recap-ring svg{position:absolute;inset:0;width:100%;height:100%}
+.rr-bg{fill:none;stroke:#efe9e3;stroke-width:8}.rr-fg{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round}
+.recap-ring span{position:relative;font-size:13px;color:var(--sub)}.recap-ring span b{font-size:22px;color:var(--ink)}
+.recap-ring small{position:relative;font-size:11px;color:var(--sub)}
+.recap-map{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;flex:1;min-width:0;max-width:260px}
+.recap-map i{display:block;aspect-ratio:1;border-radius:4px}
+.recap-map .rm-dow{aspect-ratio:auto;font-style:normal;font-size:10px;color:var(--sub);text-align:center}
+.rm.ok{background:#f2c14e}.rm.watch{background:#8fb9e0}.rm.signal{background:#6f7f92}.rm.unknown{background:#d5d9de}
+.rm.nophoto{background:#fff;box-shadow:inset 0 0 0 1.500px #d5d9de}.rm.none{background:#f4f0ec}.rm.future{background:transparent;box-shadow:inset 0 0 0 1px #f0ebe6}
+.routine-now,.today-cards{max-width:760px}
+
+/* 윗줄: 사용법, 내 계정 아이콘만(예시 화면이라는 안내는 사용법 첫 화면이 알려 줌) */
+.topline{justify-content:flex-end;min-height:44px;margin-bottom:4px}
+.top-actions{gap:4px}
+.icon-btn{position:relative;width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--sub);background:none}
+.icon-btn:hover,.icon-btn.on{background:#f1ebe5;color:var(--ink)}
+.icon-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.800;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.icon-dot{position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
+.page-head.sr-head{margin:0}
+
+/* 질문형 버튼 줄(pages/Sub.jsx AskButtons): 누르면 그 질문이 제목인 세부 화면 */
+.ask-row{display:flex;gap:8px;margin:0 0 14px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ask-row::-webkit-scrollbar{display:none}
+.ask-btn{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px 0 10px;border-radius:999px;border:1.500px solid var(--line);background:var(--card);font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.ask-btn svg{width:20px;height:20px;fill:none;stroke:var(--accent);stroke-width:1.800;stroke-linecap:round;stroke-linejoin:round}
+.ask-btn:hover{background:#faf6f2}
+.ask-btn.on{background:var(--tint);border-color:var(--accent);color:var(--accent-ink)}
+.ask-x{font-style:normal;font-size:12px;margin-left:2px;opacity:.8}
+.ask-btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.ask-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 0 12px}
+.ask-head h2{font-size:22px;font-weight:800;letter-spacing:-.03em}
+.ask-head .icon-btn svg{width:22px;height:22px}
+/* 월간 Recap 카드 슬라이드(pages/Recap.jsx) */
+.rs{display:grid;gap:10px;max-width:520px}
+.rs-months{display:flex;align-items:center;justify-content:space-between}.rs-months b{font-size:15px}.rs-months .btn{min-width:44px;padding:0 12px}
+.rs-bars{display:flex;gap:4px}.rs-bars i{flex:1;height:4px;border-radius:2px;background:#e9e2db}.rs-bars i.done,.rs-bars i.on{background:var(--ink)}
+.rs-card{min-height:420px;padding:26px 22px;border-radius:28px;display:flex;flex-direction:column;justify-content:center;gap:10px;outline:none;animation:rs-in .35s cubic-bezier(.2,.8,.2,1)}
+.rs-card:focus-visible{box-shadow:0 0 0 3px var(--accent)}
+.rs-card.t-ok{background:linear-gradient(160deg,#ffe58a,#ffc95c);color:#4b3300}
+.rs-card.t-watch{background:linear-gradient(160deg,#cfe4f7,#9cc3e8);color:#163a5e}
+.rs-card.t-signal{background:linear-gradient(160deg,#9aa8b8,#5f6f82);color:#fff}
+.rs-card.t-unknown{background:linear-gradient(160deg,#eef0f2,#cdd2d8);color:#2c3440}
+.rs-card.t-accent{background:linear-gradient(160deg,#ffb86b,#ff8a65);color:#3b1606}
+.rs-card.t-paper{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.rs-kicker{font-size:15px;font-weight:600;opacity:.85}
+.rs-big{display:flex;align-items:center;gap:12px;font-size:56px;font-weight:800;letter-spacing:-.04em;line-height:1.05}.rs-big .wi{margin:0;color:inherit}
+.rs-title{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.2}
+.rs-sub{font-size:16px;font-weight:500;line-height:1.5;opacity:.9}
+.rs-note{display:inline-block;align-self:flex-start;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.22);font-size:14px;font-weight:700}
+.rs-counts{list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;padding:0;font-size:13px}.rs-counts li{display:inline-flex;align-items:center;gap:4px}.rs-counts .wi{margin:0;color:inherit}
+.rs-list{list-style:none;padding:0;display:grid;gap:8px;font-size:15px}.rs-list b{margin-right:6px}
+.rs-ring{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin:6px 0}
+.rs-ring svg{position:absolute;inset:0;width:100%;height:100%}.rs-ring .rr-bg{stroke:rgba(255,255,255,.35);stroke-width:12}.rs-ring .rr-fg{stroke:#fff;stroke-width:12}
+.rs-ring span{position:relative;font-size:16px;font-weight:600}.rs-ring span b{font-size:40px}
+.rs-map{max-width:none}.rs-lines{margin:4px 0 0 18px;font-size:14px;line-height:1.6}
+.rs-nav{display:flex;align-items:center;justify-content:space-between}
+@keyframes rs-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rs-card{animation:none}}
+
+/* 기록 탭 촬영 전 안내(Capture guideMode): 좋은 사진 한 장, 피할 사진 넘겨 보기, 아래 고정 버튼 두 개 */
+.capture .page-head h1{line-height:1.3}
+.cap-guide{display:grid;gap:12px;max-width:560px;padding-bottom:8px}
+.cap-lead{margin-top:-6px;font-size:14px}
+.cap-sec{display:flex;align-items:center;gap:8px;font-size:19px;font-weight:800;margin-top:10px}
+.cap-sec i{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:15px;font-weight:800;color:#fff}
+.cap-sec.ok i{background:#2f9e6a}.cap-sec.no i{background:#e5484d}
+.cap-good,.cap-bad figure{margin:0;border-radius:22px;background:#f4f1ee;padding:18px 16px 16px;text-align:center}
+.cap-frame{position:relative;margin:0 auto 12px;width:min(260px,72%);aspect-ratio:1;border-radius:20px;background:#e6dfd8;display:flex;align-items:center;justify-content:center}
+.cap-frame::after{content:"";position:absolute;left:50%;top:50%;width:62%;aspect-ratio:3/4;transform:translate(-50%,-52%);border-radius:50%;border:2.500px solid #fff}
+.cap-good .face{width:74%;height:auto}
+.cap-good figcaption,.cap-bad figcaption{font-size:15px;font-weight:600;line-height:1.45;color:var(--ink)}
+.cap-bad{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:0 16px 4px;scrollbar-width:none}
+.cap-bad::-webkit-scrollbar{display:none}
+.cap-bad figure{position:relative;flex:none;width:78%;max-width:300px;scroll-snap-align:start}
+.cap-bad .face{width:62%;height:auto;margin:6px auto 10px;display:block}
+.cap-ban{position:absolute;top:14px;right:14px;width:40px;height:40px;fill:none;stroke:#e5484d;stroke-width:2.600;stroke-linecap:round}
+.cap-actions{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:5;display:grid;gap:8px;margin-top:6px;padding:12px 0 4px;background:linear-gradient(to bottom,rgba(251,248,245,0),var(--bg) 22%)}
+.cap-actions .btn{width:100%;min-height:54px;font-size:16px;justify-content:center}
+.btn.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+@media (min-width:900px){.cap-actions{bottom:12px}.cap-bad{margin:0;padding:0 0 4px}.cap-bad figure{width:46%}}
+[hidden]{display:none!important}
+.ask-head p{margin-top:2px}
+/* 로그인 전: 지금 보는 기록이 가상 인물 예시라는 표시(위쪽 바 왼쪽) */
+.topline:has(.demo-note){justify-content:space-between}.demo-note{margin:0;font-size:12.500px;color:var(--sub);white-space:nowrap}

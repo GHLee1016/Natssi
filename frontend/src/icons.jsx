@@ -31,6 +31,22 @@ const PRODUCT = {
       <path d="M16 11.800v.9M16 20.300v.9M11.800 16.500h.9M19.300 16.500h.9" />
     </>
   ),
+  tube: (  // 튜브
+    <>
+      <path d="M12 3h8v3h-8z" />
+      <path d="M10.500 6h11l-1.500 21h-8z" />
+      <path d="M13.500 12h5M14 16h4" />
+    </>
+  ),
+  mist: (  // 미스트(스프레이)
+    <>
+      <path d="M14 5h4v4h-4z" />
+      <path d="M18 6.500h2.500" />
+      <path d="M22.500 5l1.500-1M23 6.500h2M22.500 8l1.500 1" />
+      <path d="M12 9h8v2.500a2 2 0 0 0 1 1.700v11.800a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2V13.200a2 2 0 0 0 1-1.700z" />
+      <path d="M13.500 18h5" />
+    </>
+  ),
   led: (  // LED 디바이스
     <>
       <rect x="6" y="11" width="20" height="14" rx="5" />
@@ -48,3 +64,6 @@ export function ProductIcon({ name, tone }) {
     </i>
   )
 }
+
+// 제품 사진 대신 고를 수 있는 모양(서버 routine.ICONS와 같은 키). 고르지 않으면(자동) 성분 계열로 정한다
+export const ICON_CHOICES = [['cleanser', '펌프 병'], ['retinol', '스포이트 병'], ['cream', '크림 단지'], ['tube', '튜브'], ['mist', '미스트'], ['sun', '선크림']]

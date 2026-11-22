@@ -566,6 +566,7 @@ class RoutineAdd(BaseModel):
     reason: Optional[str] = Field(None, max_length=60)
     recent: bool = False                                                 # 처음 등록 때: 최근 2주 안에 쓰기 시작한 제품
     photo: Optional[str] = Field(None, max_length=60_000)               # 제품 사진(선택): 긴 변 240px 이하 JPEG data URL
+    icon: Optional[str] = Field(None, max_length=16)                    # 사진 대신 고른 모양 아이콘(선택, routine.ICONS)
 
 
 def _routine_response(data, warnings=()):
@@ -608,7 +609,7 @@ def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     try:
         data = store.load_routine(v["id"])
         warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason,
-                                      body.families, body.recent, photo)
+                                      body.families, body.recent, photo, body.icon)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
@@ -630,6 +631,27 @@ def change_routine_usage(key: str, body: UsageChange, request: Request, v=Depend
     except Exception as e:
         raise _store_fail("루틴을 저장하지 못했어요.", e)
     return _routine_response(data, warnings)
+
+
+class LookChange(BaseModel):
+    photo: Optional[str] = Field(None, max_length=60_000)               # 새 사진(긴 변 240px 이하 JPEG data URL). 있으면 사진
+    icon: Optional[str] = Field(None, max_length=16)                    # 사진이 없을 때 아이콘(None = 성분 보고 자동)
+
+
+@app.put("/api/me/routine/items/{key}/look")
+def change_routine_look(key: str, body: LookChange, request: Request, v=Depends(need_user)):
+    """제품의 섬네일(사진 또는 아이콘)만 바꾼다. 루틴 변경이 아니라 새 버전을 만들지 않는다."""
+    limit("write", request, v)
+    photo = _check_jpeg(body.photo, 240, "제품 사진") if body.photo else None
+    try:
+        data = store.load_routine(v["id"])
+        myroutine.set_look(data, key, photo, body.icon)
+        store.save_routine(v["id"], data)
+    except myroutine.RoutineError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _store_fail("섬네일을 저장하지 못했어요.", e)
+    return _routine_response(data)
 
 
 @app.delete("/api/me/routine/items/{key}")

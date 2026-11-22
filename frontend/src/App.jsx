@@ -112,17 +112,20 @@ export default function App() {
 
       <main className="main">
         <InAppBanner />
-        <button className="brand-m" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
         {meta.data && (
           <div className="topline">
-            <div className="demo-bar">
-              {viewer ? <><b>내 기록</b> <span className="muted">{viewer.email}</span></> : <><span className="demo-badge">예시 화면</span> {meta.data.persona.name}(가상 인물)의 기록이에요. 읽기만 할 수 있어요.</>}
-            </div>
+            {!viewer && <p className="demo-note"><span className="demo-badge">예시</span>{meta.data.persona.name}(가상 인물)의 기록</p>}
             <div className="top-actions">
-              <button className="link" onClick={() => setGuide(true)}>사용법</button>
-              {meta.data.auth && (viewer
-                ? <button className="link" onClick={() => setPage('account')}>내 계정</button>
-                : <button className="link strong" onClick={() => setPage('auth')}>로그인 또는 가입</button>)}
+              <button className="icon-btn" onClick={() => setGuide(true)} aria-label="사용법" title="사용법">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.600 9.300a2.500 2.500 0 1 1 3.400 2.300c-.700.300-1 .800-1 1.500v.6" /><circle cx="12" cy="17" r=".6" /></svg>
+              </button>
+              {meta.data.auth && (
+                <button className={'icon-btn' + (page === 'account' || page === 'auth' ? ' on' : '')} onClick={() => setPage(viewer ? 'account' : 'auth')}
+                  aria-label={viewer ? '내 계정' : '로그인 또는 가입'} title={viewer ? '내 계정' : '로그인 또는 가입'}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.500" r="3.800" /><path d="M4.500 20a7.500 7.500 0 0 1 15 0" /></svg>
+                  {!viewer && <i className="icon-dot" aria-hidden="true" />}
+                </button>
+              )}
             </div>
           </div>
         )}

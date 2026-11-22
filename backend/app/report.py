@@ -136,7 +136,7 @@ def answer(qid, judged, versions):
         text = (" ".join(env.summarize(sig["envs"])) + " 기록하지 않은 요인은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
                "같은 기간 환경도 평소와 달랐어요. 그래서 어느 쪽 때문인지 가릴 수 없어요."
     elif qid == "next":
-        text = "빈도를 바꾸면 새 버전으로 기록돼요. 그 뒤 붉은기가 평소 범위로 돌아오는지 2주 동안 비교해요."
+        text = "빈도를 바꾸면 루틴을 바꾼 날로 기록돼요. 그 뒤 붉은기가 평소 범위로 돌아오는지 2주 동안 비교해요."
         cites = []
     else:
         return None

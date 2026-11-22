@@ -91,7 +91,9 @@ def recap(records, versions, month=None):
         lines.append(f"동네 환경(미세먼지, 습도, 기온)이 평소와 달랐던 날은 {env_diff}일이에요.")
     return {"month": month, "months": months, "empty": False, "days": len(rows), "photo_days": len(photo),
             "weather": count, "signal_spans": _spans(signal), "back_on": back, "changes": changes,
-            "symptom_days": len(symptom), "env_diff_days": env_diff, "inside": inside, "judged": len(judged), "lines": lines}
+            "symptom_days": len(symptom), "env_diff_days": env_diff, "inside": inside, "judged": len(judged), "lines": lines,
+            # 기록 칸 지도용: 그 달에 기록한 날마다 날씨(사진이 없으면 None)
+            "cal": [{"date": r["date"], "level": r["verdict"]["level"] if r in photo else None} for r in rows]}
 
 
 def challenge(records, versions):

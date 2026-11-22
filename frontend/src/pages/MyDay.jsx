@@ -7,7 +7,9 @@ import CheckinSteps from './CheckinSteps.jsx'
 import { InstallHint } from '../install.jsx'
 import KV, { symptomItems } from '../kv.jsx'
 import Calendar from './Calendar.jsx'
-import { DayHero, WeekStrip, weekOf, symptomText, ChangeDays } from './DayParts.jsx'
+import { useSub, SubPage, AskButtons, AskHead, ICONS } from './Sub.jsx'
+import Recap from './Recap.jsx'
+import { DayHero, WeekStrip, weekOf, symptomText, ChangeDays, usePeriod, PeriodToggle, EmptyDay } from './DayParts.jsx'
 
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
 
@@ -65,12 +67,11 @@ function PolicyNotice({ mine, current, onLegal, onConsented }) {
 const sgn = (x) => (x > 0 ? '+' : '') + x
 
 // 지난 날 하나: 데모 다이어리와 같은 모양(날씨 카드, 이번 주 줄, 그날의 기록)
-function PastDay({ rec, ver, district, week, first, today, setDate, changes }) {
-  if (!rec) return <div className="card"><p>이날은 기록이 없어요.</p></div>
+function PastDay({ rec, ver, district, changes }) {
+  if (!rec) return <EmptyDay />
   return (
     <>
       <DayHero record={rec} version={ver} district={district} />
-      <WeekStrip date={rec.date} week={week} first={first} today={today} setDate={setDate} />
       {changes}
       <div className="rec-sec">
         <h3>이날의 기록</h3>
@@ -97,7 +98,7 @@ function PastDay({ rec, ver, district, week, first, today, setDate, changes }) {
 
 export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, onConsented, date, setDate }) {
   const q = useLoad(() => api.me(), [])
-  const [calOpen, setCalOpen] = useState(false)
+  const [period, setPeriod] = usePeriod()
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -122,29 +123,53 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   const ver = rec && tl.data.versions.find((x) => x.id === rec.version)
   const first = records[0]?.date
   const loadMine = useCallback(() => Promise.resolve(tl.data), [tl.data])
-  const pick = (iso) => { setDate(iso); setCalOpen(false); window.scrollTo(0, 0) }
+  const pick = (iso) => { setDate(iso === d?.today ? null : iso) }
   // 루틴을 바꾼 날로 바로 가기(데모의 '이 사람의 이야기'와 같은 줄). 바꾼 날이 없으면 보이지 않는다.
   const changes = tl.data && <ChangeDays records={records} versions={tl.data.versions} date={day} setDate={pick} title="루틴을 바꾼 날" />
 
+  const [sub, openSub, closeSub] = useSub()
+  const baselineCard = d && (
+            <div className="card">
+              <h2 className="h3">내 평소 범위</h2>
+              <div className="dots" role="img" aria-label={`사진 기록 ${filled}일 / 필요 ${d.needed}일`}>
+                {Array.from({ length: d.needed }, (_, i) => <i key={i} className={i < filled ? 'on' : ''} />)}
+              </div>
+              <p className="bignum" aria-label={`사진 기록 ${d.redness_days}일, 필요 ${d.needed}일`}><span className="num">{d.redness_days}</span><span className="num-u">/ {d.needed}일 사진 기록</span></p>
+              <p>{d.redness_days >= d.needed ? '평소 범위가 만들어졌어요. 사진을 찍은 날마다 평소와 비교해 알려 드려요.' : `볼 붉은기를 ${d.needed}일 남기면 그다음 날부터 내 평소 범위와 비교해요.`}</p>
+              <p className="muted small">같은 폰으로, 같은 장소와 시간대에 찍어야 비교할 수 있어요. 사진은 서버에 남기지 않아요.</p>
+            </div>
+  )
+  const ASK = d && { baseline: '평소 범위 보기', recap: `${+d.today.slice(5, 7)}월 Recap` }
+  const DESC = { baseline: '내 사진 기록으로 만든 볼 붉은기의 평소 범위예요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
+  const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
+    d.unlocked && { id: 'baseline', icon: ICONS.range, label: ASK.baseline }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
+  if (d && sub) return (
+    <SubPage head={<header className="page-head"><div><h1>{fmt.full(day)}</h1></div></header>} tabs={tabs}>
+      <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
+      {sub === 'baseline' ? baselineCard : <Recap mine today={d.today} />}
+    </SubPage>
+  )
   return (
     <section>
       <header className="page-head">
         <div>
-          {d && <p className="eyebrow">{past ? '지난 기록' : '오늘'}</p>}
           <h1>{d ? fmt.full(day) : '내 기록'}</h1>
         </div>
         {d && (
           <div className="head-actions">
             {past && <button className="btn ghost" onClick={() => setDate(null)}>오늘로 가기</button>}
-            {tl.data && first && <button className="btn ghost" onClick={() => setCalOpen((o) => !o)} aria-expanded={calOpen}>{calOpen ? '달력 닫기' : '달력'}</button>}
+            {tl.data && first && <PeriodToggle value={period} onChange={setPeriod} />}
           </div>
         )}
       </header>
-      {calOpen && tl.data && first && <Calendar date={day} first={first} today={d.today} onPick={pick} load={loadMine} />}
+      {tabs}
+      {tl.data && first && (period === 'month'
+        ? <Calendar date={day} first={first} today={d.today} onPick={pick} load={loadMine} />
+        : <WeekStrip date={day} week={weekOf(day, records)} first={first} today={d.today} setDate={pick} />)}
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
       {d && past && (
-        <PastDay rec={rec} ver={ver} district={d.district} week={weekOf(day, records)} first={first} today={d.today} setDate={setDate} changes={changes} />
+        <PastDay rec={rec} ver={ver} district={d.district} changes={changes} />
       )}
       {d && !past && (
         <>
@@ -162,7 +187,6 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
               {v.baseline && <Gauge value={d.today_redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />}
             </div>
           ))}
-        {tl.data && first && <WeekStrip date={day} week={weekOf(day, records)} first={first} today={d.today} setDate={setDate} />}
         {changes}
         <div className="rec rec-wide">
           <div className="rec-row">
@@ -181,18 +205,9 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
           </div>
         </div>
         <InstallHint />
-        <div className="grid2">
+        <div className="today-cards">
           <div>
-            <div className="card">
-              <h2 className="h3">내 평소 범위</h2>
-              <div className="dots" role="img" aria-label={`사진 기록 ${filled}일 / 필요 ${d.needed}일`}>
-                {Array.from({ length: d.needed }, (_, i) => <i key={i} className={i < filled ? 'on' : ''} />)}
-              </div>
-              <p className="bignum" aria-label={`사진 기록 ${d.redness_days}일, 필요 ${d.needed}일`}><span className="num">{d.redness_days}</span><span className="num-u">/ {d.needed}일 사진 기록</span></p>
-              <p>{d.redness_days >= d.needed ? '평소 범위가 만들어졌어요. 사진을 찍은 날마다 평소와 비교해 알려 드려요.' : `볼 붉은기를 ${d.needed}일 남기면 그다음 날부터 내 평소 범위와 비교해요.`}</p>
-              <p className="muted small">같은 폰으로, 같은 장소와 시간대에 찍어야 비교할 수 있어요. 사진은 서버에 남기지 않아요.</p>
-            </div>
-
+            {!d.unlocked && baselineCard}
             <div className="card" id="today-checkin">
               <h2 className="h3">오늘의 증상 체크인</h2>
               {draft ? (
@@ -213,21 +228,6 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
 
           </div>
 
-          <div>
-            <div className="card">
-              <h2 className="h3">최근 기록</h2>
-              {d.recent.length === 0 && <p className="muted small">아직 기록이 없어요. 오늘 첫 체크인을 남겨 보세요.</p>}
-              {d.recent.map((r) => (
-                <div className="ev" key={r.date}>
-                  <b>{fmt.md(r.date)}</b>
-                  <div>
-                    <p>{r.redness != null && r.level !== '구분 불가' && <b>{WEATHER[r.level].name} </b>}{r.redness != null ? `볼 붉은기 ${r.redness > 0 ? '+' : ''}${r.redness}` : <span className="muted">사진 없음</span>}</p>
-                    {r.symptoms ? <KV className="small" items={symptomItems(r.symptoms)} /> : <p className="muted small">체크인 없음</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
         <div className="notice wide">
           <p>얼굴 날씨는 내 평소 기록과 비교한 결과예요. 진단이 아니에요.</p>

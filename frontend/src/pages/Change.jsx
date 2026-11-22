@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSub, SubPage, AskButtons, AskHead, ICONS } from './Sub.jsx'
+import { RoutineView } from './Insights.jsx'
 import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { WEATHER } from '../weather.jsx'
@@ -76,7 +78,7 @@ function Chart({ records, versions, onPick, picked }) {
       </g>
       {versions.map((v) => {
         const i = records.findIndex((r) => r.version === v.id)
-        return i < 0 ? null : <text key={v.id} x={x(i) + 8} y={PAD.t + 4} className="vlabel">버전 {v.id}</text>
+        return i < 0 ? null : <text key={v.id} x={x(i) + 8} y={PAD.t + 4} className="vlabel">{v.id}번째</text>
       })}
       {base && <text x={W - PAD.r - 10} y={y(base.low) - 7} className="blabel" textAnchor="end">내 평소 범위</text>}
       {ticks.map((v) => <text key={v} x={PAD.l - 8} y={y(v) + 4} className="axis" textAnchor="end">{v > 0 ? '+' + v : v}</text>)}
@@ -123,7 +125,7 @@ function Compare({ records, mine }) {
   const q = useLoad(() => (mine ? api.myCompare(a, b) : api.compare(a, b)), [a, b])
   const c = q.data
   const parts = useLoad(() => (mine ? api.myCheeks([a, b]) : Promise.resolve({})), [a, b, mine]).data || {}
-  const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} (버전 {r.version})</option>
+  const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} ({r.version}번째 루틴)</option>
   return (
     <div className="card">
       <h2 className="h3">{mine ? '두 날의 볼 붉은기 비교' : '두 날의 사진 겹쳐 비교'}</h2>
@@ -139,8 +141,8 @@ function Compare({ records, mine }) {
             <img src={`/faces/${c.a.photo}.jpg`} alt={`${fmt.md(c.a.date)} 사진`} />
             <img src={`/faces/${c.b.photo}.jpg`} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
             <div className="bar" style={{ left: pos + '%' }}><span>⇆</span></div>
-            <span className="tag l">{fmt.md(c.a.date)} (버전 {c.a.version})</span>
-            <span className="tag r">{fmt.md(c.b.date)} (버전 {c.b.version})</span>
+            <span className="tag l">{fmt.md(c.a.date)} ({c.a.version}번째 루틴)</span>
+            <span className="tag r">{fmt.md(c.b.date)} ({c.b.version}번째 루틴)</span>
             <span className="tag ai">{c.photo_note}</span>
             <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="비교 위치 조절" />
           </div>}
@@ -184,11 +186,24 @@ export default function Change({ onOpenDay, mine = false }) {
     const i = picked ? dated.findIndex((r) => r.id === picked.id) : -1
     setPicked(i < 0 ? dated[dated.length - 1] : dated[Math.max(0, Math.min(dated.length - 1, i + dir))])
   }
-  const changes = useMemo(() => q.data?.versions.filter((v) => v.change) ?? [], [q.data])
   const cloudy = useMemo(() => q.data?.records.filter((r) => r.verdict.level === '신호 있음') ?? [], [q.data])
+  const [sub, openSub, closeSub] = useSub()
+  const canCompare = q.data?.records.some((r) => r.redness !== null)
+  const head = <header className="page-head sr-head"><div><h1 className="sr-only">변화</h1></div></header>
+  const ASK = { compare: '두 날 비교하기', overlap: '흐린 날 살펴보기' }
+  const DESC = { compare: mine ? '두 날의 볼 색을 숫자와 색 칩으로 비교해요.' : '두 날의 사진을 겹쳐 비교해요.', overlap: '흐린 날과 시기가 겹친 루틴 변경이에요. 원인이라는 뜻은 아니에요.' }
+  const tabs = q.data && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
+    canCompare && { id: 'compare', icon: ICONS.compare, label: ASK.compare }, { id: 'overlap', icon: ICONS.cloud, label: ASK.overlap }]} />
+  if (q.data && sub) return (
+    <SubPage head={head} tabs={tabs}>
+      <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
+      {sub === 'compare' ? <Compare records={q.data.records} mine={mine} /> : <RoutineView mine={mine} which="overlap" versions={q.data.versions} />}
+    </SubPage>
+  )
   return (
     <section>
-      <header className="page-head"><div><p className="eyebrow">{mine ? '내 기록' : '최근 4주'}</p><h1>변화</h1></div></header>
+      {head}
+      {tabs}
       <Status {...q} />
       {q.data && (
         <div>
@@ -222,17 +237,6 @@ export default function Change({ onOpenDay, mine = false }) {
               </div>
             )}
           </div>
-          <div className="card">
-            <h2 className="h3">루틴 변경 기록</h2>
-            {changes.length === 0 && <p className="muted">아직 루틴을 바꾼 적이 없어요.</p>}
-            {changes.map((v) => (
-              <div className="ev" key={v.id}>
-                <b>{fmt.md(v.start)}</b>
-                <div>{fmt.plain(v.change)}<p className="muted small">버전 {v.id}</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
-              </div>
-            ))}
-          </div>
-          {q.data.records.some((r) => r.redness !== null) && <Compare records={q.data.records} mine={mine} />}
         </div>
       )}
     </section>

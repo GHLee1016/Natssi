@@ -7,14 +7,13 @@ import KV, { symptomItems } from '../kv.jsx'
 
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
 
-const SHOTS = [
-  ['front', '정면, 눈높이', true],
-  ['light', '밝고 그림자 없이', true],
-  ['place', '매번 같은 자리에서', true],
-  ['tilt', '고개를 기울이지 않기', false],
-  ['hair', '앞머리로 볼 가리지 않기', false],
-  ['mask', '마스크 쓰지 않기', false],
+// 촬영 전 안내: 좋은 사진 한 장과 피해야 할 사진들(캐릭터 동작은 Face, 끝 자세가 그 모습)
+const BAD = [
+  ['tilt', '고개를 기울이지 말고', '정면을 봐 주세요'],
+  ['hair', '앞머리나 머리카락이', '볼을 가리지 않게 해 주세요'],
+  ['mask', '마스크를 벗고', '얼굴이 다 보이게 찍어 주세요'],
 ]
+const BAN = <svg className="cap-ban" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M5.600 5.600l12.800 12.800" /></svg>
 // 낯씨 캐릭터(로고의 얼굴). 촬영 팁마다 다른 동작을 4초마다 반복한다: 처음 자세 → 동작 → 끝 자세에서 멈춤 → 돌아가기.
 // ✓ 팁은 틀린 자세에서 맞는 자세로 가고(끝 자세 = 맞는 모습), ✕ 팁은 하면 안 되는 자세로 간다(끝 자세 = 틀린 모습).
 // 움직임은 CSS로만 만든다(styles.css의 mc-*). 모션 줄이기 설정이면 끝 자세로 멈춰 있도록, 원래 좌표와 기본 스타일을 끝 자세에 둔다.
@@ -206,6 +205,10 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     } finally { setBusy(null) }
   }
   const shoot = () => { armed.current = false; if (video.current) send(video.current) }
+  const pick = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) send(f) }
+  // 카메라를 켜기 전, 결과가 없을 때는 안내 화면(좋은 사진, 피할 사진, 아래 큰 버튼 두 개)을 보여 준다.
+  // 카메라 화면(video)은 안내 화면 아래에 숨겨 두고 그대로 둔다: 켜는 동안 같은 video 요소에 영상을 붙여야 해서.
+  const guideMode = cam !== 'on' && !result && !busy
 
   if (needConsent) {
     return (
@@ -229,8 +232,30 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
 
   return (
     <section className="capture">
-      <header className="page-head"><div>{viewer && <p className="eyebrow">1단계 사진, 2단계 증상</p>}<h1>{viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'}</h1></div></header>
-      <div className="grid2">
+      <header className="page-head"><div><h1>{guideMode ? <>얼굴이 잘 보이는 사진을<br />찍거나 골라 주세요</> : viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'}</h1></div></header>
+      {guideMode && (
+        <div className="cap-guide">
+          <p className="muted cap-lead">사진은 이 기기 안에서만 분석하고, 서버에는 볼 색 숫자만 보내요.</p>
+          <h2 className="cap-sec ok"><i aria-hidden="true">✓</i>이런 사진이 좋아요</h2>
+          <figure className="cap-good">
+            <div className="cap-frame"><Face kind="front" /></div>
+            <figcaption>밝은 곳에서 정면을 보고<br />매번 같은 자리에서 찍어 주세요</figcaption>
+          </figure>
+          <h2 className="cap-sec no"><i aria-hidden="true">!</i>이런 사진은 피해 주세요</h2>
+          <div className="cap-bad" tabIndex={0} aria-label="피해야 할 사진 예시, 옆으로 넘겨 보세요">
+            {BAD.map(([k, a, b]) => (
+              <figure key={k}>{BAN}<Face kind={k} /><figcaption>{a}<br />{b}</figcaption></figure>
+            ))}
+          </div>
+          {cam === 'blocked' && <p className="err" role="alert">카메라를 쓸 수 없어요. 브라우저에서 카메라 권한을 허용하거나, 사진을 골라 주세요.</p>}
+          {error && <p className="err" role="alert">{error}</p>}
+          <div className="cap-actions">
+            <button className="btn dark" onClick={start}>카메라로 촬영하기</button>
+            <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+          </div>
+        </div>
+      )}
+      <div className="grid2" hidden={guideMode}>
         <div className={'view' + (cam === 'on' ? ' on' : '')}>
           <video ref={video} playsInline muted style={{ display: cam === 'on' ? 'block' : 'none' }} />
           {cam === 'on' && <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />}
@@ -252,25 +277,12 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <div className="actions left">
             <button className="btn" onClick={shoot} disabled={cam !== 'on' || !!busy}>{busy || '사진 찍기'}</button>
             <label className="btn ghost file">사진 고르기
-              <input type="file" accept="image/*" disabled={!!busy} onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) send(f) }} />
+              <input type="file" accept="image/*" disabled={!!busy} onChange={pick} />
             </label>
           </div>
           {cam === 'on' && guide && (
             <label className="row-check auto-shot"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />
               타원에 맞으면 자동으로 찍기</label>
-          )}
-          {!result && (
-            <div className="card prep">
-              <h2 className="h3">이렇게 찍어 주세요</h2>
-              <div className="shots">
-                {SHOTS.map(([k, t, ok]) => (
-                  <figure className={'shot' + (ok ? ' ok' : ' no')} key={k}>
-                    <Face kind={k} /><figcaption>{t}</figcaption>
-                  </figure>
-                ))}
-              </div>
-              <p className="muted small">매번 같은 자리, 같은 조명, 같은 화장 상태로 찍으면 변화가 더 정확하게 보여요.</p>
-            </div>
           )}
           {error && <p className="err" role="alert">{error}</p>}
           {result && (

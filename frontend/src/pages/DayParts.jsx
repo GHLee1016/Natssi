@@ -1,5 +1,6 @@
 // 날짜 하나의 얼굴 날씨를 보여 주는 조각들. 데모 다이어리(김서연)와 로그인한 '오늘' 화면이 함께 쓴다.
 // 두 화면 모두 같은 판정 엔진의 기록(record)과 루틴 버전(version)을 받으므로 모양이 같다.
+import { useState } from 'react'
 import { fmt, LEVEL_CLASS } from '../api.js'
 import { WEATHER, WeatherIcon, HeroSky } from '../weather.jsx'
 import Gauge from '../gauge.jsx'
@@ -36,7 +37,7 @@ export function DayHero({ record, version, district, isToday, mine, showEnv = tr
         <Gauge value={record.redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />
       )}
       <div className="hero-meta">
-        {version && <><b>루틴 버전 {version.id}</b> {fmt.plain(version.label)}<span className="sub-line">이 버전으로 {record.day_in_version}일째</span></>}
+        {version && <><b>{version.id}번째 루틴</b> {fmt.plain(version.label)}<span className="sub-line">이 루틴으로 {record.day_in_version}일째</span></>}
         {showEnv && <EnvLine e={record.env} district={district} day={record.date} />}
         {showEnv && record.env?.facts?.length > 0 && <><br />{record.env.facts.join(' ')}</>}
       </div>
@@ -63,7 +64,7 @@ export function WeekStrip({ date, week, first, today, setDate }) {
     <div className="week">
       <button className="week-nav" onClick={() => move(-1)} disabled={week[0].date <= first} aria-label="이전 주 보기">‹</button>
       {week.map((w) => (
-        <button key={w.date} disabled={!w.has_record} className={'wd' + (w.date === date ? ' on' : '')} aria-current={w.date === date ? 'date' : undefined}
+        <button key={w.date} disabled={w.date < first || w.date > today} className={'wd' + (w.date === date ? ' on' : '') + (w.has_record ? '' : ' empty')} aria-current={w.date === date ? 'date' : undefined}
           onClick={() => setDate(w.date)} aria-label={fmt.full(w.date) + (w.level ? ` ${WEATHER[w.level].name}` : ' 기록 없음')}>
           <span>{'일월화수목금토'[new Date(w.date + 'T00:00:00').getDay()]}</span>
           <b>{+w.date.slice(8)}</b>
@@ -94,5 +95,34 @@ export function ChangeDays({ records, versions, date, setDate, title, withSignal
           onClick={() => setDate(s.date)}>{fmt.md(s.date)} {s.text}</button>
       ))}
     </nav>
+  )
+}
+
+// 주간 / 월간 보기 전환. 고른 보기는 이 브라우저에 기억한다(없어도 동작).
+const PERIOD_KEY = 'natssi.period'
+export function usePeriod() {
+  const [p, setP] = useState(() => { try { return localStorage.getItem(PERIOD_KEY) === 'month' ? 'month' : 'week' } catch { return 'week' } })
+  const set = (v) => { setP(v); try { localStorage.setItem(PERIOD_KEY, v) } catch { /* 저장이 막혀도 계속 */ } }
+  return [p, set]
+}
+export function PeriodToggle({ value, onChange }) {
+  return (
+    <div className="period" role="group" aria-label="달력 보기">
+      {[['week', '주간'], ['month', '월간']].map(([k, label]) => (
+        <button key={k} type="button" aria-pressed={value === k} className={value === k ? 'on' : ''} onClick={() => onChange(k)}>{label}</button>
+      ))}
+    </div>
+  )
+}
+
+// 기록이 없는 날: 낯씨 캐릭터와 한 줄. action이 있으면 버튼을 함께 보여 준다(예: 오늘 기록하기).
+export function EmptyDay({ isToday, action }) {
+  return (
+    <div className="empty-day" role="status">
+      <img src="/logo.svg" alt="" className="empty-face" />
+      <p className="empty-title">{isToday ? '오늘은 아직 기록이 없어요' : '이날은 기록이 없어요'}</p>
+      <p className="muted small">{isToday ? '사진 한 장과 증상 네 가지면 돼요.' : '다른 날을 골라 보세요.'}</p>
+      {action}
+    </div>
   )
 }

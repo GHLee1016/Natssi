@@ -6,7 +6,7 @@ from app import demo_data, judge, llm, report, store
 rows = judge.judge_all(demo_data.build_records())
 facts = report.build_facts(rows, demo_data.VERSIONS)
 GOOD = {"sentences": [
-    {"text": "레티놀 세럼을 추가한 뒤(버전 2) 4~7일째 양 볼 붉은기가 평소 범위를 넘었어요.", "cites": [18, 19, 20, 21]},
+    {"text": "레티놀 세럼을 추가한 뒤(2번째 루틴) 4~7일째 양 볼 붉은기가 평소 범위를 넘었어요.", "cites": [18, 19, 20, 21]},
     {"text": "같은 기간 따가움 2점이 함께 기록됐어요.", "cites": [18, 19, 20, 21]},
 ]}
 

@@ -112,7 +112,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
 
   return (
     <section className="auth">
-      <header className="page-head"><div><p className="eyebrow">내 기록은 나만 볼 수 있어요</p><h1>{title}</h1></div>
+      <header className="page-head"><div><h1>{title}</h1></div>
         <button className="btn ghost" onClick={back}>김서연 데모로 돌아가기</button></header>
       <div className="auth-wrap">
       <form className="card" onSubmit={submit} noValidate>

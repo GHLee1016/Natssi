@@ -32,7 +32,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
   return (
     <section className="account">
-      <header className="page-head"><div><p className="eyebrow">내 계정</p><h1>{meta.viewer.email}</h1></div>
+      <header className="page-head"><div><h1>내 계정</h1><p className="muted small">{meta.viewer.email}</p></div>
         <button className="btn ghost" onClick={() => { api.logout(); onLoggedOut() }}>로그아웃</button></header>
 
       <div className="grid2">

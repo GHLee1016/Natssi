@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { ViewTabs } from './Sub.jsx'
 import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
-import { WEATHER, WeatherIcon } from '../weather.jsx'
+import { WEATHER } from '../weather.jsx'
 import KV from '../kv.jsx'
 
 // 판정 결과를 세어 만든 요약 세 가지(서버 insights.py). 데모와 내 기록이 같은 화면을 쓴다.
@@ -10,33 +10,6 @@ const sign = (v) => (v > 0 ? '+' : '') + v
 
 export function useInsights(mine, month) {
   return useLoad(() => (mine ? api.myInsights(month) : api.insights(month)), [mine, month])
-}
-
-// 월간 Skin Recap: 한 달 기록을 날씨 개수와 사실 문장으로
-export function RecapCard({ mine }) {
-  const [month, setMonth] = useState(null)
-  const q = useInsights(mine, month)
-  const r = q.data?.recap
-  if (!r) return <Status {...q} />
-  if (r.empty) return null
-  const i = r.months.indexOf(r.month)
-  return (
-    <div className="card recap">
-      <div className="recap-head">
-        <div><p className="eyebrow">월간 Skin Recap</p><h2 className="h3">{+r.month.slice(5)}월의 얼굴 날씨</h2></div>
-        <div className="recap-nav">
-          <button className="btn ghost" disabled={i <= 0} onClick={() => setMonth(r.months[i - 1])} aria-label="이전 달">‹</button>
-          <button className="btn ghost" disabled={i >= r.months.length - 1} onClick={() => setMonth(r.months[i + 1])} aria-label="다음 달">›</button>
-        </div>
-      </div>
-      <ul className="recap-weather" aria-label="날씨별 일수">
-        {LEVELS.map((lv) => (
-          <li key={lv} className={WEATHER[lv].cls}><WeatherIcon level={lv} size={22} /><b>{r.weather[lv]}</b><span>{WEATHER[lv].name}</span></li>
-        ))}
-      </ul>
-      <ul className="recap-lines">{r.lines.map((t) => <li key={t}>{t}</li>)}</ul>
-    </div>
-  )
 }
 
 const KIND = { added: '추가', removed: '사용 중단', usage: '빈도 변경' }
@@ -92,8 +65,6 @@ export function OverlapCard({ data }) {
   if (!data.length) return null
   return (
     <div className="card overlap">
-      <p className="eyebrow">루틴 점검</p>
-      <h2 className="h3">흐림과 시기가 겹친 변경</h2>
       {data.map((o) => (
         <div className="ov-item" key={o.version}>
           <p><b>{fmt.plain(o.change)}</b> 뒤 {o.spans.join(', ')}에 붉은기가 평소 범위를 넘었어요.</p>
@@ -124,4 +95,32 @@ export function RoutineInsights({ mine, go }) {
       <OverlapCard data={q.data.overlap} />
     </>
   )
+}
+
+const VersionList = ({ versions }) => (
+  <div className="card">
+    {[...versions].reverse().map((v) => (
+      <div className="ev" key={v.id}>
+        <b>{v.id}번째 루틴</b>
+        <div>{fmt.plain(v.change) || v.label || '처음 등록한 루틴'}
+          <p className="muted small">{fmt.md(v.start)} 시작</p>{v.reason && <p className="muted small">바꾼 이유: {v.reason}</p>}</div>
+      </div>
+    ))}
+  </div>
+)
+
+// 루틴 탭의 보기 탭: 지금 루틴, 14일 챌린지, 루틴 점검, 변경 기록
+export function RoutineTabs({ value, onChange }) {
+  return <ViewTabs label="루틴 보기" value={value} onChange={onChange} items={[
+    { id: null, label: '내 루틴' }, { id: 'challenge', label: '14일 챌린지' }, { id: 'versions', label: '변경 기록' }]} />
+}
+
+// 세부 보기 내용
+export function RoutineView({ mine, which, versions, go }) {
+  const q = useInsights(mine, null)
+  if (which === 'versions') return <VersionList versions={versions} />
+  if (!q.data) return <Status {...q} />
+  if (which === 'challenge') return <ChallengeCard data={q.data.challenge} go={go} />
+  return q.data.overlap.length ? <OverlapCard data={q.data.overlap} />
+    : <div className="card"><p className="muted">흐림과 시기가 겹친 루틴 변경이 아직 없어요.</p></div>
 }
