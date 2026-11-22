@@ -866,3 +866,40 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
   .ocr-actions{max-width:520px}
 }
 @media (prefers-reduced-motion:reduce){.lb-good .lb-frame{animation:none}}
+/* PC 소개 페이지(랜딩) */
+.landing{display:grid;gap:72px;padding:8px 0 24px;max-width:1120px}
+.ld-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:center;min-height:calc(100dvh - 120px)}
+.ld-eyebrow{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--accent-ink)}.ld-eyebrow img{width:28px;height:28px}
+.landing h1{font-size:44px;line-height:1.25;letter-spacing:-.04em;font-weight:800;margin:14px 0 16px}
+.ld-lead{font-size:17px;line-height:1.7;color:#3d4652}
+.ld-cta{display:flex;flex-wrap:wrap;gap:10px;margin:28px 0 12px}
+.ld-cta .btn{min-height:54px;padding:0 24px;font-size:16px}
+.ld-cta .ld-main{padding:0 30px;box-shadow:0 8px 20px rgba(31,42,55,.22)}
+.ld-note{font-size:13.500px;color:var(--sub)}
+.ld-shot{margin:0;border-radius:20px;overflow:hidden;background:#fff;border:1px solid var(--line);box-shadow:0 18px 48px rgba(80,50,30,.12)}
+.ld-shot img{display:block;width:100%;height:auto}
+.ld-shot figcaption{padding:12px 16px;font-size:14px;font-weight:600;color:#3d4652;border-top:1px solid var(--line)}
+.ld-hero-shot{animation:ld-in .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ld-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.ld-sec h2{font-size:28px;font-weight:800;letter-spacing:-.03em;margin-bottom:20px}
+.ld-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ld-steps li{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 22px 24px}
+.ld-num{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--tint);color:var(--accent-ink);font-weight:800;margin-bottom:14px}
+.ld-steps h3,.ld-trust h3{font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-.02em}
+.ld-steps p,.ld-trust p{font-size:14.500px;line-height:1.65;color:#3d4652}
+.ld-previews{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:20px;align-items:start}
+.ld-trust{list-style:none;margin:0 0 8px;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.ld-trust li{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 22px}
+.ld-start{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:40px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px 36px;outline:none}
+.ld-start:focus-visible{box-shadow:0 0 0 3px var(--accent)}
+.ld-start>div>p{font-size:15.500px;line-height:1.7;color:#3d4652}
+.ld-pwa{margin:14px 0 0 20px;display:grid;gap:8px;font-size:15px;line-height:1.6}
+.ld-pwa ul{margin:4px 0 0 18px;font-size:14px;color:#3d4652}
+.ld-qr{display:grid;justify-items:center;gap:8px}
+.ld-qr .qr{width:220px;height:220px;border-radius:16px;border:1px solid var(--line)}
+.ld-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding-top:20px;border-top:1px solid var(--line);font-size:13.500px;color:var(--sub)}
+@media (max-width:1180px){.ld-hero{grid-template-columns:1fr;min-height:0}.landing h1{font-size:40px}}
+@media (prefers-reduced-motion:reduce){.ld-hero-shot{animation:none}}
+/* 소개 페이지 위쪽: 로그인, 무료로 시작하기(가입) */
+.ld-top{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-bottom:-56px}
+.ld-top .link{font-size:15px;font-weight:700;color:var(--ink)}.ld-top .ld-signup{min-height:44px;padding:0 20px;font-size:15px}

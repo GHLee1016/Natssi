@@ -29,8 +29,8 @@ function Field({ id, label, error, helper, children }) {
   )
 }
 
-export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, onResetDone, recovery }) {
-  const [mode, setMode] = useState(resetToken ? 'reset' : linkExpired && recovery ? 'forgot' : 'login')   // login | signup | forgot | reset
+export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, onResetDone, recovery, start = 'login' }) {
+  const [mode, setMode] = useState(resetToken ? 'reset' : linkExpired && recovery ? 'forgot' : start === 'signup' ? 'signup' : 'login')   // login | signup | forgot | reset
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)

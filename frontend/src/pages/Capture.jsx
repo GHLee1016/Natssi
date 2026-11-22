@@ -19,11 +19,11 @@ export function useDesk() {
 }
 
 // 이 주소를 폰으로 여는 QR(그리기만 한다. 주소는 바깥으로 보내지 않음)
-export function QR({ text }) {
+export function QR({ text, label = '폰 카메라로 비추면 낯씨 기록 화면이 열리는 QR 코드' }) {
   const q = qrcode(0, 'M'); q.addData(text); q.make()
   const n = q.getModuleCount(); let d = ''
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`
-  return <svg className="qr" viewBox={`-2 -2 ${n + 4} ${n + 4}`} role="img" aria-label="폰 카메라로 비추면 낯씨 기록 화면이 열리는 QR 코드" shapeRendering="crispEdges"><rect x="-2" y="-2" width={n + 4} height={n + 4} fill="#fff" /><path d={d} fill="#1f2a37" /></svg>
+  return <svg className="qr" viewBox={`-2 -2 ${n + 4} ${n + 4}`} role="img" aria-label={label} shapeRendering="crispEdges"><rect x="-2" y="-2" width={n + 4} height={n + 4} fill="#fff" /><path d={d} fill="#1f2a37" /></svg>
 }
 
 // 분석하는 동안 보여 줄 단계(실제로 하는 일 순서). 각 단계는 끝난 뒤에 ✓가 붙는다.

@@ -9,8 +9,8 @@
 루틴을 한 번에 하나씩 바꾸고 매일 셀카와 증상을 기록하면,<br/>
 **평소와 달라진 날과 루틴을 바꾼 시기가 겹치는지** 보여 줘요.
 
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-기기%20안%20측정-FF6F00)](https://ai.google.dev/edge/mediapipe)
@@ -34,15 +34,16 @@
 ### 다이어리, 변화, 루틴, 리포트
 ![다이어리, 변화, 루틴, 리포트 화면](docs/readme/phone_screens.png)
 
-### 기록 전 안내와 전성분 확인
+### 촬영 전 안내와 전성분 확인
 ![촬영 전 안내 화면과 전성분 확인 화면](docs/readme/record_ocr.png)
 
-### 넓은 화면
-![넓은 화면의 다이어리](docs/readme/web_screen.png)
+### PC 대시보드
+![PC에서 본 다이어리 대시보드](docs/readme/web_screen.png)
 
 </div>
 
 화면 속 기록은 가상 인물 김서연의 4주 기록(10/30~11/26)이에요. 로그인하지 않아도 읽기 전용으로 볼 수 있어요.
+PC에서 처음 열면 소개 페이지가 먼저 나오고, 'PC에서 예시 둘러보기'를 누르면 위 대시보드로 가요.
 
 ## 낯씨가 하는 일
 
@@ -59,14 +60,20 @@
 - **하루 한 번 기록:** 셀카 한 장과 증상 4가지(따가움, 화끈, 가려움, 당김)를 남겨요.
 - **날씨로 보여 주기:** 볼 붉은기가 내 평소 범위 안이면 '맑음', 넘으면 '흐림'처럼 보여요. 점수가 아니라 **내 평소와 비교**해요.
 - **판정은 코드가 해요:** 루틴을 바꿀 때마다 평소 범위를 다시 계산하고, 조명이 맞지 않는 날은 '구분 불가'로 둬요.
+- **주간, 월간 달력:** 날마다 그날의 날씨 아이콘이 붙고, 기록 없는 날은 마스코트가 비어 있다고 알려 줘요. 루틴을 바꾼 날로 바로 갈 수 있어요.
 
 ### 기기 안에서 끝나는 촬영
+- **촬영 전 안내:** 좋은 사진 하나와 피할 사진(고개 기울임, 머리카락, 마스크)을 캐릭터 동작으로 보여 줘요.
+- **전체 화면 카메라:** 얼굴이 타원에 맞으면 3, 2, 1을 세고 자동으로 찍어요. 찍은 뒤에는 카메라를 끄고, 분석 단계(얼굴 모델 준비, 각도 찾기, 볼 색 재기, 품질 판정)를 차례로 보여 줘요.
+- **결과 요약:** 오늘 볼 붉은기와 고칠 항목만 카드로 보여 주고, 통과한 항목은 접어 둬요.
 - **MediaPipe로 기기 안 검사:** 얼굴 위치, 고개 각도, 표정, 선명도, 노출을 확인하고 양 볼의 색(L\*a\*b\*)을 재요.
 - **서버에는 숫자만:** 통과한 사진의 볼 색 숫자 3개만 하루 1번 저장해요.
 - **볼 조각은 선택 동의:** 동의한 사람만 양 볼 조각(96px 2장)을 보관해 두 날을 비교해요. 동의를 끄거나 탈퇴하면 바로 지워요.
 
 ### 루틴과 전성분 OCR
-- **제품 등록:** 전성분 사진을 올리면 성분 목록과 성분 계열(레티노이드, AHA, 향료 등)을 읽어 와요.
+- **제품 등록:** 전성분 사진을 찍거나 고르면 성분 목록과 성분 계열(레티노이드, AHA, 향료 등)을 읽어 와요. 루틴은 바꿀 때마다 '2번째 루틴'처럼 쌓여요.
+- **전성분 카메라:** 사각 틀에 맞춰 최대 3장까지 이어 찍고, 찍을 때마다 흐림 검사를 해요. 읽는 동안 단계를 보여 주고, 읽은 성분, 고친 오타, 확인 필요 개수를 먼저 요약해요.
+- **섬네일:** 제품 사진을 찍거나 고르거나, 아이콘 중에서 골라요. 루틴 목록에서도 바꿀 수 있어요.
 - **식약처 성분사전 맞추기:** 21,968개 표준 이름과 자모 단위로 비교해 오타를 고쳐요. 사전에 없는 이름은 지어내지 않고 '확인 필요'로 보여 줘요.
 - **읽기 어려운 사진 돕기:** 흐린 사진 경고, 둥근 통은 돌려 찍기 안내, 휜 사진 펴기(UVDoc), 여러 장 이어 붙이기.
 - **라벨 순서와 번호:** 성분을 라벨에 적힌 순서대로 번호를 붙여 보여 줘서, 잘못 읽힌 성분과 빠진 성분을 쉽게 찾아요.
@@ -74,7 +81,12 @@
 ### 근거가 붙은 리포트
 - **틀 문장과 근거 번호:** 모든 문장에 근거가 된 기록 번호가 붙어요.
 - **AI는 문장만 다듬어요:** 선택 동의한 사람만 가명 요약을 보내 문장을 다듬어요. 금지어, 숫자, 근거 번호 검사에 걸리면 틀 문장으로 돌아가요.
-- **인사이트:** 월간 Skin Recap, 14일 챌린지, 루틴이 겹친 시기 안내.
+- **인사이트:** 한 달을 카드 5장으로 넘겨 보는 Recap(날씨, 사진 기록, 흐렸던 때, 바꾼 루틴, 한 달 지도), 14일 챌린지, 흐린 날과 시기가 겹친 루틴 변경.
+
+### PC에서 보기
+- **소개 페이지:** PC에서 처음 열면 낯씨 소개, 쓰는 법, 화면 미리보기, 폰으로 여는 QR이 나와요. 한 번 둘러보기를 누르면 다음부터는 바로 대시보드가 열려요.
+- **다이어리 대시보드:** 이달 요약 숫자 4칸, 루틴을 바꾼 날을 점선으로 표시한 4주 볼 붉은기 그래프, 그날의 날씨, 달력, 그날의 기록을 한 화면에 보여 줘요.
+- **기록은 폰으로:** 웹캠과 폰 카메라는 색을 다르게 잡아서, PC 기록 탭은 폰으로 여는 QR을 보여 줘요.
 
 ### 계정과 내 데이터
 - **가입:** 이메일과 비밀번호, 만 14세 이상 확인, 필수 동의와 선택 동의 분리.
@@ -100,8 +112,8 @@
 <td valign="top">
 
 **화면**
-- React 18
-- Vite 5
+- React 19
+- Vite 8
 - MediaPipe Tasks Vision
 - @gradio/client
 - PWA
@@ -150,7 +162,7 @@
 | 읽힌 사진 6장의 재현율 | 5장은 0.77~1.00, 1장은 0.59 | 위 8장에서 읽지 못한 2장을 뺀 것 |
 | OCR 응답 시간 | 1장 7.4초, 3장 22.6초 | 실제 Space |
 | 평소 범위의 측정 오차(MDC95) | 2.35 | 팀원 3명의 반복 셀카로 낸 예비값(95% 신뢰구간 1.85~2.97) |
-| 자동 테스트 | 서버 83개, OCR 22개 | `pytest` (OCR 1개는 펴기 모델 파일이 있을 때만) |
+| 자동 테스트 | 서버 88개, OCR 22개, 화면 측정식 | `pytest`, `npm test`. GitHub Actions가 PR마다 돌려요(OCR 1개는 펴기 모델 파일이 있을 때만) |
 
 평소 범위는 루틴을 바꾼 구간별로 `중앙값 ± max(MDC95 2.35, 3 × 1.4826 × MAD)`로 계산해요(`backend/app/judge.py`).
 
@@ -255,9 +267,10 @@ Vercel 대시보드에서만 다루고, 채팅이나 저장소에 올리지 않�
 ```
 Natssi/
 ├── frontend/                  # 화면 (React, Vite)
-│   ├── src/pages/             # Diary, MyDay, Change, Capture, Routine, AddProduct, Report, Insights, Account, Legal
+│   ├── src/pages/             # Landing(PC 소개), Diary, MyDay, Dash(PC 대시보드), Change, Capture, Routine, AddProduct, Report, Recap, Insights, Account, Legal
 │   ├── src/measure/           # 기기 안 측정 (얼굴 검사, 볼 색, 글자 선명도)
 │   ├── src/ocr.js             # 전성분 Space 호출
+│   ├── public/landing/        # 소개 페이지 미리보기 (docs/readme 캡처를 줄인 것)
 │   └── public/sw.js           # 홈 화면 설치용 (캐시 없음)
 ├── backend/app/               # 서버 (FastAPI)
 │   ├── main.py                # API

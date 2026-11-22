@@ -4,6 +4,8 @@ import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
 import MyDay from './pages/MyDay.jsx'
 import Welcome from './pages/Welcome.jsx'
+import Landing from './pages/Landing.jsx'
+import { useDesk } from './pages/Capture.jsx'
 import { InAppBanner } from './install.jsx'
 import Splash from './pages/Splash.jsx'
 import Change from './pages/Change.jsx'
@@ -47,6 +49,10 @@ function MineGate({ title, go, children }) {
 const linkParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ''))
 const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴', report: '리포트' }
 const GUIDE_KEY = 'natssi_guide'
+// PC 소개 페이지를 한 번 지나갔는지(예시 둘러보기를 누르거나 메뉴로 들어감). 저장이 막혀도 동작은 한다(매번 소개부터).
+const LANDING_KEY = 'natssi.landingSeen'
+const landingSeen = () => { try { return localStorage.getItem(LANDING_KEY) === '1' } catch { return false } }
+const rememberLanding = () => { try { localStorage.setItem(LANDING_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } }
 const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return true } }
 
 export default function App() {
@@ -57,23 +63,33 @@ export default function App() {
   const [anchor, setAnchor] = useState(null)
   const [homeN, setHomeN] = useState(0)             // 로고를 누를 때마다 올려서 다이어리를 새로 그린다(열린 달력 닫기)
   const [guide, setGuide] = useState(false)         // 사용법 시트
+  const desk = useDesk()                            // PC(마우스, 900px 이상)
+  // 소개 페이지: ?tab= 링크나 비밀번호 재설정 링크로 들어오면 건너뛴다. 실제로 보일지는 아래 showLanding(로그인 전 PC)
+  const [landing, setLanding] = useState(() => !new URLSearchParams(window.location.search).get('tab') && !window.location.hash && !landingSeen())
+  const [legalFromIntro, setLegalFromIntro] = useState(false)
   const [epoch, setEpoch] = useState(0)           // 로그인·로그아웃하면 화면 데이터를 새로 불러옴
   const meta = useLoad(() => api.meta(), [epoch])
   const [date, setDate] = useState(null)
   const day = date || meta.data?.today
   const viewer = meta.data?.viewer
   const refreshAll = () => setEpoch((n) => n + 1)
-  const goHome = () => { setPage(null); setTab('diary'); setDate(null); setHomeN((n) => n + 1); window.scrollTo(0, 0) }   // 로고·이름을 누르면 오늘의 다이어리로
+  const goHome = () => { setPage(null); setLanding(false); setTab('diary'); setDate(null); setHomeN((n) => n + 1); window.scrollTo(0, 0) }   // 오늘의 다이어리로
+  const showLanding = landing && desk && !!meta.data && !viewer && !page
+  const [authStart, setAuthStart] = useState('login')   // 소개 페이지 '무료로 시작하기'는 가입 화면으로 연다
+  const intro = desk && !!meta.data && !viewer                                    // 소개 페이지를 쓸 수 있는 경우(PC, 로그인 전)
+  const goIntro = () => { setPage(null); setLanding(true); window.scrollTo(0, 0) }                 // PC 로그인 전: 로고와 '소개' 메뉴
+  const explore = () => { rememberLanding(); try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 계속 */ } goHome() }
+  const pickTab = (id) => { if (landing) { rememberLanding(); setLanding(false) } setPage(null); setTab(id) }
   const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
   useEffect(() => { if (window.location.hash && (resetToken || linkExpired)) window.history.replaceState(null, '', window.location.pathname + window.location.search) }, [])   // 토큰이 주소창에 남지 않게
   const firstNav = useRef(true)
   useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
-    const name = page === 'auth' ? '로그인 또는 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : TAB_TITLES[tab]
+    const name = page === 'auth' ? '로그인 또는 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : showLanding ? '소개' : TAB_TITLES[tab]
     document.title = `${name} - 낯씨`
     if (firstNav.current) { firstNav.current = false; return }
     const h = document.querySelector('.main h1')
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }) }
-  }, [tab, page])
+  }, [tab, page, showLanding])
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
   const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
@@ -84,7 +100,7 @@ export default function App() {
     return () => window.removeEventListener('natssi:logout', h)
   }, [])
   // 오래된 로그인 정보 때문에 처음부터 막히면 정리하고 데모로 돌아감
-  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired) setGuide(true) }, [meta.data])
+  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired && !(landing && desk)) setGuide(true) }, [meta.data])   // 소개 페이지가 보이면 사용법 시트는 띄우지 않는다
   useEffect(() => {
     if (meta.error && session.get()) { session.clear(); refreshAll() }
   }, [meta.error])
@@ -96,11 +112,16 @@ export default function App() {
     <div className="shell">
       <aside className="side">
         <div className="side-in">{/* 메뉴는 화면에 붙어 있고, 흰 바탕과 경계선은 페이지 길이만큼 이어진다 */}
-        <button className="brand" onClick={goHome} aria-label="낯씨 홈으로"><img src="/logo.svg" alt="" />낯씨</button>
+        <button className="brand" onClick={intro ? goIntro : goHome} aria-label={intro ? '낯씨 소개로' : '낯씨 홈으로'}><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
+          {intro && (
+            <button className={showLanding ? 'on' : ''} aria-current={showLanding ? 'page' : undefined} onClick={goIntro}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" /></svg>소개
+            </button>
+          )}
           {TABS.map((t) => (
-            <button key={t.id} className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined}
-              onClick={() => { setPage(null); setTab(t.id) }}>
+            <button key={t.id} className={tab === t.id && !showLanding ? 'on' : ''} aria-current={tab === t.id && !showLanding ? 'page' : undefined}
+              onClick={() => pickTab(t.id)}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg>{t.label}
             </button>
           ))}
@@ -114,7 +135,9 @@ export default function App() {
 
       <main className="main">
         <InAppBanner />
-        {meta.data && (
+        {showLanding && <Landing onExplore={explore} onLegal={(a) => { setLegalFromIntro(true); goLegal(a) }}
+          onAuth={meta.data.auth ? (m) => { setAuthStart(m); setPage('auth') } : null} />}
+        {meta.data && !showLanding && (
           <div className="topline">
             {!viewer && <p className="demo-note"><span className="demo-badge">예시</span>{meta.data.persona.name}(가상 인물)의 기록</p>}
             <div className="top-actions">
@@ -131,10 +154,10 @@ export default function App() {
           </div>
         )}
         <Status {...meta} />
-        {meta.data && page === 'auth' && <Auth back={() => setPage(null)} onLegal={goLegal} resetToken={resetToken} linkExpired={linkExpired} recovery={!!meta.data.recovery} onResetDone={() => setResetToken(null)} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
-        {meta.data && page === 'legal' && <Legal anchor={anchor} version={meta.data.consent_version} back={() => setPage(viewer ? 'account' : 'auth')} />}
+        {meta.data && page === 'auth' && <Auth key={authStart} start={authStart} back={() => { setPage(null); setAuthStart('login') }} onLegal={goLegal} resetToken={resetToken} linkExpired={linkExpired} recovery={!!meta.data.recovery} onResetDone={() => setResetToken(null)} onDone={() => { setPage(null); setDate(null); refreshAll() }} />}
+        {meta.data && page === 'legal' && <Legal anchor={anchor} version={meta.data.consent_version} back={() => { if (legalFromIntro) { setLegalFromIntro(false); setPage(null) } else setPage(viewer ? 'account' : 'auth') }} />}
         {meta.data && page === 'account' && viewer && <Account meta={meta.data} onLegal={goLegal} onLoggedOut={loggedOut} onChanged={refreshAll} />}
-        {meta.data && !page && (
+        {meta.data && !page && !showLanding && (
           <div key={epoch}>
             {tab === 'diary' && (viewer ? <MyDay key={homeN} date={date} setDate={setDate} go={setTab} onAccount={() => setPage('account')} viewer={viewer} policyVersion={meta.data.consent_version} onLegal={goLegal} onConsented={refreshAll} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
             {tab === 'change' && (viewer ? <MineGate title="변화" go={setTab}><Change mine /></MineGate> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
