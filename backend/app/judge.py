@@ -21,7 +21,7 @@ def _mad(values, med):
 
 
 def light_off(r, prev):
-    """조명 색이 평소와 달랐나: 그날 볼의 노란기(b*)가 내 평소 b* 범위 밖인가. b*가 없는 기록(데모)은 늘 False.
+    """조명 색이 평소와 달랐나: 그날 볼의 노란기(b*)가 내 평소 b* 범위 밖인가(붉은기 높낮이와 상관없이 본다). b*가 없는 기록(데모)은 늘 False.
     조명 필터 실험(2026-11-21, 3명 57장)에서 품질 검사가 놓친 색 변화의 대부분을 잡았다. 예비값."""
     vals = [p["b"] for p in prev if p.get("b") is not None]
     if r.get("b") is None or len(vals) < config.MIN_BASELINE_RECORDS:
@@ -67,7 +67,10 @@ def judge_all(records):
             res.update(baseline=b, exceeds=exceeds)
             prev_same = [p for p in prev if p["version"] == r["version"] and p["verdict"]["exceeds"]]
             prev_day_exceeded = bool(prev) and prev[-1]["verdict"]["exceeds"]
-            if exceeds and light_off(r, prev):         # '흐림'으로 올리지 않고 안개로 내린다(조명 탓일 수 있음)
+            # 조명 색(b*)이 평소와 다르면 붉은기가 높든 낮든 안개로 둔다. 높을 때만 보면, 차가운 조명이나 필터로 붉은기가
+            # 낮게 찍힌 날이 '맑음'이 되어 실제로 붉어진 날을 가릴 수 있다(2026-11-21 조명 필터 실험: 차갑게 10% 56장 중 51장을
+            # 이 규칙이 잡음, 필터 없는 사진 57장 중 2장이 걸림. 2026-11-22 데모 얼굴 필터 시험에서 차갑게, 채도 내림, 흑백 확인).
+            if light_off(r, prev):
                 verdict = UNKNOWN
                 res["reasons"].append("사진의 조명 색이 평소와 달라요. 같은 장소와 시간에 다시 찍어 주세요")
             elif exceeds and r["env"].get("unusual"):

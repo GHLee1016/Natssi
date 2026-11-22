@@ -18,6 +18,7 @@ DEFAULT_THRESHOLDS = dict(
     min_sharpness=60.0,            # 얼굴 영역 라플라시안 분산(256px로 맞춘 뒤)
     max_clip_ratio=0.01,           # 볼 영역에서 하얗게 날아간 픽셀 비율
     min_roi_pixels=400,
+    min_chroma=5.0,                # 양 볼 색의 진하기 √(a*²+b*²). 흑백·색 빠진 사진 거르기(피부는 보통 15 이상). 앱에만 있는 기준(2026-11-22)
 )
 
 Num = Optional[float]
@@ -92,7 +93,15 @@ def quality_flags(feat: dict, th=None):
             flags.append(f"roi_small_{s}")
         if _bad(g(f"clip_ratio_{s}"), lambda v: v > t["max_clip_ratio"]):
             flags.append(f"clipped_{s}")
+    chroma = [math.hypot(g(f"a_{s}"), g(f"b_{s}")) for s in ("L", "R") if not _missing(g(f"a_{s}")) and not _missing(g(f"b_{s}"))]
+    if chroma and max(chroma) < t["min_chroma"]:           # 양쪽 다 색이 거의 없음 = 흑백 필터 등. 값이 없으면 다른 항목이 거른다
+        flags.append("no_color")
     return flags
+
+
+def _chroma(d):
+    c = [math.hypot(d[f"a_{s}"], d[f"b_{s}"]) for s in ("L", "R") if not _missing(d.get(f"a_{s}")) and not _missing(d.get(f"b_{s}"))]
+    return max(c) if c else None
 
 
 def _num(v, fmt):
@@ -151,6 +160,8 @@ def evaluate(f: Features):
         item("볼 노출", {"clipped_L", "clipped_R"}, "볼에 빛이 고르게 닿았어요",
              "볼이 하얗게 번졌어요. 빛이 덜 센 곳에서 찍어 주세요",
              f"하얗게 날아간 부분 왼쪽 {_num(d['clip_ratio_L'], '.1%')}, 오른쪽 {_num(d['clip_ratio_R'], '.1%')} (1% 이하)"),
+        item("색", {"no_color"}, "피부 색이 잘 보여요", "흑백이거나 색이 빠진 사진 같아요. 필터 없이 다시 찍어 주세요",
+             f"볼 색 진하기 {_num(_chroma(d), '.1f')} ({t['min_chroma']:.0f} 이상)"),
         item("볼 영역", {"roi_small_L", "roi_small_R"}, "양 볼이 잘 보여요",
              "볼이 가려졌어요. 머리카락이나 마스크를 치워 주세요",
              f"왼쪽 {_num(d['n_L'], ',.0f')}, 오른쪽 {_num(d['n_R'], ',.0f')} 픽셀"),

@@ -91,6 +91,20 @@ def test_light_change_turns_high_redness_into_fog():
     assert same_light[-1]["verdict"]["level"] == judge.SIGNAL
 
 
+def test_light_change_also_fogs_low_redness():
+    """차가운 조명이나 필터로 붉은기가 낮게 찍혀도(b*가 평소와 다르면) '맑음'이 아니라 안개. 실제로 붉어진 날을 가리지 않게."""
+    def rec(i, a, b):
+        return {"date": f"2026-12-{i + 1:02d}", "version": 1, "redness": a, "b": b, "quality_ok": True,
+                "symptoms": {}, "env": {}}
+    usual = [rec(i, 10 + (i % 3) * 0.2, 16 + (i % 2) * 0.3) for i in range(8)]
+    cool_low = judge.judge_all(usual + [rec(8, 6, 10)])          # 차갑게: a*, b* 함께 내려감(범위 아래)
+    cool_in = judge.judge_all(usual + [rec(8, 9.5, 11)])          # 실제 붉은기가 올랐는데 차가운 필터로 평소 범위 안에 찍힘
+    for r in (cool_low[-1], cool_in[-1]):
+        assert r["verdict"]["level"] == judge.UNKNOWN and "조명" in r["verdict"]["reasons"][0]
+    same_light = judge.judge_all(usual + [rec(8, 9.5, 16.1)])     # 조명 그대로면 맑음
+    assert same_light[-1]["verdict"]["level"] == judge.NO_SIGNAL
+
+
 def test_demo_insights_recap_challenge_overlap():
     c = TestClient(app)
     d = c.get("/api/insights").json()

@@ -35,3 +35,15 @@ def test_no_face_leaves_face_checks_unknown():
     assert not r["passed"] and r["flags"] == ["no_face"]
     by = {c["name"]: c["ok"] for c in r["checks"]}
     assert by["해상도"] is True and by["얼굴"] is False and by["고개 각도"] is None
+
+
+def test_grayscale_photo_is_rejected():
+    """흑백 필터처럼 볼 색이 거의 없는 사진은 품질 탈락(붉은기가 −17쯤으로 잘못 재짐). 보통 피부 색은 통과."""
+    skin = {**BASE, "a_L": 14.0, "b_L": 16.5, "a_R": 13.5, "b_R": 16.0}
+    gray = {**BASE, "a_L": 0.4, "b_L": 0.6, "a_R": -0.2, "b_R": 0.3}
+    assert flags(skin) == []
+    assert flags(gray) == ["no_color"]
+    assert flags({**BASE, "a_L": 0.4, "b_L": 0.6, "a_R": 12.0, "b_R": 15.0}) == []    # 한쪽만 색이 없으면 다른 항목에 맡김
+    r = quality.evaluate(quality.Features(**gray))
+    assert not r["passed"] and r["redness"] is None
+    assert next(c for c in r["checks"] if c["name"] == "색")["ok"] is False
