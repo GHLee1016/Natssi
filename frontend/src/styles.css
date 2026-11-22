@@ -1,5 +1,7 @@
 :root{--o1:#ffb86b;--o2:#ff8a65;--sig:#ff8a65;--sig-fill:#ff9f68;--accent:#d9653f;--accent-ink:#b8461e;--fill:#ff9f68;--tint:#fff1e9;--ink:#1f2a37;--sub:#5f6773;--bg:#fbf8f5;--line:#f0ebe6;--card:#fff;
-  --ok:#2f8a5f;--ok-bg:#eaf6ef;--watch:#a8700f;--watch-bg:#fff4dc;--unk:#6b7280;--unk-bg:#eef0f2;--r:20px}
+  --ok:#2f8a5f;--ok-bg:#eaf6ef;--watch:#a8700f;--watch-bg:#fff4dc;--unk:#6b7280;--unk-bg:#eef0f2;--r:20px;
+  /* 얼굴 날씨 색: 날씨 느낌에 맞춘다(맑음 = 햇빛 노랑, 구름 조금 = 하늘색, 흐림 = 짙은 구름 회청색, 안개 = 옅은 회색). 성공·경고 표시(--ok 등)와는 따로 쓴다 */
+  --w-sun:#c98500;--w-sun-bg:#ffefb8;--w-sun-ink:#5a3c00;--w-part:#3a78b5;--w-part-bg:#e3effa;--w-part-ink:#1f4770;--w-cloud:#526173;--w-cloud-bg:#c8d1dc;--w-fog:#9aa1aa}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg)}
 body{word-break:keep-all;overflow-wrap:break-word}
@@ -47,8 +49,8 @@ section>*+*{margin-top:12px}
 .dot.ok{background:#59b98a}.dot.watch{background:#e0a52c}.dot.signal{background:var(--sig)}.dot.unknown{background:#c3c8ce}.dot.none{background:transparent}
 
 .verdict h2{font-size:26px;margin:2px 0 4px}.verdict ul{margin:8px 0 0 18px;font-size:13px}.verdict .fine{margin-top:10px;opacity:.85}
-.verdict.signal,.hero.signal{background:var(--sig-fill);color:var(--ink)}
-.verdict.ok,.hero.ok{background:var(--ok-bg);color:#1d5c3f}.verdict.watch,.hero.watch{background:var(--watch-bg);color:#6b4708}.verdict.unknown,.hero.unknown{background:var(--unk-bg);color:#3f4853}
+.verdict.signal,.hero.signal{background:var(--w-cloud-bg);color:var(--ink)}
+.verdict.ok,.hero.ok{background:var(--w-sun-bg);color:var(--w-sun-ink)}.verdict.watch,.hero.watch{background:var(--w-part-bg);color:var(--w-part-ink)}.verdict.unknown,.hero.unknown{background:var(--unk-bg);color:#3f4853}
 
 .row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
 .row:last-child{border:0;padding-bottom:0}.row>div{flex:1;min-width:0}.row b{font-weight:600}
@@ -61,7 +63,7 @@ section>*+*{margin-top:12px}
 .chart .vlabel{font-size:12px;fill:var(--sub);font-weight:700;letter-spacing:.01em}.chart .blabel{font-size:12px;fill:#2f8a5f}.chart .axis{font-size:12px;fill:var(--sub)}
 .chart .pt{fill:#1f2a37;cursor:pointer}.chart .pt.signal{fill:var(--sig)}.chart .pt.unknown{fill:#b6bcc4}.chart .pt.watch{fill:#e0a52c}
 .picked{display:flex;flex-direction:column;gap:2px;margin-top:10px;padding:10px 12px;border-radius:14px;font-size:13px;background:var(--unk-bg)}
-.picked.signal{background:var(--tint)}.picked.ok{background:var(--ok-bg)}.picked.watch{background:var(--watch-bg)}
+.picked.signal{background:var(--w-cloud-bg)}.picked.ok{background:var(--w-sun-bg)}.picked.watch{background:var(--w-part-bg)}
 .hint{margin-top:8px}
 .ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}.ev:last-child{border:0}.ev>b{width:52px;color:var(--accent-ink);flex:none}
 
@@ -175,7 +177,7 @@ section>*+*{margin-top:12px}
 }
 .auth-wrap>.card+.card{margin-top:0}
 .dots{display:flex;gap:6px;margin:10px 0 12px}.dots i{flex:1;height:8px;border-radius:999px;background:#eee7e1}.dots i.on{background:var(--accent)}
-.wi{display:block;margin:4px auto 0;flex:none}.wi.ok{color:var(--ok)}.wi.watch{color:var(--watch)}.wi.signal{color:var(--accent-ink)}.wi.unknown{color:#8a919b}
+.wi{display:block;margin:4px auto 0;flex:none}.wi.ok{color:var(--w-sun)}.wi.watch{color:var(--w-part)}.wi.signal{color:var(--w-cloud)}.wi.unknown{color:var(--w-fog)}
 .verdict h2{display:flex;align-items:center;gap:8px}.verdict .wi{margin:0;color:inherit}
 .head-actions{display:flex;gap:8px;flex-wrap:wrap}
 .cal{margin:12px 0}.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.cal-head button{width:44px;min-height:44px;font-size:22px;color:var(--sub)}.cal-head button:disabled{opacity:.3}
@@ -265,6 +267,46 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
 .hero{position:relative;overflow:hidden;border-radius:28px;padding:22px 20px 18px;margin-top:6px}
 .hero>*{position:relative}
 .hero .hero-bg{position:absolute;right:-30px;top:-30px;width:210px;height:210px;opacity:.13;stroke-width:.9;color:inherit}
+/* 날씨 카드 안 하늘 효과(weather.jsx HeroSky). 글자 뒤에서만, transform과 opacity만 아주 천천히 움직인다. */
+.hero .sky{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:inherit}
+.sky i{position:absolute;display:block}.sky-c{display:block;width:100%;height:auto}
+/* 맑음: 햇살이 천천히 돌고, 해가 숨 쉬듯 커졌다 작아지고, 빛 한 줄기가 9초에 한 번 카드를 스친다 */
+.sky-glow{right:-60px;top:-60px;width:270px;height:270px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,214,102,.5) 38%,rgba(255,214,102,0) 68%);animation:sky-glow 6s ease-in-out infinite alternate}
+.sky-ok .wi-rays{transform-origin:12px 12px;animation:sky-spin 50s linear infinite}
+.sky-ok .wi-sun{transform-origin:12px 12px;animation:sky-breathe 6s ease-in-out infinite alternate}
+.sky-sweep{inset:-20% -60%;background:linear-gradient(105deg,transparent 43%,rgba(255,255,255,.6) 50%,transparent 57%);opacity:0;animation:sky-sweep 9s ease-in-out infinite}
+@keyframes sky-spin{to{transform:rotate(360deg)}}
+@keyframes sky-breathe{from{transform:scale(.94)}to{transform:scale(1.08)}}
+@keyframes sky-glow{from{opacity:.55;transform:scale(.92)}to{opacity:1;transform:scale(1.06)}}
+@keyframes sky-sweep{0%,52%{transform:translateX(-62%);opacity:0}58%,92%{opacity:1}100%{transform:translateX(62%);opacity:0}}
+.sky-ok .hero-bg{color:#e39a00;opacity:.32}
+/* 구름 조금: 햇살이 좌우로 흔들리고, 구름이 해 앞을 오간다 */
+.sky-watch .hero-bg{opacity:.38}.sky-watch .wi-sun,.sky-watch .wi-rays{stroke:#eda200}.sky-watch .hero-bg .wi-cloud{stroke:#7ea3cb}
+.sky-watch .sky-glow{right:16px;top:-46px;width:180px;height:180px}
+.sky-watch .wi-rays{transform-origin:8.500px 8.500px;animation:sky-sway 9s ease-in-out infinite alternate}
+.sky-watch .wi-cloud{animation:sky-nudge 12s ease-in-out infinite alternate}
+.sky-watch .sky-t1{right:120px;top:64px;width:110px;color:#fff;opacity:.9;transform:translateX(10px);animation:sky-float 16s ease-in-out infinite alternate}
+@keyframes sky-sway{from{transform:rotate(-10deg)}to{transform:rotate(14deg)}}
+@keyframes sky-nudge{from{transform:translateX(-1.400px)}to{transform:translateX(1px)}}
+@keyframes sky-float{from{transform:translateX(-26px)}to{transform:translateX(34px)}}
+/* 흐림: 옅은 구름 세 겹이 서로 다른 빠르기로 카드를 가로질러 흘러간다. 색은 그대로 두고 위쪽만 살짝 어둡게 */
+.sky-veil{inset:0;background:linear-gradient(180deg,rgba(31,42,55,.16),rgba(31,42,55,0) 75%)}
+.sky-signal .sky-track{left:0;width:100%;color:#fff}.sky-signal .sky-c{position:absolute;left:50%}
+.sky-signal .sky-t1{top:6%;opacity:.42;transform:translateX(-30%);animation:sky-cross 40s linear -12s infinite}.sky-signal .sky-t1 .sky-c{width:190px;margin-left:-95px}
+.sky-signal .sky-t2{top:44%;opacity:.3;transform:translateX(12%);animation:sky-cross 56s linear -34s infinite}.sky-signal .sky-t2 .sky-c{width:130px;margin-left:-65px}
+.sky-signal .sky-t3{top:58%;opacity:.24;transform:translateX(36%);animation:sky-cross 74s linear -52s infinite}.sky-signal .sky-t3 .sky-c{width:260px;margin-left:-130px}
+.sky-signal .wi-cloud{animation:sky-nudge 14s ease-in-out infinite alternate}.sky-signal .wi-cloud2{animation:sky-nudge 14s ease-in-out infinite alternate-reverse}
+@keyframes sky-cross{from{transform:translateX(-85%)}to{transform:translateX(85%)}}
+/* 안개: 뿌연 띠 세 줄이 좌우로 느리게 흐르고, 뒤의 아이콘이 흐려졌다 또렷해진다 */
+.sky-fog{left:-30%;width:160%;height:44px;border-radius:50%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.9) 30%,rgba(255,255,255,.9) 70%,rgba(255,255,255,0));filter:blur(12px)}
+.sky-f1{top:10%;animation:sky-fog 15s ease-in-out infinite alternate}
+.sky-f2{top:40%;height:56px;opacity:.8;animation:sky-fog 21s ease-in-out infinite alternate-reverse}
+.sky-f3{top:70%;opacity:.7;animation:sky-fog 26s ease-in-out -8s infinite alternate}
+.sky-unknown .hero-bg{animation:sky-haze 10s ease-in-out infinite alternate}
+.sky-unknown .wi-fog1{animation:sky-nudge 7s ease-in-out infinite alternate}.sky-unknown .wi-fog2{animation:sky-nudge 7s ease-in-out infinite alternate-reverse}
+@keyframes sky-fog{from{transform:translateX(-12%)}to{transform:translateX(10%)}}
+@keyframes sky-haze{from{opacity:.14}to{opacity:.06}}
+@media (prefers-reduced-motion:reduce){.hero .sky,.hero .sky *{animation:none!important}}
 .hero-label{font-size:13.500px;font-weight:600}
 .hero .hero-name{display:flex;align-items:center;gap:12px;font-size:44px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin:6px 0 8px}
 .hero .hero-name .wi{margin:0;color:inherit}
@@ -286,33 +328,48 @@ button.brand{text-align:left}.brand:hover,.brand-m:hover{opacity:.8}
   .hero{padding:32px 36px 24px}
   .hero .hero-name{font-size:56px}
   .hero .hero-bg{width:300px;height:300px;right:-40px;top:-40px}
+  .sky-glow{right:-80px;top:-80px;width:380px;height:380px}.sky-watch .sky-glow{right:34px;top:-54px;width:240px;height:240px}.sky-watch .sky-t1{right:190px;top:96px;width:150px}
   .hero-msg{font-size:19px}
 }
 
-/* 촬영 팁 캐릭터 동작 */
+/* 촬영 팁 캐릭터 동작. 4초 반복: 처음 자세(0.4초) → 동작(1.2초) → 끝 자세에서 멈춤(1.8초) → 돌아가기(0.6초).
+   ✓ 팁은 틀린 자세에서 맞는 자세로, ✕ 팁은 하면 안 되는 자세로 간다. ✓와 ✕ 표시는 끝 자세에 닿을 때 또렷해진다.
+   기본 스타일이 끝 자세라서, '움직임 줄이기' 설정이면 ✓는 맞는 모습, ✕는 틀린 모습으로 멈춰 있다. */
 .shot .face{width:96px;height:100px}
 .face *{transform-box:fill-box;transform-origin:center}.face clipPath,.face clipPath *{animation:none}
-@keyframes mc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@keyframes mc-tilt{0%,15%,100%{transform:rotate(0)}35%{transform:rotate(-20deg)}65%{transform:rotate(20deg)}}
-@keyframes mc-blink{0%,90%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
-@keyframes mc-lock-l{0%,100%{transform:rotate(60deg)}28%{transform:rotate(0)}34%{transform:rotate(-5deg)}40%,70%{transform:rotate(0)}}
-@keyframes mc-lock-r{0%,100%{transform:rotate(-60deg)}28%{transform:rotate(0)}34%{transform:rotate(5deg)}40%,70%{transform:rotate(0)}}
-@keyframes mc-mask{0%,100%{transform:translateY(46px);opacity:0}35%,70%{transform:translateY(0);opacity:1}}
-@keyframes mc-place{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}45%{transform:translateX(12px)}70%{transform:translateX(0)}}
-@keyframes mc-frame{0%,100%{opacity:.55}70%{opacity:1}}
-@keyframes mc-shade{0%,100%{transform:translateX(-30px);opacity:0}35%,70%{transform:translateX(0);opacity:.3}}
-@keyframes mc-line{to{stroke-dashoffset:-22}}
-.mc-front .mc-body,.mc-light .mc-body{animation:mc-float 2.6s ease-in-out infinite}
-.mc-tilt .mc-body{animation:mc-tilt 3s ease-in-out infinite}
-.mc-lock-l{animation:mc-lock-l 3s ease-in-out infinite}.mc-lock-r{animation:mc-lock-r 3s ease-in-out infinite}
-.mc-maskg{animation:mc-mask 3s ease-in-out infinite}
-.mc-place .mc-body{animation:mc-place 3s ease-in-out infinite}.mc-frame{animation:mc-frame 3s ease-in-out infinite}
-.mc-eyes{animation:mc-blink 4s infinite}
-.mc-shade{animation:mc-shade 3s ease-in-out infinite}
-.mc-line{animation:mc-line 1.4s linear infinite}
-@media (prefers-reduced-motion:reduce){.face *{animation:none!important}.mc-shade{opacity:.3}}
-.sentences p+p{margin-top:4px}.sentences .link{padding:0;margin-top:2px}
+.mc-body,.mc-feat,.mc-lock-l,.mc-lock-r,.mc-maskg{animation-duration:4s;animation-timing-function:cubic-bezier(.4,0,.2,1);animation-iteration-count:infinite}
+/* 정면, 눈높이: 옆 아래를 보던 얼굴이 가운데 십자선에 맞게 정면을 본다 */
+.mc-front .mc-feat{transform:translate(-12px,0);animation-name:mc-turn}
+@keyframes mc-turn{0%,10%{transform:translate(9px,11px)}36%{transform:translate(-13.500px,-1px)}42%,85%{transform:translate(-12px,0)}100%{transform:translate(9px,11px)}}
+.mc-cross{animation:mc-guide 4s ease-in-out infinite}.mc-ref{opacity:.45}
+@keyframes mc-guide{0%,26%{opacity:.25}42%,85%{opacity:1}100%{opacity:.25}}
+/* 밝고 그림자 없이: 얼굴 반쪽의 그림자가 빛이 켜지며 사라진다 */
+.mc-shade{opacity:0;animation:mc-shade 4s ease-in-out infinite}
+@keyframes mc-shade{0%,12%{opacity:.3;transform:translateX(0)}40%,85%{opacity:0;transform:translateX(-36px)}100%{opacity:.3;transform:translateX(0)}}
+.mc-sun{animation:mc-sun 4s ease-in-out infinite}
+@keyframes mc-sun{0%,12%{opacity:.25;transform:scale(.7)}36%{opacity:1;transform:scale(1.14)}42%,85%{opacity:1;transform:scale(1)}100%{opacity:.25;transform:scale(.7)}}
+/* 매번 같은 자리에서: 틀 밖에 있던 얼굴이 틀 안으로 들어오면 틀이 초록으로 잠긴다 */
+.mc-place .mc-body{animation-name:mc-place}
+@keyframes mc-place{0%,10%{transform:translate(-15px,8px)}36%{transform:translate(2px,-1px)}42%,85%{transform:translate(0,0)}100%{transform:translate(-15px,8px)}}
+.mc-frame{stroke:#1f7049;animation:mc-frame 4s ease-in-out infinite}
+@keyframes mc-frame{0%,34%{stroke:#d9653f;opacity:.5;transform:scale(1)}40%{stroke:#1f7049;opacity:1;transform:scale(1.04)}46%,85%{stroke:#1f7049;opacity:1;transform:scale(1)}100%{stroke:#d9653f;opacity:.5;transform:scale(1)}}
+/* 고개를 기울이지 않기: 세로 기준선에서 고개가 기운다 */
+.mc-tilt .mc-body{transform:rotate(-16deg);animation-name:mc-tilt}
+@keyframes mc-tilt{0%,10%{transform:rotate(0)}36%{transform:rotate(-19deg)}42%,85%{transform:rotate(-16deg)}100%{transform:rotate(0)}}
+/* 앞머리, 마스크: 볼을 가리는 자세로 가서 멈춘다 */
 .mc-lock-l,.mc-lock-r{transform-origin:50% 0}
+.mc-lock-l{animation-name:mc-lock-l}.mc-lock-r{animation-name:mc-lock-r}
+@keyframes mc-lock-l{0%,10%{transform:rotate(58deg)}36%{transform:rotate(-4deg)}42%,85%{transform:rotate(0)}100%{transform:rotate(58deg)}}
+@keyframes mc-lock-r{0%,10%{transform:rotate(-58deg)}36%{transform:rotate(4deg)}42%,85%{transform:rotate(0)}100%{transform:rotate(-58deg)}}
+.mc-maskg{animation-name:mc-mask}
+@keyframes mc-mask{0%,10%{transform:translateY(46px);opacity:0}36%{transform:translateY(-2px);opacity:1}42%,85%{transform:translateY(0);opacity:1}100%{transform:translateY(46px);opacity:0}}
+/* 끝 자세에서 한 번 깜빡이고, ✓와 ✕ 표시가 끝 자세에 닿을 때 또렷해진다 */
+.mc-eyes{animation:mc-blink 4s infinite}
+@keyframes mc-blink{0%,58%,66%,100%{transform:scaleY(1)}62%{transform:scaleY(.1)}}
+.shot.ok::after,.shot.no::after{animation:mc-badge 4s ease-out infinite}
+@keyframes mc-badge{0%,34%{opacity:.3;transform:scale(.82)}42%{opacity:1;transform:scale(1.25)}48%,88%{opacity:1;transform:scale(1)}100%{opacity:.3;transform:scale(.82)}}
+@media (prefers-reduced-motion:reduce){.face *,.shot.ok::after,.shot.no::after{animation:none!important}}
+.sentences p+p{margin-top:4px}.sentences .link{padding:0;margin-top:2px}
 .diff-note{font-size:14px;margin-top:2px}.diff-note.warn{font-size:14px}
 
 /* 촬영 전 바뀐 사진 안내 동의 */
@@ -445,8 +502,8 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .recap-nav{display:flex;gap:6px}.recap-nav .btn{min-width:44px;padding:0 12px}
 .recap-weather{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;padding:0;list-style:none}
 .recap-weather li{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;background:var(--unk-bg);color:var(--ink);font-size:12.500px}
-.recap-weather li.ok{background:var(--ok-bg)}.recap-weather li.watch{background:var(--watch-bg)}.recap-weather li.signal{background:#ffe6da}.recap-weather li.unknown{background:var(--unk-bg)}
-.recap-weather li.ok svg{color:var(--ok)}.recap-weather li.watch svg{color:var(--watch)}.recap-weather li.signal svg{color:#c2522d}.recap-weather li.unknown svg{color:var(--unk)}
+.recap-weather li.ok{background:var(--w-sun-bg)}.recap-weather li.watch{background:var(--w-part-bg)}.recap-weather li.signal{background:var(--w-cloud-bg)}.recap-weather li.unknown{background:var(--unk-bg)}
+.recap-weather li.ok svg{color:var(--w-sun)}.recap-weather li.watch svg{color:var(--w-part)}.recap-weather li.signal svg{color:var(--w-cloud)}.recap-weather li.unknown svg{color:var(--w-fog)}
 .recap-weather li b{font-size:20px}
 .recap-lines{margin:0;padding-left:18px;line-height:1.6;font-size:14.500px}
 .ch-bar{position:relative;height:12px;border-radius:999px;background:var(--line);overflow:hidden;margin:12px 0 4px}

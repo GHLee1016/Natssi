@@ -1,7 +1,7 @@
 // 날짜 하나의 얼굴 날씨를 보여 주는 조각들. 데모 다이어리(김서연)와 로그인한 '오늘' 화면이 함께 쓴다.
 // 두 화면 모두 같은 판정 엔진의 기록(record)과 루틴 버전(version)을 받으므로 모양이 같다.
 import { fmt, LEVEL_CLASS } from '../api.js'
-import { WEATHER, WeatherIcon } from '../weather.jsx'
+import { WEATHER, WeatherIcon, HeroSky } from '../weather.jsx'
 import Gauge from '../gauge.jsx'
 import KV from '../kv.jsx'
 
@@ -27,7 +27,7 @@ export function DayHero({ record, version, district, isToday, mine, showEnv = tr
   const v = record.verdict
   return (
     <div className={'hero ' + LEVEL_CLASS[v.level]}>
-      <WeatherIcon level={v.level} size={220} className="hero-bg" />
+      <HeroSky level={v.level} />
       <p className="hero-label">{isToday ? (mine ? '오늘의 내 얼굴 날씨' : '오늘의 얼굴 날씨') : '이날의 얼굴 날씨'}</p>
       <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
       <p className="hero-msg">{v.message}</p>

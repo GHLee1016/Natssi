@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { api, fmt, LEVEL_CLASS } from '../api.js'
-import { WEATHER, WeatherIcon } from '../weather.jsx'
+import { WEATHER, WeatherIcon, HeroSky } from '../weather.jsx'
 import Gauge from '../gauge.jsx'
 import { useLoad, Status } from '../useLoad.jsx'
 import CheckinSteps from './CheckinSteps.jsx'
@@ -154,7 +154,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
           ? <DayHero record={rec} version={ver} district={d.district} isToday mine showEnv={false} />
           : (
             <div className={'hero ' + LEVEL_CLASS[v.level]}>
-              <WeatherIcon level={v.level} size={220} className="hero-bg" />
+              <HeroSky level={v.level} />
               <p className="hero-label">오늘의 내 얼굴 날씨</p>
               <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
               <p className="hero-msg">{v.message}</p>

@@ -15,24 +15,33 @@ const SHOTS = [
   ['hair', '앞머리로 볼 가리지 않기', false],
   ['mask', '마스크 쓰지 않기', false],
 ]
-// 낯씨 캐릭터(로고의 얼굴). 촬영 팁마다 다른 동작을 반복한다. 움직임은 CSS로만 만들고, 모션 줄이기 설정이면 멈춘다.
-// 모션을 끈 상태에서는 가린 모습(앞머리·마스크)이 그대로 보이도록 원래 좌표를 '가린 위치'에 둔다.
+// 낯씨 캐릭터(로고의 얼굴). 촬영 팁마다 다른 동작을 4초마다 반복한다: 처음 자세 → 동작 → 끝 자세에서 멈춤 → 돌아가기.
+// ✓ 팁은 틀린 자세에서 맞는 자세로 가고(끝 자세 = 맞는 모습), ✕ 팁은 하면 안 되는 자세로 간다(끝 자세 = 틀린 모습).
+// 움직임은 CSS로만 만든다(styles.css의 mc-*). 모션 줄이기 설정이면 끝 자세로 멈춰 있도록, 원래 좌표와 기본 스타일을 끝 자세에 둔다.
 const HAIR = '#1f2a37'
 function Face({ kind }) {
   return (
     <svg viewBox="12 0 176 164" aria-hidden="true" className={'face mc-' + kind}>
       {kind === 'place' && <rect className="mc-frame" x="20" y="8" width="160" height="148" rx="26" fill="none" stroke="#d9653f" strokeWidth="3" strokeDasharray="8 7" strokeLinecap="round" />}
+      {kind === 'light' && (
+        <g className="mc-sun">
+          <circle cx="33" cy="21" r="8" fill="#ffc94d" />
+          <path d="M33 5 v5 M33 32 v5 M17 21 h5 M44 21 h5 M21.700 9.700 l3.500 3.500 M40.800 28.800 l3.500 3.500 M44.300 9.700 l-3.500 3.500 M25.200 28.800 l-3.500 3.500" stroke="#ffc94d" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      )}
       <g className="mc-body">
         {kind === 'hair' && <path d="M24 96 C10 34 52 2 100 2 C148 2 190 34 176 96 Z" fill={HAIR} />}
         <rect x="34" y="18" width="132" height="132" rx="48" fill="#ffb86b" />
-        <ellipse cx="78" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" /><ellipse cx="146" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" />
-        <g className="mc-eyes"><circle cx="88" cy="72" r="8" fill="#1f2a37" /><circle cx="136" cy="72" r="8" fill="#1f2a37" /></g>
-        <circle cx="90.600" cy="69.400" r="2.400" fill="#fff" /><circle cx="138.600" cy="69.400" r="2.400" fill="#fff" />
-        <path d="M100 100 q12 9 24 0" stroke="#1f2a37" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <g className="mc-feat">
+          <ellipse cx="78" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" /><ellipse cx="146" cy="98" rx="12" ry="8" fill="#ff6f61" opacity=".45" />
+          <g className="mc-eyes"><circle cx="88" cy="72" r="8" fill="#1f2a37" /><circle cx="136" cy="72" r="8" fill="#1f2a37" /></g>
+          <circle cx="90.600" cy="69.400" r="2.400" fill="#fff" /><circle cx="138.600" cy="69.400" r="2.400" fill="#fff" />
+          <path d="M100 100 q12 9 24 0" stroke="#1f2a37" strokeWidth="4" fill="none" strokeLinecap="round" />
+        </g>
         {kind === 'hair' && (
           <>
             <path d="M26 82 C10 34 52 2 100 2 C148 2 190 34 174 82 C166 58 140 42 108 36 C90 50 56 68 26 82 Z" fill={HAIR} />
-            <path className="mc-lock-l" d="M38 40 C28 70 28 108 46 130 C58 112 60 76 58 40 Z" fill={HAIR} />
+            <path className="mc-lock-l" d="M38 40 C28 70 30 110 56 132 C74 112 78 76 66 40 Z" fill={HAIR} />
             <path className="mc-lock-r" d="M162 40 C172 70 172 108 154 130 C142 112 140 76 142 40 Z" fill={HAIR} />
           </>
         )}
@@ -44,11 +53,16 @@ function Face({ kind }) {
           </g>
         )}
       </g>
-      {kind === 'front' && <path className="mc-line" d="M100 4 v156" stroke="#d9653f" strokeWidth="3" strokeDasharray="3 8" strokeLinecap="round" />}
+      {kind === 'front' && (
+        <g className="mc-cross" stroke="#d9653f" strokeWidth="3" strokeDasharray="3 8" strokeLinecap="round">
+          <path d="M100 4 v156" /><path d="M22 72 h156" />
+        </g>
+      )}
+      {kind === 'tilt' && <path className="mc-ref" d="M100 4 v156" stroke="#d9653f" strokeWidth="3" strokeDasharray="3 8" strokeLinecap="round" />}
       {kind === 'light' && (
         <>
           <clipPath id="mc-face"><rect x="34" y="18" width="132" height="132" rx="48" /></clipPath>
-          <g clipPath="url(#mc-face)"><rect className="mc-shade" x="34" y="18" width="70" height="132" fill="#1f2a37" opacity=".28" /></g>
+          <g clipPath="url(#mc-face)"><rect className="mc-shade" x="34" y="18" width="70" height="132" fill="#1f2a37" /></g>
         </>
       )}
     </svg>
