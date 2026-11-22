@@ -6,8 +6,9 @@ import { WEATHER, WeatherIcon } from '../weather.jsx'
 const pad = (n) => String(n).padStart(2, '0')
 
 // 월 달력: 날마다 그날의 얼굴 날씨를 보여주고, 누르면 그 날짜로 이동한다.
-export default function Calendar({ date, first, today, onPick }) {
-  const q = useLoad(() => api.timeline(), [])
+// load: 기록을 불러오는 함수(데모는 api.timeline, 로그인한 사용자는 api.myTimeline)
+export default function Calendar({ date, first, today, onPick, load = api.timeline }) {
+  const q = useLoad(() => load(), [load])
   const [ym, setYm] = useState(date.slice(0, 7))
   const [y, m] = ym.split('-').map(Number)
   const level = Object.fromEntries((q.data?.records || []).map((r) => [r.date, r.verdict.level]))

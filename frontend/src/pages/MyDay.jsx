@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { WEATHER, WeatherIcon } from '../weather.jsx'
 import Gauge from '../gauge.jsx'
@@ -6,6 +6,8 @@ import { useLoad, Status } from '../useLoad.jsx'
 import CheckinSteps from './CheckinSteps.jsx'
 import { InstallHint } from '../install.jsx'
 import KV, { symptomItems } from '../kv.jsx'
+import Calendar from './Calendar.jsx'
+import { DayHero, WeekStrip, weekOf, symptomText, ChangeDays } from './DayParts.jsx'
 
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
 
@@ -60,8 +62,42 @@ function PolicyNotice({ mine, current, onLegal, onConsented }) {
   )
 }
 
-export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, onConsented }) {
+const sgn = (x) => (x > 0 ? '+' : '') + x
+
+// 지난 날 하나: 데모 다이어리와 같은 모양(날씨 카드, 이번 주 줄, 그날의 기록)
+function PastDay({ rec, ver, district, week, first, today, setDate, changes }) {
+  if (!rec) return <div className="card"><p>이날은 기록이 없어요.</p></div>
+  return (
+    <>
+      <DayHero record={rec} version={ver} district={district} />
+      <WeekStrip date={rec.date} week={week} first={first} today={today} setDate={setDate} />
+      {changes}
+      <div className="rec-sec">
+        <h3>이날의 기록</h3>
+        <div className="rec">
+          <div className="rec-row">
+            <span className="rec-k">셀카</span>
+            <div className="rec-v"><div>{rec.redness != null ? `볼 붉은기 ${sgn(rec.redness)}` : rec.quality_note}<p className="muted small">사진은 남기지 않고 볼 색 숫자만 남겨요</p></div></div>
+          </div>
+          <div className="rec-row">
+            <span className="rec-k">증상</span>
+            <div className="rec-v"><div>{Object.keys(rec.symptoms || {}).length ? symptomText(rec.symptoms) : '체크인 없음'}</div></div>
+          </div>
+          {ver?.items?.length > 0 && (
+            <div className="rec-row">
+              <span className="rec-k">루틴</span>
+              <div className="rec-v"><div>{ver.items.filter((i) => i.kind !== 'device').map((i) => i.name).join(', ')}</div></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, onConsented, date, setDate }) {
   const q = useLoad(() => api.me(), [])
+  const [calOpen, setCalOpen] = useState(false)
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -77,27 +113,57 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   const filled = d ? Math.min(d.redness_days, d.needed) : 0
   const v = d?.today_verdict?.baseline ? d.today_verdict : null   // 평소 범위가 생긴 뒤에만(그 전은 아래 진행 카드가 알려 줌)
 
+  // 달력과 지난 날 보기: 사진 기록이 평소 범위를 만들 만큼(7일) 쌓인 뒤에만 열린다(서버도 그 전에는 409).
+  const tl = useLoad(() => (d?.unlocked ? api.myTimeline() : Promise.resolve(null)), [d])
+  const records = tl.data?.records || []
+  const day = d && date && date !== d.today ? date : d?.today
+  const past = !!d && day !== d.today
+  const rec = records.find((r) => r.date === day)
+  const ver = rec && tl.data.versions.find((x) => x.id === rec.version)
+  const first = records[0]?.date
+  const loadMine = useCallback(() => Promise.resolve(tl.data), [tl.data])
+  const pick = (iso) => { setDate(iso); setCalOpen(false); window.scrollTo(0, 0) }
+  // 루틴을 바꾼 날로 바로 가기(데모의 '이 사람의 이야기'와 같은 줄). 바꾼 날이 없으면 보이지 않는다.
+  const changes = tl.data && <ChangeDays records={records} versions={tl.data.versions} date={day} setDate={pick} title="루틴을 바꾼 날" />
+
   return (
     <section>
       <header className="page-head">
-        <div><h1>{d ? fmt.full(d.today) : '내 기록'}</h1></div>
+        <div>
+          {d && <p className="eyebrow">{past ? '지난 기록' : '오늘'}</p>}
+          <h1>{d ? fmt.full(day) : '내 기록'}</h1>
+        </div>
+        {d && (
+          <div className="head-actions">
+            {past && <button className="btn ghost" onClick={() => setDate(null)}>오늘로 가기</button>}
+            {tl.data && first && <button className="btn ghost" onClick={() => setCalOpen((o) => !o)} aria-expanded={calOpen}>{calOpen ? '달력 닫기' : '달력'}</button>}
+          </div>
+        )}
       </header>
+      {calOpen && tl.data && first && <Calendar date={day} first={first} today={d.today} onPick={pick} load={loadMine} />}
       <p className="sr-only" role="status">{note}</p>
       <Status {...q} />
-      {d && (
+      {d && past && (
+        <PastDay rec={rec} ver={ver} district={d.district} week={weekOf(day, records)} first={first} today={d.today} setDate={setDate} changes={changes} />
+      )}
+      {d && !past && (
         <>
         <PolicyNotice mine={viewer?.consent_version} current={policyVersion} onLegal={onLegal} onConsented={onConsented} />
         <EnvToday district={d.district} env={d.env} today={d.today} onAccount={onAccount} />
-        {v && (
-          <div className={'hero ' + LEVEL_CLASS[v.level]}>
-            <WeatherIcon level={v.level} size={220} className="hero-bg" />
-            <p className="hero-label">오늘의 내 얼굴 날씨</p>
-            <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
-            <p className="hero-msg">{v.message}</p>
-            {v.reasons.length > 0 && <ul className="hero-reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
-            {v.baseline && <Gauge value={d.today_redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />}
-          </div>
-        )}
+        {v && (rec
+          ? <DayHero record={rec} version={ver} district={d.district} isToday mine showEnv={false} />
+          : (
+            <div className={'hero ' + LEVEL_CLASS[v.level]}>
+              <WeatherIcon level={v.level} size={220} className="hero-bg" />
+              <p className="hero-label">오늘의 내 얼굴 날씨</p>
+              <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
+              <p className="hero-msg">{v.message}</p>
+              {v.reasons.length > 0 && <ul className="hero-reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
+              {v.baseline && <Gauge value={d.today_redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />}
+            </div>
+          ))}
+        {tl.data && first && <WeekStrip date={day} week={weekOf(day, records)} first={first} today={d.today} setDate={setDate} />}
+        {changes}
         <div className="rec rec-wide">
           <div className="rec-row">
             <span className="rec-k">셀카</span>
@@ -166,7 +232,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
         <div className="notice wide">
           <p>얼굴 날씨는 내 평소 기록과 비교한 결과예요. 진단이 아니에요.</p>
           <p>따가움이나 화끈거림이 계속되면 제품 사용을 멈추고 보건소나 피부과 전문의와 상담해 주세요.</p>
-          {!d.unlocked && <p>사진 기록이 {d.needed}일 쌓이면 변화와 리포트도 내 기록으로 볼 수 있어요. 지금 {d.redness_days}일이에요.</p>}
+          {!d.unlocked && <p>사진 기록이 {d.needed}일 쌓이면 달력, 변화, 리포트도 내 기록으로 볼 수 있어요. 지금 {d.redness_days}일이에요.</p>}
         </div>
         </>
       )}

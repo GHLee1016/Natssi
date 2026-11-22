@@ -1,61 +1,22 @@
 import { useState } from 'react'
-import { api, fmt, LEVEL_CLASS } from '../api.js'
+import { api, fmt } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
-import { WEATHER, WeatherIcon } from '../weather.jsx'
 import Calendar from './Calendar.jsx'
-import Gauge from '../gauge.jsx'
 import StartCard from './StartCard.jsx'
 import FaceMap from './FaceMap.jsx'
-import KV from '../kv.jsx'
-
-const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
-
-// 환경 줄. 김서연은 가상 인물이지만 환경값은 실제 측정값(에어코리아, 기상청)이라 어느 구 값인지 밝힌다.
-function EnvLine({ e, district, day }) {
-  const src = district ? `환경(${district} 실측)` : '환경'
-  const has = e.pm25 != null || e.humidity != null || e.temp != null
-  if (!has) return <span className="env-line"><b>{src}</b> <span className="muted">이날 측정값은 아직 없어요</span></span>
-  const when = e.measured_on && e.measured_on !== day ? `${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값` : ''
-  return (
-    <span className="env-line">
-      <b>{src}</b> <span className="muted">{e.unusual ? '평소와 달라요' : '평소와 비슷해요'}</span>
-      <KV className="small" items={[['초미세먼지', e.pm25 != null && e.pm25], ['습도', e.humidity != null && `${e.humidity}%`], ['기온', e.temp != null && `${e.temp}℃`]]} />
-      {when && <span className="sub-line">{when}</span>}
-    </span>
-  )
-}
+import { DayHero, WeekStrip, ChangeDays, symptomText } from './DayParts.jsx'
 
 // 데모 첫 화면(오늘 = 맑음)만 보면 흐림 → 빈도 조정 → 맑음 이야기가 안 보인다. 이야기의 날들로 바로 가는 줄.
 function Story({ date, setDate }) {
   const q = useLoad(() => api.timeline(), [])
   if (!q.data) return null
-  const { records, versions } = q.data
-  const firstSignal = records.find((r) => r.verdict.level === '신호 있음')
-  const steps = [
-    ...versions.slice(1).map((v) => ({ date: v.start, text: v.change })),
-    firstSignal && { date: firstSignal.date, text: '흐림 시작' },
-  ].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))
-  if (!steps.length) return null
-  return (
-    <nav className="story" aria-label="이 기록의 이야기">
-      <b>이 사람의 이야기</b>
-      {steps.map((s) => (
-        <button key={s.date + s.text} className={s.date === date ? 'on' : ''} aria-current={s.date === date ? 'date' : undefined}
-          onClick={() => setDate(s.date)}>{fmt.md(s.date)} {s.text}</button>
-      ))}
-    </nav>
-  )
+  return <ChangeDays records={q.data.records} versions={q.data.versions} date={date} setDate={setDate} title="이 사람의 이야기" withSignal />
 }
 
 export default function Diary({ date, setDate, meta, go, askLogin }) {
   const q = useLoad(() => api.day(date), [date])
   const [calOpen, setCalOpen] = useState(false)
   const d = q.data
-
-  const moveWeek = (n) => {
-    const next = fmt.shift(date, n * 7)
-    setDate(next < meta.first ? meta.first : next > meta.today ? meta.today : next)
-  }
 
   return (
     <section>
@@ -73,41 +34,13 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
       <Status {...q} />
       {d && (
         <>
-          <div className={'hero ' + LEVEL_CLASS[d.record.verdict.level]}>
-            <WeatherIcon level={d.record.verdict.level} size={220} className="hero-bg" />
-            <p className="hero-label">{date === meta.today ? '오늘의 얼굴 날씨' : '이날의 얼굴 날씨'}</p>
-            <h2 className="hero-name"><WeatherIcon level={d.record.verdict.level} size={48} />{WEATHER[d.record.verdict.level].name}</h2>
-            <p className="hero-msg">{d.record.verdict.message}</p>
-            {d.record.verdict.reasons.length > 0 && (
-              <ul className="hero-reasons">{d.record.verdict.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
-            )}
-            {d.record.verdict.baseline && d.record.redness !== null && (
-              <Gauge value={d.record.redness} low={d.record.verdict.baseline.low} high={d.record.verdict.baseline.high}
-                base={d.record.verdict.baseline_version} />
-            )}
-            <div className="hero-meta">
-              <b>루틴 버전 {d.version.id}</b> {fmt.plain(d.version.label)}<span className="sub-line">이 버전으로 {d.record.day_in_version}일째</span>
-              <EnvLine e={d.record.env} district={meta.env_district} day={date} />
-              {d.record.env.facts?.length > 0 && <><br />{d.record.env.facts.join(' ')}</>}
-            </div>
-          </div>
+          <DayHero record={d.record} version={d.version} district={meta.env_district} isToday={date === meta.today} />
 
           <Story date={date} setDate={setDate} />
           <FaceMap record={d.record} />
           {meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}
 
-          <div className="week">
-            <button className="week-nav" onClick={() => moveWeek(-1)} disabled={d.week[0].date <= meta.first} aria-label="이전 주 보기">‹</button>
-            {d.week.map((w) => (
-              <button key={w.date} disabled={!w.has_record} className={'wd' + (w.date === date ? ' on' : '')} aria-current={w.date === date ? 'date' : undefined}
-                onClick={() => setDate(w.date)} aria-label={fmt.full(w.date) + (w.level ? ` ${WEATHER[w.level].name}` : ' 기록 없음')}>
-                <span>{'일월화수목금토'[new Date(w.date + 'T00:00:00').getDay()]}</span>
-                <b>{+w.date.slice(8)}</b>
-                {w.level ? <WeatherIcon level={w.level} size={16} /> : <i className="dot none" />}
-              </button>
-            ))}
-            <button className="week-nav" onClick={() => moveWeek(1)} disabled={d.week[6].date >= meta.today} aria-label="다음 주 보기">›</button>
-          </div>
+          <WeekStrip date={date} week={d.week} first={meta.first} today={meta.today} setDate={setDate} />
 
           <div className="rec-sec">
             <h3>{date === meta.today ? '오늘의 기록' : '이날의 기록'}</h3>
@@ -120,7 +53,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
               </div>
               <div className="rec-row">
                 <span className="rec-k">증상</span>
-                <div className="rec-v"><div>{SYMPTOMS.filter((s) => d.record.symptoms[s] > 0).map((s) => `${s} ${d.record.symptoms[s]}점`).join(', ') || '증상 없음'}</div></div>
+                <div className="rec-v"><div>{symptomText(d.record.symptoms)}</div></div>
                 <button className="link" onClick={askLogin}>로그인하고 기록</button>
               </div>
               <div className="rec-row">
