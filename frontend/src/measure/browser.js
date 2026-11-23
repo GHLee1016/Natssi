@@ -39,7 +39,8 @@ export function loadLandmarker() {
 
 let liveLoading = null
 export function loadLiveTracker() {
-  liveLoading = liveLoading || createLandmarker('VIDEO', { outputFacialTransformationMatrixes: true })
+  // 실시간도 CPU 먼저: 일부 안드로이드(GPU 대리 실행)에서 얼굴 점 좌표가 터무니없는 값(4.5e18 등)으로 나와 '뒤로 가 주세요'가 끝나지 않았다
+  liveLoading = liveLoading || createLandmarker('VIDEO', { outputFacialTransformationMatrixes: true }, ['CPU', 'GPU'])
     .catch((e) => { liveLoading = null; throw e })
   return liveLoading
 }
@@ -59,6 +60,9 @@ export function trackFrame(tracker, video, ts) {
   if (!out.nFaces) return out
   let mnx = 1, mny = 1, mxx = 0, mxy = 0
   for (const p of res.faceLandmarks[main]) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y) }
+  // 좌표가 깨진 프레임(숫자가 아니거나 화면 밖으로 크게 벗어남)은 얼굴을 못 찾은 것으로 본다. 다음 프레임에서 다시 본다
+  const sane = (v) => Number.isFinite(v) && v > -0.5 && v < 1.5
+  if (![mnx, mny, mxx, mxy].every(sane)) return { ...out, nFaces: 0 }
   Object.assign(out, { cx: (mnx + mxx) / 2, cy: (mny + mxy) / 2, faceRatio: mxx - mnx, box: { x0: mnx, x1: mxx, y0: mny, y1: mxy } })
   const m = res.facialTransformationMatrixes?.[main]
   if (m) Object.assign(out, eulerFromMatrix(m))
