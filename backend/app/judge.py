@@ -20,22 +20,26 @@ def _mad(values, med):
     return median([abs(v - med) for v in values]) if values else 0.0
 
 
-def b_ref(vals):
-    """내 평소 b*(볼 노란기) 범위: (중앙값, 허용 폭). 기록이 MIN_BASELINE_RECORDS보다 적으면 None."""
+def b_ref(vals, min_width=None):
+    """내 평소 b*(볼 노란기) 범위: (중앙값, 허용 폭). 기록이 MIN_BASELINE_RECORDS보다 적으면 None.
+    min_width: 허용 폭의 최소값. 기본은 판정용 LIGHT_B_MIN(3), 촬영 때 권유는 LIGHT_B_MIN_CAPTURE(4)를 넘긴다."""
     if len(vals) < config.MIN_BASELINE_RECORDS:
         return None
     med = median(vals)
-    return med, max(config.LIGHT_B_MIN, config.MAD_K * 1.4826 * _mad(vals, med))
+    return med, max(config.LIGHT_B_MIN if min_width is None else min_width, config.MAD_K * 1.4826 * _mad(vals, med))
 
 
 def color_off(b, ref):
     """그날 b*가 조명 색이 달랐다고 볼 만큼 벗어났나. ref(내 평소 범위)가 있으면 그것으로, 없으면 고정 위쪽 기준(노란 조명)만 본다.
     푸른 쪽은 고정 기준을 두지 않는다: 조명 필터 실험에서 8000K·10000K는 a* 변화가 MDC95 안이었다(data_pipeline/data/color_robustness_summary.md).
-    고정 기준은 팀원 3명 피부로 정한 값이라, 평소 범위가 생기면 바로 그 사람 기준으로 바꾼다."""
+    고정 기준은 팀원 3명 피부로 정한 값이라, 평소 범위가 생기면 바로 그 사람 기준으로 바꾼다.
+    평소 범위가 있으면 양쪽을 본다: 푸르게 찍혀 붉은기가 낮게 나온 날이 '맑음'이 되어 실제로 붉어진 날을 가리지 않게.
+    촬영 때도 같은 양쪽 기준(폭만 4)이라, 판정에서 말없이 안개가 될 사진은 찍을 때 먼저 알려 준다."""
     if b is None:
         return False
     if ref:
-        return abs(b - ref[0]) > ref[1]
+        d = b - ref[0]
+        return abs(d) > ref[1]
     return b > config.LIGHT_B_MAX
 
 

@@ -533,10 +533,12 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
     """브라우저가 잰 측정값(숫자)만 받아 품질을 판정합니다. 사진은 서버로 오지 않아요.
     로그인했고 바뀐 처리방침(REDNESS_SINCE)에 동의했으면, 그날 처음 통과한 사진의 볼 색 숫자(a*, 조명 확인용 b*)만 오늘 기록에 남깁니다."""
     limit("capture", request, v)
-    ref = None
+    ref = jref = None
     if v:                                                    # 로그인: 내 평소 b*가 7일 넘게 쌓였으면 조명 색을 그 기준으로(judge와 같은 식)
         saved = _mine(v["id"])
-        ref = judge.b_ref([m["b"] for m in (_split(e)[2] for e in saved.values()) if m.get("b") is not None and m.get("redness") is not None])
+        bs = [m["b"] for m in (_split(e)[2] for e in saved.values()) if m.get("b") is not None and m.get("redness") is not None]
+        ref = judge.b_ref(bs, config.LIGHT_B_MIN_CAPTURE)    # 촬영 때 다시 찍기 권유: ±4
+        jref = judge.b_ref(bs)                               # 판정(안개) 기준: ±3
     res = quality.evaluate(body, b_ref=ref)
     res["saved"] = False
     if v and res["passed"] and res["redness"] is not None and ((v.get("consent") or {}).get("version") or "") >= config.REDNESS_SINCE:
@@ -545,9 +547,11 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
             entry = saved.get(today) or {}
             old = _split(entry)[2]
             # 조명 색이 달랐던 사진으로 남긴 날은, 그날 나중에 정상으로 통과한 사진으로 바꿀 수 있다(그 반대는 안 됨)
-            fix = old.get("redness") is not None and not res.get("lighting_off") and judge.color_off(old.get("b"), ref)
+            b = None if body.b_L is None or body.b_R is None else round((body.b_L + body.b_R) / 2, 2)
+            # 판정 기준(±3)으로 앞선 값은 안개, 이번 값은 아님일 때만 바꾼다(촬영 권유 ±4 안쪽이라도 안개가 될 값끼리 바꾸지 않게)
+            fix = (old.get("redness") is not None and not res.get("lighting_off")
+                   and judge.color_off(old.get("b"), jref) and not judge.color_off(b, jref))
             if _split(entry)[1] is None or fix:                       # 하루 1개: 처음 통과한 값만(다시 찍어 고르지 않게)
-                b = None if body.b_L is None or body.b_R is None else round((body.b_L + body.b_R) / 2, 2)
                 L = None if body.L_star is None else round(body.L_star, 2)
                 store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2),
                                             **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {})})

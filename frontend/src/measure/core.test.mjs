@@ -73,6 +73,17 @@ const tests = {
     assert.ok(Math.abs(pink.a_star - f.a_star) > 2.35, `볼 a*는 크게 변함: ${pink.a_star - f.a_star}`)
     assert.ok(Math.abs(pink.a_rel - f.a_rel) < Math.abs(pink.a_star - f.a_star) / 3, `상대 붉은기는 덜 변함: ${pink.a_rel - f.a_rel}`)
   },
+  '콧등·상대 붉은기가 파이썬 기준값과 같다(얼굴 점 위치·순서 포함)'() {
+    // 기준값: data_pipeline/analysis/color_robustness.py(roi_stats, 볼 a*가 검증 파이프라인과 최대 0.009 차이)로 같은 그림·같은 점을 잰 값.
+    // 볼·콧등 꼭짓점을 비뚤고 소수점 있는 자리에 둬서 반올림·채우기·점 순서(NOSE_IMG)까지 본다.
+    const R = {"cheekL": [[100.4, 400.5], [150.5, 380.2], [200.7, 395.1], [215.2, 440.6], [190.5, 480.5], [140.9, 495.3], [105.5, 470.5], [95.2, 430.0]], "cheekR": [[440.4, 400.5], [490.5, 380.2], [540.7, 395.1], [545.2, 440.6], [520.5, 480.5], [470.9, 495.3], [435.5, 470.5], [425.2, 430.0]], "nose": [[300.5, 250.5], [338.2, 262.4], [345.7, 320.1], [342.6, 380.5], [320.5, 410.5], [298.4, 381.2], [294.6, 321.3], [301.2, 262.6]], "n_N": 6371, "a_N": -1.3982919796401427, "b_N": 14.385143113034626, "clip_N": 0.021502073414222087, "a_star": 0.7500547841341743, "a_rel": 2.1483467637743168}
+    const lm = Array.from({ length: 478 }, () => [320, 600])
+    CHEEK_IMG_LEFT.forEach((i, k) => { lm[i] = R.cheekL[k] }); CHEEK_IMG_RIGHT.forEach((i, k) => { lm[i] = R.cheekR[k] }); NOSE_IMG.forEach((i, k) => { lm[i] = R.nose[k] })
+    const f = extractFeatures(testImage(), { lm, blend: {}, matrix: null, nFaces: 1 })
+    close(f.n_N / R.n_N, 1, 0.005, '콧등 픽셀 수 비율'); close(f.clip_ratio_N, R.clip_N, 0.002, '콧등 날아간 비율')
+    close(f.a_N, R.a_N, 0.05, '콧등 a*'); close(f.b_N, R.b_N, 0.05, '콧등 b*')
+    close(f.a_star, R.a_star, 0.05, '볼 a*'); close(f.a_rel, R.a_rel, 0.05, '상대 붉은기')
+  },
   '얼굴 없음이면 밝기·해상도만'() {
     const f = extractFeatures(testImage(), null)
     assert.equal(f.face_found, false); assert.equal(f.width, 640); assert.ok(f.brightness > 0 && f.brightness < 255)
