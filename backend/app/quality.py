@@ -1,7 +1,8 @@
 """촬영 품질 검사. 사진은 사용자 브라우저에서 측정하고(frontend/src/measure), 서버는 측정한 숫자만 받아 판정합니다.
 
-기준과 판정 식은 검증 파이프라인(natssi_selfie_validation/code/measure_redness.py)의 quality_flags 와 같습니다.
-기준을 바꾸면 그쪽 docs/05 기록표에 이유와 전후 수치를 남기고 두 곳을 함께 바꾸세요.
+기준과 판정 식은 11/19 셀카 검증 때의 품질 기준(results.json)과 같습니다. 그때 쓴 스크립트(measure_redness.py)는 남아 있지 않아,
+파이썬 기준은 data_pipeline/analysis/color_robustness.py(quality_ok, 측정값이 그때 결과와 a* 최대 0.009 차이)로 봅니다.
+기준을 바꾸면 이유와 전후 수치를 커밋에 남기고 color_robustness.py의 Q도 함께 바꾸세요.
 """
 import math
 from typing import Optional

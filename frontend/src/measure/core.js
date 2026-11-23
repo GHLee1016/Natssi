@@ -1,4 +1,4 @@
-// 측정 계산(브라우저 API 없음). 검증 파이프라인(natssi_selfie_validation/code/measure_redness.py)과 같은 식입니다.
+// 측정 계산(브라우저 API 없음). 파이썬 기준(data_pipeline/analysis/color_robustness.py)과 같은 식입니다.
 // 바꾸면 measure/core.test.mjs 로 파이썬 결과와 다시 맞춰 보세요.
 
 export const FEATURE_VERSION = '3'   // 3: 콧등(N) 추가, 상대 붉은기 a_rel = 볼 a* − 콧등 a*

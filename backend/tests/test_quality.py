@@ -1,4 +1,4 @@
-"""품질 판정이 검증 파이프라인(natssi_selfie_validation/code/measure_redness.py)과 같은지 확인합니다."""
+"""품질 판정이 셀카 검증 때의 기준(data_pipeline/analysis/color_robustness.py의 Q)과 같은지 확인합니다."""
 from app import quality
 
 BASE = dict(width=800, height=1000, brightness=120, face_found=True, n_faces=1, face_ratio=0.5, sharpness=100,

@@ -1,5 +1,5 @@
 // 측정 계산이 검증 파이프라인(파이썬·OpenCV)과 같은지 확인합니다.   실행: npm test  (또는 node src/measure/core.test.mjs)
-// 기준값은 natssi_selfie_validation/code/measure_redness.py 로 같은 그림을 재서 얻은 값이에요.
+// 기준값은 파이썬 측정(11/19 셀카 검증 스크립트, 지금은 data_pipeline/analysis/color_robustness.py)으로 같은 그림을 재서 얻은 값이에요.
 import assert from 'node:assert/strict'
 import { srgbToLab, roiStats, polygonMask, sharpness, eulerFromMatrix, extractFeatures, roundHalfEven, median, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT, NOSE_IMG } from './core.js'
 
