@@ -138,6 +138,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [cam, setCam] = useState('idle')   // idle | on | blocked
   const [busy, setBusy] = useState(null)   // null | '얼굴 모델 불러오는 중…' | '검사하는 중…'
   const [result, setResult] = useState(null)
+  const lastFeat = useRef(null)                     // 마지막으로 잰 숫자('그래도 이 사진으로 기록하기'에 다시 보냄)
+  const [keeping, setKeeping] = useState(false)
   const [error, setError] = useState(null)
   const [agree, setAgree] = useState(false)
   const [guide, setGuide] = useState(null)   // 실시간 정렬 가이드 {ok, key, hint}. 못 쓰면 null(직접 찍기)
@@ -235,6 +237,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         '얼굴 모델을 불러오지 못했어요(처음 한 번 약 10MB). 와이파이에서 다시 시도해 주세요.')), 90000))])
       setBusy('검사하는 중…'); await step(1)
       const features = await measurePhoto(src)
+      lastFeat.current = features
       if (stream.current) { stop(); setCam('idle') }   // 찍은 뒤에는 카메라를 끈다(통과하든 못 하든 결과 화면으로)
       await step(2)
       const parts = takeCheeks()
@@ -250,6 +253,14 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       if (stream.current) { stop(); setCam('idle') }
       setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진으로 다시 시도하거나, [사진 찍기]로 찍어 주세요.'))
     } finally { setBusy(null) }
+  }
+  // 조명 색만 걸린 사진: 사용자가 다시 찍기 대신 그대로 기록할 수 있다. 서버가 그날을 '조명 다름'으로 표시하고 판정에서 단정하지 않는다.
+  const keepAnyway = async () => {
+    if (!lastFeat.current) return
+    setKeeping(true); setError(null)
+    try { setResult(await api.capture({ ...lastFeat.current, override: true })) }
+    catch (e) { setError(e?.status ? e.message : '기록하지 못했어요. 잠시 뒤 다시 시도해 주세요.') }
+    finally { setKeeping(false) }
   }
   const shoot = () => { armed.current = false; if (video.current) send(video.current) }
   const pick = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) send(f) }
@@ -370,12 +381,21 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         <div className="res">
           {result.passed && result.redness !== null && (
             <div className="res-hero">
-              <p>오늘 볼 붉은기</p>
+              <p>오늘 볼 붉은기{result.lighting_off ? ' (조명 다름 · 참고)' : ''}</p>
               <b>{result.redness.toFixed(1)}</b>
               <p className="small">측정 오차 ±{mdc95}. 같은 폰으로 같은 자리에서 찍은 날끼리 비교해요.</p>
+              {result.redness_rel !== null && result.redness_rel !== undefined && (
+                <p className="small">조명 영향을 덜 받는 값(볼 − 콧등) {result.redness_rel.toFixed(1)}</p>
+              )}
             </div>
           )}
-          <p className="res-msg">{result.passed ? result.message : '아쉬운 항목을 고쳐서 다시 찍어 주세요.'}</p>
+          <p className="res-msg">{result.passed || result.overridable ? result.message : '아쉬운 항목을 고쳐서 다시 찍어 주세요.'}</p>
+          {!result.passed && result.overridable && (
+            <div className="next-box">
+              <p className="small">다시 찍기 어렵다면 이 사진으로 기록할 수 있어요. 조명 때문에 붉은기가 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고(구분 불가) 평소 범위 계산에서도 빼요.</p>
+              <button className="btn ghost" onClick={keepAnyway} disabled={keeping}>{keeping ? '기록하는 중…' : '그래도 이 사진으로 기록하기'}</button>
+            </div>
+          )}
           {bad.length > 0 && <><h2 className="res-sec">고칠 항목</h2><div className="res-grid">{bad.map(item)}</div></>}
           <details className="res-more">
             <summary>{bad.length ? `통과한 항목 ${rest.length}개` : `검사 항목 ${rest.length}개 모두 좋아요`}</summary>

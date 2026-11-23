@@ -1,6 +1,6 @@
 // 브라우저에서 사진을 측정합니다. 사진은 이 기기 밖으로 나가지 않고, 숫자(측정값)만 서버로 보냅니다.
 // 순서는 검증 파이프라인과 같아요: 사진 방향 반영 → 얼굴 점 검출(긴 변 1600px로 줄여서) → 원본 해상도에서 볼 색 측정.
-import { extractFeatures, eulerFromMatrix, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT } from './core.js'
+import { extractFeatures, eulerFromMatrix, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT, FEATURE_VERSION } from './core.js'
 
 const WASM = '/mediapipe/wasm'                          // 빌드할 때 node_modules 에서 복사(scripts/copy-mediapipe.mjs)
 const MODELS = ['/mediapipe/face_landmarker.task',        // 빌드할 때 받아 둔 모델
@@ -164,5 +164,6 @@ export async function measurePhoto(src) {
   const feat = extractFeatures(img, face)
   lastCheeks = face ? cropCheeks(full, face.lm) : null
   // 숫자가 아닌 값(NaN)은 null 로 보냄
-  return Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v]))
+  return { ...Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v])),
+    feature_version: FEATURE_VERSION }
 }

@@ -495,3 +495,19 @@ def test_my_challenge_starts_with_baseline_and_needs_login(env, monkeypatch):
         up(c, headers=h)
     cur = c.get("/api/me/insights", headers=h).json()["challenge"]["current"]
     assert cur["phase"] == "baseline" and cur["have"] == 3 and cur["total"] == 14
+
+
+def test_kept_lighting_photo_is_stored_with_flag_and_fogged(env):
+    """조명 색만 걸린 사진은 '그래도 기록하기'로 남길 수 있고, 그날은 구분 불가 + 평소 범위에서 빠진다."""
+    fake, c = env
+    h = join(c, "warm@test.kr")
+    warm = {**GOOD, "a_L": 22.0, "a_R": 21.0, "b_L": 27.0, "b_R": 26.0, "a_star": 21.5,
+            "n_N": 5000, "clip_ratio_N": 0.0, "a_N": 18.0, "b_N": 25.0, "a_rel": 3.5}
+    r = up(c, warm, headers=h).json()
+    assert not r["passed"] and r["overridable"] and not r["saved"]
+    k = up(c, {**warm, "override": True}, headers=h).json()
+    assert k["passed"] and k["lighting_off"] and k["saved"] and k["redness_rel"] == 3.5
+    row = c.get("/api/account/export", headers=h).json()["checkins"][0]
+    assert row["light"] == "off" and "rel" not in row and row["redness"] == 21.5     # 상대 붉은기는 화면에만(저장 X)
+    me = c.get("/api/me", headers=h).json()
+    assert me["today_redness"] == 21.5 and me["redness_days"] == 0           # 평소 범위 날수에 안 셈

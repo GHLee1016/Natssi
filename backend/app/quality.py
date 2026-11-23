@@ -19,9 +19,18 @@ DEFAULT_THRESHOLDS = dict(
     max_clip_ratio=0.01,           # 볼 영역에서 하얗게 날아간 픽셀 비율
     min_roi_pixels=400,
     min_chroma=5.0,                # 양 볼 색의 진하기 √(a*²+b*²). 흑백·색 빠진 사진 거르기(피부는 보통 15 이상). 앱에만 있는 기준(2026-11-22)
+    # 조명 색 틀어짐: 양 볼 b*(파랑↔노랑) 평균이 이 범위 밖이면 노랗거나 푸른 조명. 앱에만 있는 기준(2026-11-23).
+    # 근거: 조명 색 필터 실험(data_pipeline/data/color_robustness_summary.md). 팀원 원본 84장 b* 10.4~19.4에서 오경보 0%,
+    #       5000K 이하(노란 조명) 98~100%, 8000K 이상(푸른 조명) 87~100% 감지. 이 필터들에서 a*는 MDC95보다 크게 틀어졌다.
+    #       팀원 3명 피부로 정한 범위라, 사용자별 평소 b*(capture가 저장하는 'b')로 바꾸는 게 다음 단계.
+    min_b=8.0, max_b=22.0,
 )
 
 Num = Optional[float]
+# 사용자가 '그래도 이 사진으로 기록하기'를 고를 수 있는 항목. 볼 위치는 맞게 잡혔고 색만 틀어진 경우라 숫자를 남길 수는 있다.
+# 남긴 날은 판정에서 '구분 불가(조명이 달랐어요)'로 다루고 평소 범위 계산에서 뺀다(judge.py light_flag).
+# 얼굴·각도·흐림 같은 항목은 볼 위치 자체가 틀릴 수 있어서 넘기지 못한다.
+SOFT_FLAGS = {"color_cast"}
 
 
 class Features(BaseModel):
@@ -53,6 +62,14 @@ class Features(BaseModel):
     a_star: Num = Field(None, ge=-128, le=128)
     L_star: Num = Field(None, ge=0, le=100)
     L_diff: Num = Field(None, ge=-100, le=100)
+    # 콧등(측정 버전 3부터). 상대 붉은기 a_rel = 볼 a* − 콧등 a*: 조명 색(특히 분홍·초록 틴트)이 얼굴 전체에 씌워지면 빼서 상쇄된다
+    # (조명 색 필터 실험: 틴트 ±20%에서도 변화 0.2 이하, 측정 흔들림은 볼 a*의 약 1.3배). 판정에는 아직 안 쓰고 참고값으로만.
+    n_N: Num = Field(None, ge=0, le=4e8)
+    clip_ratio_N: Num = Field(None, ge=0, le=1)
+    a_N: Num = Field(None, ge=-128, le=128)
+    b_N: Num = Field(None, ge=-128, le=128)
+    a_rel: Num = Field(None, ge=-256, le=256)
+    override: bool = False         # 사용자가 SOFT_FLAGS만 걸린 사진을 그대로 기록하기로 골랐다
 
 
 def _missing(v):
@@ -96,7 +113,16 @@ def quality_flags(feat: dict, th=None):
     chroma = [math.hypot(g(f"a_{s}"), g(f"b_{s}")) for s in ("L", "R") if not _missing(g(f"a_{s}")) and not _missing(g(f"b_{s}"))]
     if chroma and max(chroma) < t["min_chroma"]:           # 양쪽 다 색이 거의 없음 = 흑백 필터 등. 값이 없으면 다른 항목이 거른다
         flags.append("no_color")
+    elif (b := _b_mean(feat)) is not None and not t["min_b"] <= b <= t["max_b"]:
+        flags.append("color_cast")                         # 노랗거나 푸른 조명 → 볼 붉은기(a*)도 틀어져 있다
     return flags
+
+
+def _b_mean(d, min_chroma=DEFAULT_THRESHOLDS["min_chroma"]):
+    """색이 제대로 잡힌 볼(진하기 min_chroma 이상)만의 b* 평균. 한쪽이 색 빠짐이면 그쪽은 빼고 본다."""
+    b = [d[f"b_{s}"] for s in ("L", "R") if not _missing(d.get(f"a_{s}")) and not _missing(d.get(f"b_{s}"))
+         and math.hypot(d[f"a_{s}"], d[f"b_{s}"]) >= min_chroma]
+    return sum(b) / len(b) if b else None
 
 
 def _chroma(d):
@@ -160,19 +186,35 @@ def evaluate(f: Features):
         item("볼 노출", {"clipped_L", "clipped_R"}, "볼에 빛이 고르게 닿았어요",
              "볼이 하얗게 번졌어요. 빛이 덜 센 곳에서 찍어 주세요",
              f"하얗게 날아간 부분 왼쪽 {_num(d['clip_ratio_L'], '.1%')}, 오른쪽 {_num(d['clip_ratio_R'], '.1%')} (1% 이하)"),
-        item("색", {"no_color"}, "피부 색이 잘 보여요", "흑백이거나 색이 빠진 사진 같아요. 필터 없이 다시 찍어 주세요",
-             f"볼 색 진하기 {_num(_chroma(d), '.1f')} ({t['min_chroma']:.0f} 이상)"),
+        item("색", {"no_color", "color_cast"}, "피부 색이 잘 보여요",
+             "흑백이거나 색이 빠진 사진 같아요. 필터 없이 다시 찍어 주세요" if "no_color" in flags else
+             ("조명이 노랗게 비쳐요. 낮 햇빛이나 하얀 조명 아래에서 다시 찍어 주세요" if (_b_mean(d) or 0) > t["max_b"] else
+              "조명이 푸르게 비쳐요. 낮 햇빛이나 하얀 조명 아래에서 다시 찍어 주세요"),
+             f"볼 색 진하기 {_num(_chroma(d), '.1f')} ({t['min_chroma']:.0f} 이상), "
+             f"조명 색(b*) {_num(_b_mean(d), '.1f')} ({t['min_b']:.0f}~{t['max_b']:.0f})"),
         item("볼 영역", {"roi_small_L", "roi_small_R"}, "양 볼이 잘 보여요",
              "볼이 가려졌어요. 머리카락이나 마스크를 치워 주세요",
              f"왼쪽 {_num(d['n_L'], ',.0f')}, 오른쪽 {_num(d['n_R'], ',.0f')} 픽셀"),
     ]
-    passed = not flags
+    overridable = bool(flags) and flags <= SOFT_FLAGS
+    lighting_off = overridable and d.get("override", False)      # 조명 색만 걸렸고 사용자가 그대로 기록하기로 함
+    passed = not flags or lighting_off
     redness = round(d["a_star"], 2) if passed and not _missing(d["a_star"]) else None
-    if passed:
+    rel_ok = not _missing(d.get("a_rel")) and (d.get("n_N") or 0) >= t["min_roi_pixels"]         and (d.get("clip_ratio_N") or 0) <= 0.05                 # 콧등이 번들거려 하얗게 날아가면 참고값도 내지 않음
+    redness_rel = round(d["a_rel"], 2) if passed and rel_ok else None
+    if lighting_off:
+        message = "조명 색이 평소와 달랐던 사진으로 기록했어요."
+        note = ("붉은기가 조명 때문에 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고 '구분 불가'로 둬요. "
+                "평소 범위를 만들 때도 이날 값은 빼요.")
+    elif passed:
         message = "좋아요, 이 사진으로 괜찮아요."
         note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 오늘 기록에 볼 색 숫자만 남겨요(사진은 남기지 않아요)."
+    elif overridable:
+        message = "조명 색이 평소와 달라 보여요. 하얀 조명에서 다시 찍는 게 좋지만, 그대로 기록할 수도 있어요."
+        note = "그대로 기록하면 이날은 판정에서 단정하지 않아요(구분 불가)."
     else:
         message = "같은 장소와 조명에서 정면을 보고 다시 찍어 주세요."
         note = "품질 검사를 통과한 사진만 볼 붉은기를 보여 드려요."
     return {"passed": passed, "checks": checks, "flags": sorted(flags), "message": message,
-            "redness": redness, "note": note}
+            "redness": redness, "redness_rel": redness_rel, "overridable": overridable and not lighting_off,
+            "lighting_off": lighting_off, "note": note}

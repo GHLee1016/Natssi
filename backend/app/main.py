@@ -366,7 +366,10 @@ def _my_env(uid, today):
 
 # 하루 기록 = checkins.symptoms(jsonb) 한 칸. 증상 4개 + 그날 처음 품질을 통과한 사진의 볼 붉은기(a*)·노란기(b*, 조명 확인용).
 # ponytail: 열을 따로 두지 않고 jsonb에 같이 넣어 DB 패치 없이 배포된다. 값이 늘면 열로 옮길 것.
-MEASURES = ("redness", "b", "L", "cheeks")            # L*: 볼 색 칩 밝기 / cheeks: [선택 동의] 양 볼 조각 사진(JPEG base64)
+MEASURES = ("redness", "b", "L", "cheeks", "light")   # L*: 볼 색 칩 밝기 / cheeks: [선택 동의] 양 볼 조각 사진(JPEG base64)
+#   light: "off" = 조명 색이 달랐는데 그대로 기록한 날(판정 구분 불가, 평소 범위에서 제외).
+#   볼−콧등 상대 붉은기(redness_rel)는 화면에만 보여 주고 저장하지 않는다: 처리방침의 '저장하는 볼 색 숫자 3개'를 바꾸지 않으려고.
+#   저장하려면 Legal.jsx·Capture.jsx 문구와 CONSENT_VERSION을 함께 바꿀 것.
 
 
 def _split(entry):
@@ -392,6 +395,7 @@ def _my_judged(uid, saved, district, routine_data=None):
         recs.append({"id": i + 1, "date": d, "version": ver,
                      "day_in_version": (date.fromisoformat(d) - date.fromisoformat(first_of[ver])).days + 1,
                      "redness": redness, "b": m.get("b"), "L": m.get("L"), "has_cheeks": "cheeks" in m, "quality_ok": redness is not None,
+                     "light_flag": m.get("light") == "off",
                      "quality_note": None if redness is not None else "이날은 사진 기록이 없어요",
                      "symptoms": symptoms or {}, "env": {}})
     try:
@@ -399,6 +403,11 @@ def _my_judged(uid, saved, district, routine_data=None):
     except Exception as e:
         log.warning("my env failed: %s", store.why(e))
     return judge.judge_all(recs)
+
+
+def _counts(r):
+    """평소 범위에 들어가는 날: 붉은기가 있고, '조명이 달라도 그대로 기록'한 날이 아님 (judge.py와 같은 기준)."""
+    return r["redness"] is not None and not r.get("light_flag")
 
 
 def _me_payload(uid):
@@ -413,8 +422,8 @@ def _me_payload(uid):
             "today_verdict": last["verdict"] if last and last["redness"] is not None else None,
             "today_redness": last["redness"] if last else None,
             "today_cheeks": {k: "data:image/jpeg;base64," + x for k, x in _split(saved.get(today))[2].get("cheeks", {}).items()} or None,
-            "days_recorded": len(judged), "redness_days": sum(1 for r in judged if r["redness"] is not None),
-            "unlocked": sum(1 for r in judged if r["redness"] is not None) >= BASELINE_DAYS,
+            "days_recorded": len(judged), "redness_days": sum(1 for r in judged if _counts(r)),
+            "unlocked": sum(1 for r in judged if _counts(r)) >= BASELINE_DAYS,
             "needed": BASELINE_DAYS, "recent": recent, "district": district, "env": today_env}
 
 
@@ -537,7 +546,8 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
                 b = None if body.b_L is None or body.b_R is None else round((body.b_L + body.b_R) / 2, 2)
                 L = None if body.L_star is None else round(body.L_star, 2)
                 store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2),
-                                            **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {})})
+                                            **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {}),
+                                            **({"light": "off"} if res.get("lighting_off") else {})})
                 res["saved_on"] = today                              # 브라우저가 볼 조각을 이 날짜로 기기에 남길 때 쓴다
             res["saved"] = True
             res["already"] = _split(entry)[1] is not None          # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음

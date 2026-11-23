@@ -23,7 +23,7 @@ def _mad(values, med):
 def light_off(r, prev):
     """조명 색이 평소와 달랐나: 그날 볼의 노란기(b*)가 내 평소 b* 범위 밖인가(붉은기 높낮이와 상관없이 본다). b*가 없는 기록(데모)은 늘 False.
     조명 필터 실험(2026-11-21, 3명 57장)에서 품질 검사가 놓친 색 변화의 대부분을 잡았다. 예비값."""
-    vals = [p["b"] for p in prev if p.get("b") is not None]
+    vals = [p["b"] for p in prev if p.get("b") is not None and not p.get("light_flag")]
     if r.get("b") is None or len(vals) < config.MIN_BASELINE_RECORDS:
         return False
     med = median(vals)
@@ -46,11 +46,12 @@ def judge_all(records):
         base_vals, base_version = [], None
         for v in sorted({p["version"] for p in prev if p["version"] < r["version"]}, reverse=True):
             if v not in signal_versions:
-                base_vals = [p["redness"] for p in prev if p["version"] == v and p["redness"] is not None]
+                base_vals = [p["redness"] for p in prev if p["version"] == v and p["redness"] is not None and not p.get("light_flag")]
                 base_version = v
                 break
         if base_version is None:      # 첫 버전: 같은 버전의 앞선 기록을 기준으로
-            base_vals = [p["redness"] for p in prev if p["version"] == r["version"] and p["redness"] is not None]
+            base_vals = [p["redness"] for p in prev if p["version"] == r["version"] and p["redness"] is not None
+                         and not p.get("light_flag")]       # 찍을 때 '조명이 달라도 그대로 기록'한 날은 평소 범위에서 뺀다
             base_version = r["version"]
         max_symptom = max(r["symptoms"].values()) if r["symptoms"] else 0
         res = {"baseline": None, "baseline_version": base_version, "exceeds": False, "reasons": []}
@@ -58,6 +59,9 @@ def judge_all(records):
         if not r["quality_ok"] or r["redness"] is None:
             verdict = UNKNOWN
             res["reasons"].append(r.get("quality_note") or "사진 품질이 낮아요")
+        elif r.get("light_flag"):     # 촬영 때 조명 색이 달랐는데 사용자가 그대로 기록하기를 고른 날
+            verdict = UNKNOWN
+            res["reasons"].append("찍을 때 조명 색이 평소와 달랐어요. 붉은기가 조명 때문에 틀어졌을 수 있어 단정하지 않아요")
         elif len(base_vals) < config.MIN_BASELINE_RECORDS:
             verdict = UNKNOWN
             res["reasons"].append(f"평소 범위를 만들 기록이 부족해요 ({len(base_vals)}/{config.MIN_BASELINE_RECORDS})")

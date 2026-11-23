@@ -1,7 +1,7 @@
 // 측정 계산이 검증 파이프라인(파이썬·OpenCV)과 같은지 확인합니다.   실행: npm test  (또는 node src/measure/core.test.mjs)
 // 기준값은 natssi_selfie_validation/code/measure_redness.py 로 같은 그림을 재서 얻은 값이에요.
 import assert from 'node:assert/strict'
-import { srgbToLab, roiStats, polygonMask, sharpness, eulerFromMatrix, extractFeatures, roundHalfEven, median, distinctFaces } from './core.js'
+import { srgbToLab, roiStats, polygonMask, sharpness, eulerFromMatrix, extractFeatures, roundHalfEven, median, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT, NOSE_IMG } from './core.js'
 
 const REF = {"W": 640, "H": 800, "poly": [[150.4, 300.5], [260.5, 290.2], [300.7, 380.1], [240.2, 470.6], [160.9, 450.3], [120.5, 380.5]], "roi": {"n": 22668, "clip_ratio": 0.024234858594119925, "L": 56.61574359658328, "a": -0.049750771059481336, "a_mean": 0.9677647530593484, "b": 15.130836637853973}, "sharp_big": 3133.2447613400873, "sharp_small": 1144.0406893042382, "mat_col": [0.976807083442103, 0.05119229003114495, 0.20791169081775934, 0.0, -0.0807226856600027, 0.987396562469373, 0.1361318347907717, 0.0, -0.1983223884415696, -0.14975773056851757, 0.9686283355228664, 0.0, 0.5, -1.0, -42.0, 1.0], "euler": [-12.000000000000002, 7.999999999999998, 3.0000000000000004], "lab_white": [100.00000386666655, -1.6666666158293708e-05, 6.666666463317483e-06], "lab_red": [53.240794141307205, 80.09245959641115, 67.20319651585298]}
 
@@ -52,6 +52,26 @@ const tests = {
     assert.equal(distinctFaces([face(0.3, 0.3, 0.4), face(0.85, 0.05, 0.1)]).count, 1)
     assert.equal(distinctFaces([face(0.05, 0.3, 0.35), face(0.55, 0.3, 0.35)]).count, 2)
     assert.equal(distinctFaces([face(0.8, 0.05, 0.1), face(0.3, 0.3, 0.4)]).main, 1)
+  },
+  '콧등 측정과 상대 붉은기(볼 a* − 콧등 a*), 조명 색을 씌우면 상쇄'() {
+    // 볼 두 곳과 콧등에 각각 단색 네모를 칠한 그림. 얼굴 점 478개 중 볼·콧등 점만 네모 꼭짓점에 둔다.
+    const W = 300, H = 300
+    const paint = (gain) => {
+      const data = new Uint8ClampedArray(W * H * 4).fill(255)
+      const rect = (x0, y0, x1, y1, [r, g, b]) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const o = (y * W + x) * 4; data[o] = Math.min(255, r * gain[0]); data[o + 1] = Math.min(255, g * gain[1]); data[o + 2] = Math.min(255, b * gain[2]) } }
+      rect(20, 150, 100, 230, [200, 120, 110]); rect(200, 150, 280, 230, [200, 120, 110]); rect(120, 60, 180, 140, [190, 140, 130])
+      return { data, width: W, height: H }
+    }
+    const lm = Array.from({ length: 478 }, () => [150, 150])
+    const put = (idx, x0, y0, x1, y1) => { const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]; idx.forEach((i, k) => { lm[i] = c[Math.min(k, 3)] }) }
+    put(CHEEK_IMG_LEFT, 30, 160, 90, 220); put(CHEEK_IMG_RIGHT, 210, 160, 270, 220); put(NOSE_IMG, 130, 70, 170, 130)
+    const face = { lm, blend: {}, matrix: null, nFaces: 1 }
+    const f = extractFeatures(paint([1, 1, 1]), face)
+    const cheekA = srgbToLab(200, 120, 110)[1], noseA = srgbToLab(190, 140, 130)[1]
+    close(f.a_star, cheekA, 1e-9, '볼 a*'); close(f.a_N, noseA, 1e-9, '콧등 a*'); close(f.a_rel, cheekA - noseA, 1e-9, '상대 붉은기')
+    const pink = extractFeatures(paint([1, 0.9, 1]), face)                        // 분홍 틴트(초록 10% 내림)
+    assert.ok(Math.abs(pink.a_star - f.a_star) > 2.35, `볼 a*는 크게 변함: ${pink.a_star - f.a_star}`)
+    assert.ok(Math.abs(pink.a_rel - f.a_rel) < Math.abs(pink.a_star - f.a_star) / 3, `상대 붉은기는 덜 변함: ${pink.a_rel - f.a_rel}`)
   },
   '얼굴 없음이면 밝기·해상도만'() {
     const f = extractFeatures(testImage(), null)
