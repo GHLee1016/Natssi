@@ -497,8 +497,9 @@ def test_my_challenge_starts_with_baseline_and_needs_login(env, monkeypatch):
     assert cur["phase"] == "baseline" and cur["have"] == 3 and cur["total"] == 14
 
 
-def test_kept_lighting_photo_is_stored_with_flag_and_fogged(env):
-    """조명 색만 걸린 사진은 '그래도 기록하기'로 남길 수 있고, 그날은 구분 불가 + 평소 범위에서 빠진다."""
+def test_kept_lighting_photo_is_fogged_without_new_field_and_can_be_replaced(env):
+    """조명 색만 걸린 사진은 '그래도 기록하기'로 남길 수 있고, 그날은 구분 불가 + 평소 범위에서 빠진다.
+    새 저장 칸은 없다(저장된 b*로 판정 때 가려냄). 그날 나중에 정상으로 통과한 사진이 오면 그 값으로 바꾼다."""
     fake, c = env
     h = join(c, "warm@test.kr")
     warm = {**GOOD, "a_L": 22.0, "a_R": 21.0, "b_L": 27.0, "b_R": 26.0, "a_star": 21.5,
@@ -506,8 +507,13 @@ def test_kept_lighting_photo_is_stored_with_flag_and_fogged(env):
     r = up(c, warm, headers=h).json()
     assert not r["passed"] and r["overridable"] and not r["saved"]
     k = up(c, {**warm, "override": True}, headers=h).json()
-    assert k["passed"] and k["lighting_off"] and k["saved"] and k["redness_rel"] == 3.5
+    assert k["passed"] and k["lighting_off"] and k["saved"] and "redness_rel" not in k
     row = c.get("/api/account/export", headers=h).json()["checkins"][0]
-    assert row["light"] == "off" and "rel" not in row and row["redness"] == 21.5     # 상대 붉은기는 화면에만(저장 X)
+    assert "light" not in row and not any(x.endswith("_N") or "rel" in x for x in row) and row["redness"] == 21.5
     me = c.get("/api/me", headers=h).json()
     assert me["today_redness"] == 21.5 and me["redness_days"] == 0           # 평소 범위 날수에 안 셈
+    again = up(c, GOOD, headers=h).json()                                     # 같은 날 하얀 조명에서 다시 찍음
+    assert again["saved"] and again["replaced"] and not again["already"]
+    me = c.get("/api/me", headers=h).json()
+    assert me["today_redness"] == GOOD["a_star"] and me["redness_days"] == 1
+    assert not up(c, GOOD, headers=h).json()["replaced"]                     # 정상 값은 다시 바꾸지 않음(하루 1개)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import CheckinSteps from './CheckinSteps.jsx'
-import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError } from '../measure/browser.js'
+import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError, forServer, relRedness } from '../measure/browser.js'
 import { checkView, viewBox, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 import KV, { symptomItems } from '../kv.jsx'
 import qrcode from 'qrcode-generator'
@@ -242,7 +242,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       await step(2)
       const parts = takeCheeks()
       await step(3)
-      const res = await api.capture(features)
+      const res = await api.capture(forServer(features))
       setKept(false)
       if (res.saved_on && viewer?.cheeks && parts) {   // 볼 부분 사진 보관에 동의한 사람만, 그날 처음 저장된 기록에
         try { await api.saveCheeks(parts); setKept(true) } catch { /* 조각만 못 남김: 숫자 기록은 그대로 */ }
@@ -254,11 +254,11 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진으로 다시 시도하거나, [사진 찍기]로 찍어 주세요.'))
     } finally { setBusy(null) }
   }
-  // 조명 색만 걸린 사진: 사용자가 다시 찍기 대신 그대로 기록할 수 있다. 서버가 그날을 '조명 다름'으로 표시하고 판정에서 단정하지 않는다.
+  // 조명 색만 걸린 사진: 사용자가 다시 찍기 대신 그대로 기록할 수 있다. 판정은 그날 b*로 '조명 다름'을 가려내 단정하지 않는다.
   const keepAnyway = async () => {
     if (!lastFeat.current) return
     setKeeping(true); setError(null)
-    try { setResult(await api.capture({ ...lastFeat.current, override: true })) }
+    try { setResult(await api.capture({ ...forServer(lastFeat.current), override: true })) }
     catch (e) { setError(e?.status ? e.message : '기록하지 못했어요. 잠시 뒤 다시 시도해 주세요.') }
     finally { setKeeping(false) }
   }
@@ -381,11 +381,11 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         <div className="res">
           {result.passed && result.redness !== null && (
             <div className="res-hero">
-              <p>오늘 볼 붉은기{result.lighting_off ? ' (조명 다름 · 참고)' : ''}</p>
+              <p>오늘 볼 붉은기{result.lighting_off ? ' (조명 다름, 참고)' : ''}</p>
               <b>{result.redness.toFixed(1)}</b>
               <p className="small">측정 오차 ±{mdc95}. 같은 폰으로 같은 자리에서 찍은 날끼리 비교해요.</p>
-              {result.redness_rel !== null && result.redness_rel !== undefined && (
-                <p className="small">조명 영향을 덜 받는 값(볼 − 콧등) {result.redness_rel.toFixed(1)}</p>
+              {relRedness(lastFeat.current) !== null && (           /* 이 기기에서만 계산한 참고값(서버로 보내지 않음) */
+                <p className="small">조명 영향을 덜 받는 값(볼 − 콧등) {relRedness(lastFeat.current).toFixed(1)}</p>
               )}
             </div>
           )}

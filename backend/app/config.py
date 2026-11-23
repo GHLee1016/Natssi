@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 MDC95_A_STAR = 2.35
 MIN_BASELINE_RECORDS = 7    # 평소 범위를 만들기 위한 최소 기록 수
 MAD_K = 3.0                 # 평소 범위 폭 = max(MDC95, MAD_K × 1.4826 × MAD)
+LIGHT_B_MAX = 22.0          # 평소 b*가 아직 없을 때(첫 7일)만 쓰는 고정 기준: 볼 b*가 이보다 크면 노란 조명(팀원 원본 84장 10.4~19.4, 5000K 이하 98~100% 감지)
 LIGHT_B_MIN = 3.0           # 조명 색 판단: 평소 b*에서 max(이 값, MAD_K×1.4826×MAD) 넘게 벗어나면 '조명이 달라요'(예비값, 3명 데이터)
 SYMPTOM_ALERT = 2           # 증상 점수가 이 값 이상이면 '겹침'으로 봄
 # 김서연 이야기는 기준일(11/16)에 끝나게 짜여 있고, DEMO_SHIFT_DAYS만큼 통째로 밉니다.

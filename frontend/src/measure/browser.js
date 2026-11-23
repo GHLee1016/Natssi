@@ -167,3 +167,14 @@ export async function measurePhoto(src) {
   return { ...Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v])),
     feature_version: FEATURE_VERSION }
 }
+
+// 서버로 보낼 숫자만 고른다: 콧등 값(n_N, clip_ratio_N, a_N, b_N, L_N, a_rel)은 판정에 아직 안 쓰고 처리방침의 '서버에 보내는 숫자'에 없어서
+// 이 기기에서만 쓴다(결과 화면의 참고값). 보내려면 Legal.jsx 사진 처리 안내와 PHOTO_NOTICE_VERSION을 함께 바꿀 것.
+export function forServer(feat) {
+  return Object.fromEntries(Object.entries(feat).filter(([k]) => !/_N$/.test(k) && k !== 'a_rel'))
+}
+// 볼 a* − 콧등 a*(상대 붉은기). 콧등이 작게 잡히거나 번들거려 하얗게 날아갔으면 내지 않는다
+export function relRedness(feat) {
+  const ok = feat && Number.isFinite(feat.a_rel) && (feat.n_N || 0) >= 400 && (feat.clip_ratio_N || 0) <= 0.05
+  return ok ? Math.round(feat.a_rel * 100) / 100 : null
+}

@@ -20,14 +20,33 @@ def _mad(values, med):
     return median([abs(v - med) for v in values]) if values else 0.0
 
 
-def light_off(r, prev):
-    """조명 색이 평소와 달랐나: 그날 볼의 노란기(b*)가 내 평소 b* 범위 밖인가(붉은기 높낮이와 상관없이 본다). b*가 없는 기록(데모)은 늘 False.
-    조명 필터 실험(2026-11-21, 3명 57장)에서 품질 검사가 놓친 색 변화의 대부분을 잡았다. 예비값."""
-    vals = [p["b"] for p in prev if p.get("b") is not None and not p.get("light_flag")]
-    if r.get("b") is None or len(vals) < config.MIN_BASELINE_RECORDS:
-        return False
+def b_ref(vals):
+    """내 평소 b*(볼 노란기) 범위: (중앙값, 허용 폭). 기록이 MIN_BASELINE_RECORDS보다 적으면 None."""
+    if len(vals) < config.MIN_BASELINE_RECORDS:
+        return None
     med = median(vals)
-    return abs(r["b"] - med) > max(config.LIGHT_B_MIN, config.MAD_K * 1.4826 * _mad(vals, med))
+    return med, max(config.LIGHT_B_MIN, config.MAD_K * 1.4826 * _mad(vals, med))
+
+
+def color_off(b, ref):
+    """그날 b*가 조명 색이 달랐다고 볼 만큼 벗어났나. ref(내 평소 범위)가 있으면 그것으로, 없으면 고정 위쪽 기준(노란 조명)만 본다.
+    푸른 쪽은 고정 기준을 두지 않는다: 조명 필터 실험에서 8000K·10000K는 a* 변화가 MDC95 안이었다(data_pipeline/data/color_robustness_summary.md).
+    고정 기준은 팀원 3명 피부로 정한 값이라, 평소 범위가 생기면 바로 그 사람 기준으로 바꾼다."""
+    if b is None:
+        return False
+    if ref:
+        return abs(b - ref[0]) > ref[1]
+    return b > config.LIGHT_B_MAX
+
+
+def light_off(r, prev, all_b=()):
+    """조명 색이 평소와 달랐나(그날 볼 b*로 판단, 붉은기 높낮이와 상관없이). b*가 없는 기록(데모)은 늘 False.
+    앞선 기록이 7일 넘게 있으면 그 평소 b*로, 아직 없으면 지금까지 쌓인 모든 기록의 b* 중앙값으로, 그것도 7개가 안 되면 고정 기준으로 본다.
+    모든 기록으로 다시 보는 단계 덕분에, 피부가 원래 노랗게 찍히는 사람도 7일이 쌓이면 첫 주가 '조명 다름'에서 풀려 평소 범위가 생긴다."""
+    if r.get("b") is None:
+        return False
+    prior = [p["b"] for p in prev if p.get("b") is not None and not p.get("light_flag")]
+    return color_off(r["b"], b_ref(prior) or b_ref(list(all_b)))
 
 
 def baseline_from(values):
@@ -40,8 +59,11 @@ def baseline_from(values):
 def judge_all(records):
     """기록 전체를 날짜순으로 판정해 각 기록에 verdict를 붙여 돌려줍니다."""
     out, signal_versions = [], set()
+    all_b = [r["b"] for r in records if r.get("b") is not None and r.get("redness") is not None]
     for idx, r in enumerate(records):
         prev = out[:idx]
+        # 조명 색이 달랐던 날(촬영 때 '그래도 기록하기'로 남긴 날 포함): 판정은 구분 불가, 평소 범위와 N/7일에서 뺀다
+        r = {**r, "light_flag": r.get("redness") is not None and light_off(r, prev, all_b)}
         # 기준: 지금 버전보다 앞선 버전 중, 신호가 없었던 가장 최근 버전의 기록
         base_vals, base_version = [], None
         for v in sorted({p["version"] for p in prev if p["version"] < r["version"]}, reverse=True):
@@ -51,7 +73,7 @@ def judge_all(records):
                 break
         if base_version is None:      # 첫 버전: 같은 버전의 앞선 기록을 기준으로
             base_vals = [p["redness"] for p in prev if p["version"] == r["version"] and p["redness"] is not None
-                         and not p.get("light_flag")]       # 찍을 때 '조명이 달라도 그대로 기록'한 날은 평소 범위에서 뺀다
+                         and not p.get("light_flag")]       # 조명 색이 달랐던 날은 평소 범위에서 뺀다
             base_version = r["version"]
         max_symptom = max(r["symptoms"].values()) if r["symptoms"] else 0
         res = {"baseline": None, "baseline_version": base_version, "exceeds": False, "reasons": []}
@@ -59,9 +81,9 @@ def judge_all(records):
         if not r["quality_ok"] or r["redness"] is None:
             verdict = UNKNOWN
             res["reasons"].append(r.get("quality_note") or "사진 품질이 낮아요")
-        elif r.get("light_flag"):     # 촬영 때 조명 색이 달랐는데 사용자가 그대로 기록하기를 고른 날
+        elif r["light_flag"]:          # 조명 색이 평소와 달랐던 날(볼 b*로 판단)
             verdict = UNKNOWN
-            res["reasons"].append("찍을 때 조명 색이 평소와 달랐어요. 붉은기가 조명 때문에 틀어졌을 수 있어 단정하지 않아요")
+            res["reasons"].append("사진의 조명 색이 평소와 달라요. 붉은기가 조명 때문에 틀어졌을 수 있어 단정하지 않아요")
         elif len(base_vals) < config.MIN_BASELINE_RECORDS:
             verdict = UNKNOWN
             res["reasons"].append(f"평소 범위를 만들 기록이 부족해요 ({len(base_vals)}/{config.MIN_BASELINE_RECORDS})")
@@ -74,10 +96,7 @@ def judge_all(records):
             # 조명 색(b*)이 평소와 다르면 붉은기가 높든 낮든 안개로 둔다. 높을 때만 보면, 차가운 조명이나 필터로 붉은기가
             # 낮게 찍힌 날이 '맑음'이 되어 실제로 붉어진 날을 가릴 수 있다(2026-11-21 조명 필터 실험: 차갑게 10% 56장 중 51장을
             # 이 규칙이 잡음, 필터 없는 사진 57장 중 2장이 걸림. 2026-11-22 데모 얼굴 필터 시험에서 차갑게, 채도 내림, 흑백 확인).
-            if light_off(r, prev):
-                verdict = UNKNOWN
-                res["reasons"].append("사진의 조명 색이 평소와 달라요. 같은 장소와 시간에 다시 찍어 주세요")
-            elif exceeds and r["env"].get("unusual"):
+            if exceeds and r["env"].get("unusual"):
                 verdict = UNKNOWN
                 res["reasons"].append("같은 시기에 환경도 크게 달라졌어요")
             elif exceeds and (prev_day_exceeded or max_symptom >= config.SYMPTOM_ALERT):
