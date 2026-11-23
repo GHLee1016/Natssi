@@ -1011,3 +1011,32 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
   .main{padding:20px 20px 28px}
 }
 .side nav button:focus-visible,.side-tools button:focus-visible{outline:2px solid var(--ink);outline-offset:-4px;border-radius:10px}
+/* 소개 페이지 보강: 위쪽 바로가기, 미리보기 질문, 한계, 자주 묻는 질문 */
+.ld-jumps{display:flex;align-items:center;gap:4px;margin:0 auto 0 32px}
+.ld-jumps a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;font-size:15px;font-weight:600;color:#3d4652;text-decoration:none;white-space:nowrap}
+.ld-jumps a:hover{color:var(--ink);background:#f3ece4}
+.ld-jumps a:focus-visible,.ld-faq summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ld-sec{outline:none;scroll-margin-top:16px}
+.ld-sec:focus-visible{box-shadow:0 0 0 3px var(--accent);border-radius:20px}
+.ld-previews .ld-shot figcaption{display:grid;gap:4px;padding:16px 18px 18px;font-weight:400}
+.ld-previews .ld-shot figcaption h3{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+.ld-previews .ld-shot figcaption h3+p{margin-bottom:6px}
+.ld-previews .ld-shot figcaption p{font-size:14px;line-height:1.6;color:#3d4652}
+.ld-example{margin-top:12px}
+.ld-sub{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:28px 0 12px}
+.ld-limits{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px}
+.ld-limits li{padding:14px 0;border-top:1px solid var(--line)}
+.ld-limits b{font-size:15.500px}.ld-limits p{margin-top:4px;font-size:14px;line-height:1.6;color:#3d4652}
+.ld-faq{display:grid;gap:10px}
+.ld-faq details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0 20px}
+.ld-faq summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;font-size:16px;font-weight:700;cursor:pointer;list-style:none;border-radius:8px}
+.ld-faq summary::-webkit-details-marker{display:none}
+.ld-faq summary::after{content:"+";font-size:22px;font-weight:400;color:var(--sub);transition:transform .2s}
+.ld-faq details[open] summary::after{transform:rotate(45deg)}
+.ld-faq details p{padding:0 0 18px;font-size:15px;line-height:1.7;color:#3d4652;max-width:62em}
+.ld-again{margin-top:18px;min-height:48px;padding:0 24px}
+.ld-foot>div{display:grid;gap:4px}
+.ing-src{margin-top:6px}
+@media (max-width:1180px){.ld-jumps{margin-left:16px}.ld-jumps a{padding:0 8px;font-size:14px}}
+@media (max-width:1100px){.ld-jumps{margin-left:8px;gap:0}.ld-jumps a{padding:0 6px;font-size:13.500px}.ld-acct{gap:8px}.ld-top .ld-signup{padding:0 14px}.ld-limits{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.ld-faq summary::after{transition:none}}

@@ -445,6 +445,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                   </li>
                 )))}
               </ol>
+              <p className="muted small ing-src">식약처 화장품 원료성분 사전 기준</p>
               {fixed.length > 0 && (
                 <div className="fixed-list">
                   <p className="muted small">{t.step3.fixed}</p>
