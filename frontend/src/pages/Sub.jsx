@@ -1,9 +1,11 @@
 // 탭 안의 보기 전환. 페이지 제목 바로 아래 탭 버튼으로 핵심 화면과 세부 화면을 오간다(스크롤을 줄이려고 나눔).
 // sub가 null이면 첫 보기(핵심), 아니면 세부 보기 id.
 import { useState } from 'react'
+import { useBackLayer } from '../nav.js'
 
 export function useSub() {
   const [sub, setSub] = useState(null)
+  useBackLayer(sub !== null, () => setSub(null))          // 폰의 뒤로: 세부 보기만 닫고 첫 보기로
   return [sub, (id) => setSub(id), () => setSub(null)]
 }
 
