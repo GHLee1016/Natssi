@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useBackDepth } from '../nav.js'
 
 // 증상 체크인을 한 화면에 한 문항씩 묻는다. 진행 막대, 큰 질문, 라디오 목록, 이전/다음 버튼.
 // 점수(0~3)와 저장 형식은 그대로다.
@@ -12,6 +13,7 @@ const OPTIONS = ['전혀 없어요', '약간 있어요', '꽤 있어요', '심�
 
 export default function CheckinSteps({ initial, saving, error, onSave, onCancel }) {
   const [i, setI] = useState(0)
+  useBackDepth(i, setI)                                   // 폰의 뒤로: 앞 문항으로
   const [v, setV] = useState({})                        // 이번에 고른 답. 비어 있으면 '다음'을 막는다
   const head = useRef(null)
   const root = useRef(null)

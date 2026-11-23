@@ -4,6 +4,7 @@ import { routineCopy } from '../copy/routine.js'
 import { isBlurry, productThumbnail, readIngredientPhotos, wakeOcr } from '../ocr.js'
 import ThumbPicker from './ThumbPicker.jsx'
 import { useDesk, QR } from './Capture.jsx'
+import { useBackDepth, useBackLayer } from '../nav.js'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
@@ -162,6 +163,8 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   useEffect(() => { head.current?.focus({ preventScroll: true }); root.current?.scrollIntoView({ block: 'nearest' }) }, [step])
 
   const go = (n) => { setErr(null); setStep(n) }
+  useBackDepth(step, (n) => go(n))                        // 폰의 뒤로: 한 단계 앞으로(첫 단계면 제품 추가를 닫음)
+  useBackLayer(cam === 'on', () => stopCam())              // 폰의 뒤로: 전성분 카메라만 끄기
   useEffect(() => { if (ocr && step === 1) wakeOcr() }, [ocr, step])   // 잠든 OCR 서버를 미리 깨운다
   // files: 읽을 사진 전부(최대 3장). checked: 이미 흐림 검사를 넘긴 앞쪽 장 수(사진을 더할 때 새 사진만 검사)
   const readPhotos = async (files, anyway = false, checked = 0) => {

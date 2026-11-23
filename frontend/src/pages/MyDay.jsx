@@ -11,6 +11,7 @@ import { useSub, SubPage, AskButtons, AskHead, ICONS } from './Sub.jsx'
 import Recap from './Recap.jsx'
 import { Dashboard, useMedia, WIDE } from './Dash.jsx'
 import { DayHero, WeekStrip, weekOf, symptomText, ChangeDays, usePeriod, PeriodToggle, EmptyDay } from './DayParts.jsx'
+import { useBackLayer } from '../nav.js'
 
 const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
 
@@ -107,6 +108,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   const q = useLoad(() => api.me(), [])
   const [period, setPeriod] = usePeriod()
   const [draft, setDraft] = useState(null)
+  useBackLayer(!!draft, () => { setDraft(null); setError(null) })   // 폰의 뒤로: 적던 증상 체크인을 닫기
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [note, setNote] = useState('')               // 스크린리더에 읽어 주는 저장 결과

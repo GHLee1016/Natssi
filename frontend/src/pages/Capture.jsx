@@ -5,6 +5,7 @@ import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, 
 import { checkView, viewBox, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 import KV, { symptomItems } from '../kv.jsx'
 import qrcode from 'qrcode-generator'
+import { useBackLayer } from '../nav.js'
 
 // 마우스를 쓰는 넓은 화면(PC)인가. PC에서는 카메라 대신 폰으로 여는 QR을 보여 준다:
 // 웹캠과 폰 카메라는 색을 다르게 잡아서, 섞어 찍으면 날마다 붉은기를 비교할 수 없다.
@@ -99,6 +100,7 @@ function Face({ kind }) {
 function TodaySymptoms({ photoDone, go }) {
   const [today, setToday] = useState(undefined)        // undefined: 불러오는 중, null: 아직 없음, {...}: 남긴 증상
   const [editing, setEditing] = useState(false)
+  useBackLayer(editing, () => setEditing(false))          // 폰의 뒤로: 증상 고치기를 닫기
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   useEffect(() => { api.me().then((d) => setToday(d.today_checkin || null)).catch(() => setToday(null)) }, [])
@@ -269,6 +271,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const guideMode = cam !== 'on' && !result && !busy
   const again = () => { setResult(null); setSymptomsOnly(false); start() }
   const close = () => { cancelAuto(); stop(); setCam('idle') }   // 카메라 닫고 안내 화면으로
+  useBackLayer(cam === 'on', () => close())                       // 폰의 뒤로: 카메라만 끄고 안내 화면으로
+  useBackLayer(!!result, () => { setResult(null); setSymptomsOnly(false) })   // 폰의 뒤로: 결과를 닫고 안내 화면으로
   // 결과 항목: 고칠 것은 바로 보이게, 통과한 것은 접어 둔다
   const bad = result ? result.checks.filter((c) => c.ok === false) : []
   const rest = result ? result.checks.filter((c) => c.ok !== false) : []

@@ -8,6 +8,7 @@ import AddProduct from './AddProduct.jsx'
 import { RoutineTabs, RoutineView } from './Insights.jsx'
 import { useSub } from './Sub.jsx'
 import { routineCopy } from '../copy/routine.js'
+import { useBackLayer } from '../nav.js'
 
 const TONE = { 레티노이드: '#ffe6da', '자외선 차단': '#fff3d9' }
 const ICON = { 레티노이드: 'retinol', '자외선 차단': 'sun' }
@@ -17,6 +18,7 @@ export default function MyRoutine({ ocr }) {
   const t = routineCopy(ocr)
   const q = useLoad(() => api.myRoutine(), [])
   const [adding, setAdding] = useState(false)
+  useBackLayer(adding, () => setAdding(false))            // 폰의 뒤로: 제품 추가를 닫고 루틴으로
   const [asking, setAsking] = useState(null)            // 사용 중단 확인 중인 제품 key
   const [editing, setEditing] = useState(null)          // 사용 빈도를 바꾸는 중인 제품 key
   const [newUsage, setNewUsage] = useState('')

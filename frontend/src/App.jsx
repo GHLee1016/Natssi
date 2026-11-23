@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { setNav, wireNav, ensureGuard, pushEntry, killAll, useBackLayer } from './nav.js'
 import { api, session } from './api.js'
 import { useLoad, Status } from './useLoad.jsx'
 import Diary from './pages/Diary.jsx'
@@ -80,7 +81,7 @@ export default function App() {
   const goIntro = () => { setPage(null); setLanding(true); window.scrollTo(0, 0) }                 // PC 로그인 전: 메뉴 아래 '낯씨 소개' 링크
   const explore = () => { rememberLanding(); try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 계속 */ } goHome() }
   const pickTab = (id) => { if (landing) { rememberLanding(); setLanding(false) } setPage(null); setTab(id) }
-  const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
+  const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false); setAutoGuide(false) }
   useEffect(() => { if (window.location.hash && (resetToken || linkExpired)) window.history.replaceState(null, '', window.location.pathname + window.location.search) }, [])   // 토큰이 주소창에 남지 않게
   const firstNav = useRef(true)
   useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
@@ -90,76 +91,36 @@ export default function App() {
     const h = document.querySelector('.main h1')
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }) }
   }, [tab, page, showLanding, !!meta.data])
-  // 폰의 '뒤로'(안드로이드 뒤로 버튼, 아이폰 밀어서 뒤로). 앱은 화면 이동을 주소에 남기지 않으므로, 브라우저 기록에 칸을 직접 쌓는다.
-  //   guard: 앱 안에서 처음 무언가를 누를 때 한 칸. 뒤로가 이 칸을 지우면 오늘 다이어리로 온다(다이어리에서 한 번 더 누르면 나감).
-  //   guide, page: 사용법 창, 로그인, 계정, 처리방침을 열 때마다 한 칸. 뒤로를 누르면 그 창만 닫힌다(처리방침 → 계정처럼 이전 창으로).
-  // 창을 닫기 버튼으로 닫거나 로고로 돌아오면 그 칸은 지우지 않고 '지난 칸'(dead)으로 표시해 두고, 뒤로가 지난 칸에 닿으면 한 번 더 뒤로 간다.
-  // (history.back()은 늦게 실행돼 바로 뒤의 pushState와 순서가 꼬일 수 있어서 칸을 직접 지우지 않는다.) 소개 페이지에서는 guard를 두지 않는다.
-  const hist = useRef({ stack: [], seq: 0 })        // stack: [{ id, kind: 'guard' | 'guide' | 'page', prev, dead }]
-  const introOn = useRef(false), autoGuide = useRef(false)
-  introOn.current = landing && desk && !viewer          // 소개 페이지 위에서(처리방침을 열어 소개가 잠시 가려져도)
-  const expect = useRef({})                         // 뒤로로 바꾼 값(아래 effect가 새 칸을 쌓지 않게)
-  const live = (k) => hist.current.stack.filter((x) => !x.dead && (!k || x.kind === k))
-  const pushEntry = (kind, prev) => {
-    const h = hist.current, id = ++h.seq
-    h.stack.push({ id, kind, prev }); window.history.pushState({ natssi: id }, '', window.location.href)
-  }
-  const ensureGuard = () => { if (!introOn.current && !live().length) pushEntry('guard') }
-  const onPop = useRef(null)
-  onPop.current = (e) => {
-    const h = hist.current, at = e.state?.natssi || 0
-    if (at > (h.stack.at(-1)?.id || 0)) { window.history.back(); return }      // 앞으로 가기로 지난 칸에 들어옴: 되돌린다
-    const popped = []
-    while (h.stack.length && h.stack.at(-1).id > at) popped.push(h.stack.pop())
-    const acts = popped.filter((x) => !x.dead)
-    if (!acts.length) { if (popped.length) window.history.back(); return }     // 지난 칸만 지났음: 한 번 더 뒤로
-    if (acts.some((x) => x.kind === 'guard')) {
-      expect.current = {}                                                      // 실제로 바뀌는 값만 적는다(안 바뀌면 effect가 안 돌아 남아 버림)
-      if (page !== null) expect.current.page = null
-      if (guide) expect.current.guide = false
-      h.stack.forEach((x) => { x.dead = true })
-      setGuide(false); goHome(); return
-    }
-    for (const x of acts) {
-      if (x.kind === 'guide') { expect.current.guide = false; closeGuide() }
-      else {
-        expect.current.page = x.prev
-        if (x.prev === null && legalFromIntro) setLegalFromIntro(false)
-        setPage(x.prev)
-      }
-    }
-  }
-  useEffect(() => {
-    const onClick = (e) => {
-      if (e.target.closest?.('[data-home]')) return
-      if (e.target.closest?.('button, a, label, input, select, summary, [role=button], [role=tab]')) ensureGuard()
-    }
-    const pop = (e) => onPop.current(e)
-    document.addEventListener('click', onClick, true)
-    window.addEventListener('popstate', pop)
-    return () => { document.removeEventListener('click', onClick, true); window.removeEventListener('popstate', pop) }
-  }, [])
-  const lastPage = useRef(page), lastGuide = useRef(guide)
+  // 폰의 '뒤로': 칸을 쌓는 방식은 nav.js. 여기서는 guard를 지웠을 때(오늘 다이어리로)와 사용법 창, 로그인, 계정, 처리방침 칸을 맡는다.
+  // 소개 페이지 위에서는 guard를 두지 않는다(처리방침을 열어 소개가 잠시 가려져도). 첫 방문에 저절로 뜬 사용법 창도 guard 없이.
+  // guard를 지웠는데 이미 오늘 다이어리 첫 화면이면(위 칸들이 먼저 닫혀서) 헛돌지 않게 그대로 한 번 더 뒤로 가서 나간다.
+  const atHome = tab === 'diary' && !page && !date && !guide
+  setNav({ intro: landing && desk && !viewer, home: () => { if (atHome) window.history.back(); else { setGuide(false); goHome() } } })
+  useEffect(wireNav, [])
+  const [autoGuide, setAutoGuide] = useState(false)
+  useBackLayer(guide, () => closeGuide(), { noGuard: autoGuide })
+  const pages = useRef([]), lastPage = useRef(page), expectPage = useRef(undefined)
   useEffect(() => {
     const prev = lastPage.current; lastPage.current = page
     if (prev === page) return
-    if ('page' in expect.current && expect.current.page === page) { delete expect.current.page; return }
-    delete expect.current.page
-    const pages = live('page'), top = pages.at(-1)
-    if (page === null) pages.forEach((x) => { x.dead = true })                    // 닫기 버튼으로 창을 모두 닫음
-    else if (top && top.prev === page) top.dead = true                           // 처리방침의 '뒤로'처럼 이전 창으로 돌아감
-    else { ensureGuard(); pushEntry('page', prev) }           // 새 창을 엶
+    if (expectPage.current === page) { expectPage.current = undefined; return }    // 뒤로로 바꾼 값
+    expectPage.current = undefined
+    const top = pages.current.at(-1)
+    if (page === null) { pages.current.forEach((x) => { x.dead = true }); pages.current = [] }      // 닫기 버튼으로 창을 모두 닫음
+    else if (top && top.prev === page) { top.dead = true; pages.current.pop() }                       // 처리방침의 '뒤로'처럼 이전 창으로
+    else {                                                                                            // 새 창을 엶: 뒤로를 누르면 이전 창으로
+      ensureGuard()
+      const e = pushEntry(() => {
+        pages.current = pages.current.filter((x) => x !== e)
+        expectPage.current = prev
+        if (prev === null) setLegalFromIntro(false)
+        setPage(prev)
+      })
+      e.prev = prev; pages.current.push(e)
+    }
   }, [page])
-  useEffect(() => {
-    const prev = lastGuide.current; lastGuide.current = guide
-    if (prev === guide) return
-    if ('guide' in expect.current && expect.current.guide === guide) { delete expect.current.guide; return }
-    delete expect.current.guide
-    // 첫 방문에 저절로 뜬 창은 guard 없이: 뒤로 한 번에 닫히고, 한 번 더 누르면 나간다
-    if (guide) { if (!autoGuide.current) ensureGuard(); autoGuide.current = false; pushEntry('guide') } else live('guide').forEach((x) => { x.dead = true })
-  }, [guide])
   // 로고로 다이어리에 오면 쌓아 둔 칸은 모두 지난 칸이 된다(다이어리에서 뒤로 = 나가기)
-  const homeByLogo = () => { hist.current.stack.forEach((x) => { x.dead = true }); setGuide(false); goHome() }
+  const homeByLogo = () => { killAll(); setGuide(false); goHome() }
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
   const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
@@ -170,7 +131,7 @@ export default function App() {
     return () => window.removeEventListener('natssi:logout', h)
   }, [])
   // 오래된 로그인 정보 때문에 처음부터 막히면 정리하고 데모로 돌아감
-  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired && !(landing && desk)) { autoGuide.current = true; setGuide(true) } }, [meta.data])   // 소개 페이지가 보이면 사용법 시트는 띄우지 않는다
+  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired && !(landing && desk)) { setAutoGuide(true); setGuide(true) } }, [meta.data])   // 소개 페이지가 보이면 사용법 시트는 띄우지 않는다
   useEffect(() => {
     if (meta.error && session.get()) { session.clear(); refreshAll() }
   }, [meta.error])
