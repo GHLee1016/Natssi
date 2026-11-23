@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import CheckinSteps from './CheckinSteps.jsx'
 import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError } from '../measure/browser.js'
-import { checkFrame, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
+import { checkView, viewBox, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 import KV, { symptomItems } from '../kv.jsx'
 import qrcode from 'qrcode-generator'
 
@@ -29,6 +29,8 @@ export function QR({ text, label = '폰 카메라로 비추면 낯씨 기록 화
 // 분석하는 동안 보여 줄 단계(실제로 하는 일 순서). 각 단계는 끝난 뒤에 ✓가 붙는다.
 const STAGES = ['얼굴 모델 준비', '얼굴과 고개 각도 찾기', '양 볼 색 재기', '사진 품질 판정']
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms))
+// 주소에 ?camdebug=1 을 붙이면 촬영 화면 위에 가이드 판정 숫자를 보여 준다(실기기에서 원인 확인용)
+const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('camdebug')
 const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바뀐 사진 안내를 확인한 버전을 이 브라우저에만 기억
 
 // 촬영 전 안내: 좋은 사진 한 장과 피해야 할 사진들(캐릭터 동작은 Face, 끝 자세가 그 모습)
@@ -144,6 +146,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [symptomsOnly, setSymptomsOnly] = useState(false)   // 사진이 계속 안 될 때 증상만 먼저 남기기
   const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3, 2, 1
   const desk = useDesk()
+  const ovalEl = useRef(null)
+  const [debug, setDebug] = useState('')
   const [stage, setStage] = useState(0)      // 분석 단계(STAGES 번호). STAGES.length면 모두 끝남
   const streak = useRef(0)                   // 맞는 프레임이 이어진 수
   const armed = useRef(true)                 // 자동 촬영을 할 수 있는 상태(한 번 찍으면 내려감)
@@ -170,7 +174,16 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       const v = video.current
       if (tracker && v && v.readyState >= 2 && !flags.current.busy) {
         let r = null
-        try { r = checkFrame(trackFrame(tracker, v, performance.now())) } catch { r = null }
+        try {
+          const f = trackFrame(tracker, v, performance.now())
+          const rect = (el) => { const b = el?.getBoundingClientRect(); return b && { left: b.left, top: b.top, width: b.width, height: b.height } }
+          const view = { vw: v.videoWidth, vh: v.videoHeight, el: rect(v), oval: rect(ovalEl.current) }
+          r = checkView(f, view)
+          if (DEBUG && f.box && view.oval) {            // 실기기 확인용: 카메라 화면 크기, 사진 폭 대비 얼굴, 타원 대비 얼굴
+            const b = viewBox(f, view)
+            setDebug(`${view.vw}x${view.vh} 얼굴/사진폭 ${f.faceRatio.toFixed(2)} 얼굴/타원 ${((b.x1 - b.x0) / view.oval.width).toFixed(2)} ${r.key}`)
+          }
+        } catch { r = null }
         if (r) {
           if (r.key !== lastKey) { lastKey = r.key; setGuide(r) }
           if (!r.ok && !armed.current && !flags.current.passed) armed.current = true
@@ -200,6 +213,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const start = async () => {
     setError(null)
     try {
+      // 해상도나 비율은 묻지 않는다: 비율을 정하면 브라우저가 카메라 화면을 잘라(확대해) 보낼 수 있어서.
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
       video.current.srcObject = stream.current
       await video.current.play()
@@ -323,7 +337,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       {/* 카메라: 켜면 화면 전체를 덮는다. video는 늘 붙어 있어야 해서(켜는 동안 영상을 붙임) 숨겨 둘 뿐 지우지 않는다 */}
       <div className={'camview' + (cam === 'on' ? ' on' : '')} hidden={cam !== 'on'} role="dialog" aria-modal="true" aria-label="얼굴 촬영">
         <video ref={video} playsInline muted />
-        <div className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />
+        <div ref={ovalEl} className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />
+        {DEBUG && debug && <p className="cam-debug">{debug}</p>}
         <div className="cam-top">
           <button className="cam-pill" onClick={close}>촬영 가이드</button>
           {guide && <label className="cam-pill"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />자동 촬영</label>}

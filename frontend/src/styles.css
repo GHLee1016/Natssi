@@ -880,7 +880,9 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 @media (max-width:1180px){.ld-hero{grid-template-columns:1fr;min-height:0}.landing h1{font-size:40px}}
 @media (prefers-reduced-motion:reduce){.ld-hero-shot{animation:none}}
 /* 소개 페이지 위쪽: 로그인, 무료로 시작하기(가입) */
-.ld-top{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-bottom:-56px}
+.ld-top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:-40px}
+.ld-logo{display:inline-flex;align-items:center;gap:8px;font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--ink);background:none;min-height:44px}.ld-logo img{width:36px;height:36px}
+.ld-acct{display:flex;align-items:center;gap:14px}
 .ld-top .link{font-size:15px;font-weight:700;color:var(--ink)}.ld-top .ld-signup{min-height:44px;padding:0 20px;font-size:15px}
 /* 성분 이름을 눌러 고치기(어느 성분이든) */
 .ing li button.ing-name{width:auto;height:auto;min-height:32px;padding:0 4px;border-radius:8px;font-size:14px;color:var(--ink);text-align:left;cursor:text}
@@ -985,4 +987,10 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
   .top-actions{display:none}
   .topline:not(:has(.demo-note)){display:none}
   .main{max-width:1240px;margin:0 auto}
+}
+.cam-debug{position:absolute;left:12px;right:12px;top:calc(60px + env(safe-area-inset-top));margin:0;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font:12px/1.4 ui-monospace,monospace;z-index:2}
+/* 소개 페이지: 왼쪽 메뉴 없이 화면 폭을 다 쓰고, 내용은 가운데 */
+@media (min-width:900px){
+  .shell.intro .main{max-width:1200px;margin:0 auto;padding-top:20px}
+  .shell.intro .landing{max-width:none}
 }

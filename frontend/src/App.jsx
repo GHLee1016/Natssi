@@ -86,10 +86,10 @@ export default function App() {
   useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
     const name = page === 'auth' ? '로그인 또는 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : showLanding ? '소개' : TAB_TITLES[tab]
     document.title = `${name} - 낯씨`
-    if (firstNav.current) { firstNav.current = false; return }
+    if (firstNav.current) { if (meta.data) firstNav.current = false; return }   // 앱 정보를 받아 첫 화면이 그려질 때까지는 포커스를 옮기지 않는다
     const h = document.querySelector('.main h1')
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }) }
-  }, [tab, page, showLanding])
+  }, [tab, page, showLanding, !!meta.data])
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
   const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
@@ -109,8 +109,9 @@ export default function App() {
 
   return (
     <>
-    <div className="shell">
-      <aside className="side">
+    <div className={'shell' + (showLanding ? ' intro' : '')}>
+      {/* 소개 페이지에서는 왼쪽 메뉴를 빼고 화면을 다 쓴다(들어가는 길은 '예시 둘러보기' 하나). 둘러본 뒤에는 메뉴의 '소개'나 로고로 돌아온다 */}
+      <aside className="side" hidden={showLanding}>
         <div className="side-in">{/* 메뉴는 화면에 붙어 있고, 흰 바탕과 경계선은 페이지 길이만큼 이어진다 */}
         <button className="brand" onClick={intro ? goIntro : goHome} aria-label={intro ? '낯씨 소개로' : '낯씨 홈으로'}><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">

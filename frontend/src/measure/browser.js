@@ -59,7 +59,7 @@ export function trackFrame(tracker, video, ts) {
   if (!out.nFaces) return out
   let mnx = 1, mny = 1, mxx = 0, mxy = 0
   for (const p of res.faceLandmarks[main]) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y) }
-  Object.assign(out, { cx: (mnx + mxx) / 2, cy: (mny + mxy) / 2, faceRatio: mxx - mnx })
+  Object.assign(out, { cx: (mnx + mxx) / 2, cy: (mny + mxy) / 2, faceRatio: mxx - mnx, box: { x0: mnx, x1: mxx, y0: mny, y1: mxy } })
   const m = res.facialTransformationMatrixes?.[main]
   if (m) Object.assign(out, eulerFromMatrix(m))
   return out

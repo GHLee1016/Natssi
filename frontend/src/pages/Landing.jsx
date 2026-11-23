@@ -24,22 +24,25 @@ export default function Landing({ onExplore, onLegal, onAuth }) {
   }
   return (
     <div className="landing">
-      {onAuth && (
-        <nav className="ld-top" aria-label="계정">
-          <button type="button" className="link" onClick={() => onAuth('login')}>로그인</button>
-          <button type="button" className="btn ld-signup" onClick={() => onAuth('signup')}>무료로 시작하기</button>
-        </nav>
-      )}
+      <header className="ld-top">
+        <button type="button" className="ld-logo" onClick={() => window.scrollTo(0, 0)} aria-label="낯씨 소개 맨 위로"><img src="/logo.svg" alt="" />낯씨</button>
+        {onAuth && (
+          <nav className="ld-acct" aria-label="계정">
+            <button type="button" className="link" onClick={() => onAuth('login')}>로그인</button>
+            <button type="button" className="btn ld-signup" onClick={() => onAuth('signup')}>무료로 시작하기</button>
+          </nav>
+        )}
+      </header>
       <section className="ld-hero" aria-labelledby="ld-title">
         <div className="ld-hero-text">
-          <p className="ld-eyebrow"><img src="/logo.svg" alt="" />낯씨, 얼굴 날씨로 보는 루틴 일기</p>
+          <p className="ld-eyebrow">얼굴 날씨로 보는 루틴 일기</p>
           <h1 id="ld-title">루틴을 바꾼 뒤<br />내 얼굴이 어떤지<br />날씨처럼 보여 드려요</h1>
           <p className="ld-lead">매일 셀카 한 장과 증상 네 가지를 남기면, 내 평소 기록과 비교해 맑음과 흐림으로 알려 줘요. 루틴을 바꾼 시기와 볼이 붉어진 시기가 겹치는지 한눈에 볼 수 있어요.</p>
           <div className="ld-cta">
             <button className="btn dark ld-main" onClick={onExplore}>PC에서 예시 둘러보기</button>
             <button className="btn ghost" onClick={toStart}>폰으로 시작하기</button>
           </div>
-          <p className="ld-note">예시는 김서연(가상 인물)의 4주 기록이에요. 로그인하지 않아도 볼 수 있어요.</p>
+          <p className="ld-note">예시는 김서연(가상 인물)의 4주 기록이에요. 로그인하지 않아도 다이어리, 변화, 루틴, 리포트를 둘러볼 수 있어요.</p>
         </div>
         <figure className="ld-shot ld-hero-shot">
           <img src="/landing/web.jpg" width="1400" height="900" alt="PC에서 본 낯씨 다이어리 예시 화면. 이달 요약 숫자, 루틴을 바꾼 날이 점선으로 표시된 4주 볼 붉은기 그래프, 오늘의 얼굴 날씨 맑음." />
