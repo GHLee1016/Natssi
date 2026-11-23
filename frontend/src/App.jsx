@@ -90,6 +90,31 @@ export default function App() {
     const h = document.querySelector('.main h1')
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }) }
   }, [tab, page, showLanding, !!meta.data])
+  // 폰의 '뒤로'(안드로이드 뒤로 버튼, 아이폰 밀어서 뒤로): 앱이 화면 이동을 주소에 남기지 않아서, 그냥 두면 어느 화면에서든 사이트를 나간다.
+  // 앱 안에서 버튼이나 링크를 처음 누를 때 브라우저 기록에 한 칸을 남겨 두고, 뒤로가 그 칸을 지우면 오늘 다이어리로 돌아온다
+  // (Recap, 카메라, 제품 추가처럼 열린 화면은 다이어리를 새로 그리거나 탭을 옮기면서 닫힌다). 다이어리에서 한 번 더 누르면 원래처럼 나간다.
+  // 소개 페이지에서는 남기지 않는다(뒤로 = 나가기).
+  const armed = useRef(false), skipPop = useRef(false), introOn = useRef(false)
+  introOn.current = showLanding
+  const backHome = useRef(null)
+  backHome.current = () => { setGuide(false); goHome() }
+  useEffect(() => {
+    const onClick = (e) => {
+      if (armed.current || introOn.current || e.target.closest?.('[data-home]')) return
+      if (!e.target.closest?.('button, a, label, input, select, summary, [role=button], [role=tab]')) return
+      armed.current = true
+      window.history.pushState({ natssi: 'back' }, '', window.location.href)
+    }
+    const onPop = () => {
+      if (skipPop.current) { skipPop.current = false; return }
+      if (armed.current) { armed.current = false; backHome.current() }
+    }
+    document.addEventListener('click', onClick, true)
+    window.addEventListener('popstate', onPop)
+    return () => { document.removeEventListener('click', onClick, true); window.removeEventListener('popstate', onPop) }
+  }, [])
+  // 로고로 다이어리에 돌아오면 남겨 둔 한 칸도 지운다(다이어리에서 뒤로 = 나가기)
+  const homeByLogo = () => { if (armed.current) { armed.current = false; skipPop.current = true; window.history.back() } goHome() }
   const canStart = !!(meta.data?.auth && !viewer)
   const goLegal = (a) => { setAnchor(a); setPage('legal') }
   const loggedOut = () => { session.clear(); setPage(null); setDate(null); refreshAll() }
@@ -113,7 +138,7 @@ export default function App() {
       {/* PC는 위쪽 메뉴, 폰은 아래 탭. 소개 페이지에서는 메뉴를 빼고 화면을 다 쓴다(들어가는 길은 '예시 둘러보기' 하나) */}
       <aside className="side" hidden={showLanding}>
         <div className="side-in">{/* PC: 화면 위에 붙는 한 줄(로고, 메뉴 5개, 사용법과 계정) */}
-        <button className="brand" onClick={goHome} aria-label="낯씨 홈으로(오늘 다이어리)"><img src="/logo.svg" alt="" />낯씨</button>
+        <button className="brand" data-home onClick={homeByLogo} aria-label="낯씨 홈으로(오늘 다이어리)"><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
           {TABS.map((t) => (
             <button key={t.id} className={tab === t.id && !showLanding ? 'on' : ''} aria-current={tab === t.id && !showLanding ? 'page' : undefined}
