@@ -77,7 +77,7 @@ export default function App() {
   const showLanding = landing && desk && !!meta.data && !viewer && !page
   const [authStart, setAuthStart] = useState('login')   // 소개 페이지 '무료로 시작하기'는 가입 화면으로 연다
   const intro = desk && !!meta.data && !viewer                                    // 소개 페이지를 쓸 수 있는 경우(PC, 로그인 전)
-  const goIntro = () => { setPage(null); setLanding(true); window.scrollTo(0, 0) }                 // PC 로그인 전: 로고와 '소개' 메뉴
+  const goIntro = () => { setPage(null); setLanding(true); window.scrollTo(0, 0) }                 // PC 로그인 전: 메뉴 아래 '낯씨 소개' 링크
   const explore = () => { rememberLanding(); try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 계속 */ } goHome() }
   const pickTab = (id) => { if (landing) { rememberLanding(); setLanding(false) } setPage(null); setTab(id) }
   const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false) }
@@ -113,7 +113,7 @@ export default function App() {
       {/* 소개 페이지에서는 왼쪽 메뉴를 빼고 화면을 다 쓴다(들어가는 길은 '예시 둘러보기' 하나). 둘러본 뒤에는 메뉴의 '소개'나 로고로 돌아온다 */}
       <aside className="side" hidden={showLanding}>
         <div className="side-in">{/* 메뉴는 화면에 붙어 있고, 흰 바탕과 경계선은 페이지 길이만큼 이어진다 */}
-        <button className="brand" onClick={intro ? goIntro : goHome} aria-label={intro ? '낯씨 소개로' : '낯씨 홈으로'}><img src="/logo.svg" alt="" />낯씨</button>
+        <button className="brand" onClick={goHome} aria-label="낯씨 홈으로(오늘 다이어리)"><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
           {TABS.map((t) => (
             <button key={t.id} className={tab === t.id && !showLanding ? 'on' : ''} aria-current={tab === t.id && !showLanding ? 'page' : undefined}
@@ -136,7 +136,7 @@ export default function App() {
         )}
         <div className="side-foot">
           <p>매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
-          {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}{/* 로그인 전 PC: 소개 페이지로 돌아가는 길(로고도 같은 동작) */}
+          {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}{/* 로그인 전 PC: 소개 페이지로 돌아가는 길(로고는 오늘 다이어리로) */}
           <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
         </div>
         </div>
