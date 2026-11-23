@@ -17,7 +17,7 @@ def test_color_cast_can_be_kept_by_user():
     assert not r["passed"] and r["overridable"] and r["redness"] is None and "그대로 기록" in r["message"]
     k = ev(**WARM, override=True)
     assert k["passed"] and k["lighting_off"] and k["redness"] == 23.5 and not k["overridable"]
-    assert "구분 불가" in k["note"]
+    assert "안개" in k["note"]
 
 
 def test_override_does_not_skip_other_problems():

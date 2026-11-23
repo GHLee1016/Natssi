@@ -200,14 +200,14 @@ def evaluate(f: Features, b_ref=None):
     redness = round(d["a_star"], 2) if passed and not _missing(d["a_star"]) else None
     if lighting_off:
         message = "조명 색이 평소와 달랐던 사진으로 기록했어요."
-        note = ("붉은기가 조명 때문에 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고 '구분 불가'로 둬요. "
+        note = ("붉은기가 조명 때문에 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고 '안개'로 둬요. "
                 "평소 범위를 만들 때도 이날 값은 빼요.")
     elif passed:
         message = "좋아요, 이 사진으로 괜찮아요."
         note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 오늘 기록에 볼 색 숫자만 남겨요(사진은 남기지 않아요)."
     elif overridable:
         message = "조명 색이 평소와 달라 보여요. 하얀 조명에서 다시 찍는 게 좋지만, 그대로 기록할 수도 있어요."
-        note = "그대로 기록하면 이날은 판정에서 단정하지 않아요(구분 불가)."
+        note = "그대로 기록하면 이날은 판정에서 단정하지 않고 '안개'로 둬요."
     else:
         message = "같은 장소와 조명에서 정면을 보고 다시 찍어 주세요."
         note = "품질 검사를 통과한 사진만 볼 붉은기를 보여 드려요."

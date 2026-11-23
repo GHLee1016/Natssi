@@ -301,7 +301,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   }
 
   const title = guideMode ? <>얼굴이 잘 보이는 사진을<br />찍거나 골라 주세요</>
-    : result ? (result.passed ? '사진이 잘 찍혔어요' : '한 번 더 찍어 볼까요?') : viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'
+    : result ? (result.passed ? (result.lighting_off ? '조명이 달랐던 사진으로 기록했어요' : '사진이 잘 찍혔어요') : '한 번 더 찍어 볼까요?') : viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'
   return (
     <section className="capture">
       <header className="page-head"><div><h1>{title}</h1></div></header>
@@ -392,7 +392,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <p className="res-msg">{result.passed || result.overridable ? result.message : '아쉬운 항목을 고쳐서 다시 찍어 주세요.'}</p>
           {!result.passed && result.overridable && (
             <div className="next-box">
-              <p className="small">다시 찍기 어렵다면 이 사진으로 기록할 수 있어요. 조명 때문에 붉은기가 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고(구분 불가) 평소 범위 계산에서도 빼요.</p>
+              <p className="small">다시 찍기 어렵다면 이 사진으로 기록할 수 있어요. 조명 때문에 붉은기가 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고('안개') 평소 범위 계산에서도 빼요.</p>
               <button className="btn ghost" onClick={keepAnyway} disabled={keeping}>{keeping ? '기록하는 중…' : '그래도 이 사진으로 기록하기'}</button>
             </div>
           )}
