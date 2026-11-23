@@ -23,7 +23,9 @@ DEFAULT_THRESHOLDS = dict(
     min_chroma=5.0,                # 양 볼 색의 진하기 √(a*²+b*²). 흑백·색 빠진 사진 거르기(피부는 보통 15 이상). 앱에만 있는 기준(2026-11-22)
 )
 # 조명 색 틀어짐(앱에만 있는 기준, 2026-11-23)은 judge.color_off와 같은 식을 쓴다: 로그인해 평소 b*가 7일 넘게 쌓였으면
-# 그 사람 범위(capture가 b_ref로 넘김), 아니면 고정 위쪽 기준(config.LIGHT_B_MAX, 노란 조명)만. 근거: data_pipeline/data/color_robustness_summary.md
+# 그 사람 평소 b* ± max(4, 흔들림)(capture가 b_ref로 넘김, 판정은 ±3), 아니면 고정 위쪽 기준(config.LIGHT_B_MAX)만.
+# 7일 뒤에는 촬영 때도 양쪽을 본다: 판정에서 안개가 될 푸른 사진을 찍을 때 먼저 알려 준다('그래도 기록하기'로 넘길 수 있음).
+# 근거: data_pipeline/data/color_robustness_summary.md
 
 Num = Optional[float]
 # 사용자가 '그래도 이 사진으로 기록하기'를 고를 수 있는 항목. 볼 위치는 맞게 잡혔고 색만 틀어진 경우라 숫자를 남길 수는 있다.

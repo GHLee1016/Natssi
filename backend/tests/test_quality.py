@@ -51,7 +51,8 @@ def test_grayscale_photo_is_rejected():
 
 def test_color_cast_is_rejected():
     """평소 b*가 아직 없으면 노란 조명(볼 b* 22 초과)만 탈락. 푸른 조명은 a* 변화가 MDC95 안이라 고정 기준으로는 막지 않는다.
-    평소 b*가 있으면 그 사람 범위로 본다(노랗게, 푸르게 모두). 근거: data_pipeline/data/color_robustness_summary.md"""
+    평소 b*가 있으면 그 사람 평소 b* ±4(흔들림이 크면 더 넓게)로 양쪽을 본다(판정은 ±3, test_judge 쪽).
+    근거: data_pipeline/data/color_robustness_summary.md"""
     skin = {**BASE, "a_L": 14.0, "b_L": 16.5, "a_R": 13.5, "b_R": 16.0}
     warm = {**BASE, "a_L": 24.0, "b_L": 27.0, "a_R": 23.0, "b_R": 26.0}     # 5000K 필터쯤
     cool = {**BASE, "a_L": 11.0, "b_L": 5.0, "a_R": 11.5, "b_R": 6.0}       # 10000K 필터쯤
@@ -61,11 +62,15 @@ def test_color_cast_is_rejected():
     w = quality.evaluate(quality.Features(**warm))
     c = next(x for x in w["checks"] if x["name"] == "색")
     assert not w["passed"] and w["redness"] is None and c["ok"] is False and "노랗게" in c["detail"]
-    # 평소 b*가 16 근처인 사람: 같은 푸른 사진이 걸리고, 평소 b*가 25인 사람에게는 '노란' 사진도 평소대로 통과
-    assert quality.quality_flags(cool, b_ref=(16.0, 3.0)) == ["color_cast"]
-    c = next(x for x in quality.evaluate(quality.Features(**cool), b_ref=(16.0, 3.0))["checks"] if x["name"] == "색")
-    assert "푸르게" in c["detail"] and "내 평소" in c["tech"] if "tech" in c else "푸르게" in c["detail"]
-    assert quality.quality_flags(warm, b_ref=(25.0, 3.0)) == []
+    # 평소 b*가 16 근처인 사람: 평소보다 4 넘게 푸르거나 노란 사진은 걸린다(판정에서 말없이 안개가 되지 않게 찍을 때 알림)
+    assert quality.quality_flags(cool, b_ref=(16.0, 4.0)) == ["color_cast"]
+    c = next(x for x in quality.evaluate(quality.Features(**cool), b_ref=(16.0, 4.0))["checks"] if x["name"] == "색")
+    assert "푸르게" in c["detail"] and "12.0~20.0" in str(c)
+    assert quality.quality_flags({**BASE, "a_L": 14.0, "b_L": 12.5, "a_R": 14.0, "b_R": 12.5}, b_ref=(16.0, 4.0)) == []   # -3.5는 통과
+    assert quality.quality_flags({**BASE, "a_L": 16.0, "b_L": 20.5, "a_R": 15.5, "b_R": 20.5}, b_ref=(16.0, 4.0)) == ["color_cast"]
+    assert quality.quality_flags({**BASE, "a_L": 15.0, "b_L": 19.5, "a_R": 15.0, "b_R": 19.5}, b_ref=(16.0, 4.0)) == []   # +3.5는 통과
+    # 평소 b*가 25인 사람에게는 '노란' 사진도 평소대로 통과
+    assert quality.quality_flags(warm, b_ref=(25.0, 4.0)) == []
 
 
 def test_gray_photo_is_not_also_called_color_cast():
@@ -73,3 +78,16 @@ def test_gray_photo_is_not_also_called_color_cast():
     assert flags(gray) == ["no_color"]
     c = next(x for x in quality.evaluate(quality.Features(**gray))["checks"] if x["name"] == "색")
     assert "흑백" in c["detail"]
+
+
+def test_light_width_is_split_between_capture_and_judge():
+    """촬영 때 권유는 ±4(원본 오경보 0%), 판정(안개)은 ±3(분홍/초록 틴트 10%를 더 잡음). 흔들림이 크면 둘 다 넓어진다."""
+    from app import config, judge
+    vals = [16.0, 16.2, 15.8, 16.1, 15.9, 16.0, 16.3]
+    assert judge.b_ref(vals) == (16.0, config.LIGHT_B_MIN) == (16.0, 3.0)
+    assert judge.b_ref(vals, config.LIGHT_B_MIN_CAPTURE) == (16.0, 4.0)
+    b = 12.5                                              # 평소보다 3.5 푸름: 촬영은 통과, 판정은 안개
+    assert not judge.color_off(b, judge.b_ref(vals, config.LIGHT_B_MIN_CAPTURE))
+    assert judge.color_off(b, judge.b_ref(vals))
+    wide = [10.0, 13.0, 16.0, 19.0, 22.0, 16.0, 16.0]
+    assert judge.b_ref(wide)[1] == judge.b_ref(wide, config.LIGHT_B_MIN_CAPTURE)[1] > 4.0
