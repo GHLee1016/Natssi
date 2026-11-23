@@ -867,7 +867,8 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ld-num{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--tint);color:var(--accent-ink);font-weight:800;margin-bottom:14px}
 .ld-steps h3,.ld-trust h3{font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-.02em}
 .ld-steps p,.ld-trust p{font-size:14.500px;line-height:1.65;color:#3d4652}
-.ld-previews{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:20px;align-items:start}
+.ld-previews{display:grid;grid-template-columns:minmax(0,1.889fr) minmax(0,.967fr);gap:20px;align-items:stretch}   /* 칸 폭을 두 사진의 가로세로 비율(1600x847, 900x931)에 맞춰 두 상자 높이를 같게 */
+.ld-previews .ld-shot{display:flex;flex-direction:column}.ld-previews .ld-shot img{flex:1;object-fit:contain}
 .ld-trust{list-style:none;margin:0 0 8px;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .ld-trust li{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 22px}
 .ld-start{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:40px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px 36px;outline:none}
