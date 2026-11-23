@@ -999,6 +999,7 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
   /* 위쪽 메뉴로 바꾸면서 메뉴 아래에 있던 링크(한 줄 소개, 낯씨 소개, 처리방침)는 페이지 맨 아래로 */
   .app-foot{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--sub)}
   .app-foot .link{min-height:32px;padding:0;font-size:13px}
+  .app-foot>span{margin-right:auto}   /* 한 줄 소개는 왼쪽, 링크 두 개(낯씨 소개, 개인정보 처리방침)는 오른쪽 */
 }
 /* 위쪽 메뉴가 좁은 PC(900~1100px)에서 한 줄에 들어가게: 간격을 줄이고 오른쪽 사용법, 계정은 아이콘만 */
 @media (min-width:900px) and (max-width:1099px){
