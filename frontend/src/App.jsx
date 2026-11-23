@@ -110,9 +110,9 @@ export default function App() {
   return (
     <>
     <div className={'shell' + (showLanding ? ' intro' : '')}>
-      {/* 소개 페이지에서는 왼쪽 메뉴를 빼고 화면을 다 쓴다(들어가는 길은 '예시 둘러보기' 하나). 둘러본 뒤에는 메뉴의 '소개'나 로고로 돌아온다 */}
+      {/* PC는 위쪽 메뉴, 폰은 아래 탭. 소개 페이지에서는 메뉴를 빼고 화면을 다 쓴다(들어가는 길은 '예시 둘러보기' 하나) */}
       <aside className="side" hidden={showLanding}>
-        <div className="side-in">{/* 메뉴는 화면에 붙어 있고, 흰 바탕과 경계선은 페이지 길이만큼 이어진다 */}
+        <div className="side-in">{/* PC: 화면 위에 붙는 한 줄(로고, 메뉴 5개, 사용법과 계정) */}
         <button className="brand" onClick={goHome} aria-label="낯씨 홈으로(오늘 다이어리)"><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
           {TABS.map((t) => (
@@ -123,22 +123,17 @@ export default function App() {
           ))}
         </nav>
         {meta.data && (
-          <div className="side-tools">{/* PC: 사용법과 계정은 위쪽 아이콘 대신 왼쪽 메뉴 아래에 */}
+          <div className="side-tools">{/* PC: 사용법과 계정은 위쪽 메뉴 오른쪽에(좁은 PC에서는 아이콘만, 이름은 화면 읽기용으로 남김) */}
             <button onClick={() => setGuide(true)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.600 9.300a2.500 2.500 0 1 1 3.400 2.300c-.700.300-1 .800-1 1.500v.6" /><circle cx="12" cy="17" r=".6" /></svg>사용법
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.600 9.300a2.500 2.500 0 1 1 3.400 2.300c-.700.300-1 .800-1 1.500v.6" /><circle cx="12" cy="17" r=".6" /></svg><span className="tl">사용법</span>
             </button>
             {meta.data.auth && (
               <button className={page === 'account' || page === 'auth' ? 'on' : ''} aria-current={page === 'account' || page === 'auth' ? 'page' : undefined} onClick={() => setPage(viewer ? 'account' : 'auth')}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.500" r="3.800" /><path d="M4.500 20a7.500 7.500 0 0 1 15 0" /></svg>{viewer ? '내 계정' : '로그인 또는 가입'}
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.500" r="3.800" /><path d="M4.500 20a7.500 7.500 0 0 1 15 0" /></svg><span className="tl">{viewer ? '내 계정' : '로그인 또는 가입'}</span>
               </button>
             )}
           </div>
         )}
-        <div className="side-foot">
-          <p>매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
-          {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}{/* 로그인 전 PC: 소개 페이지로 돌아가는 길(로고는 오늘 다이어리로) */}
-          <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
-        </div>
         </div>
       </aside>
 
@@ -174,6 +169,13 @@ export default function App() {
             {tab === 'routine' && (viewer ? <MyRoutine ocr={!!meta.data.ocr} /> : <Routine />)}
             {tab === 'report' && (viewer ? <MineGate title="리포트" go={setTab}><Report mine viewer={viewer} aiAvailable={meta.data.ai_available} onLegal={goLegal} onChanged={refreshAll} cacheKey={'mine|' + viewer.email + '|' + meta.data.today + '|' + (viewer.ai_report ? 'ai' : 'tpl')} /></MineGate> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
           </div>
+        )}
+        {meta.data && !showLanding && (
+          <footer className="app-foot">{/* PC: 위쪽 메뉴로 바꾸면서 메뉴 아래에 있던 링크를 페이지 맨 아래로 */}
+            <span>매일의 얼굴 날씨를 기록하는 AI 피부 일지</span>
+            {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}
+            <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
+          </footer>
         )}
       </main>
 
