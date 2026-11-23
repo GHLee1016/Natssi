@@ -367,6 +367,7 @@ def _my_env(uid, today):
 # 하루 기록 = checkins.symptoms(jsonb) 한 칸. 증상 4개 + 그날 처음 품질을 통과한 사진의 볼 붉은기(a*)·노란기(b*, 조명 확인용).
 # ponytail: 열을 따로 두지 않고 jsonb에 같이 넣어 DB 패치 없이 배포된다. 값이 늘면 열로 옮길 것.
 MEASURES = ("redness", "b", "L", "cheeks")            # L*: 볼 색 칩 밝기 / cheeks: [선택 동의] 양 볼 조각 사진(JPEG base64)
+#   '조명 색이 달랐던 날'은 따로 저장하지 않고 저장된 b*로 판정 때 가려낸다(judge.light_off): 처리방침의 '저장하는 볼 색 숫자 3개'를 그대로 두려고.
 
 
 def _split(entry):
@@ -401,6 +402,11 @@ def _my_judged(uid, saved, district, routine_data=None):
     return judge.judge_all(recs)
 
 
+def _counts(r):
+    """평소 범위에 들어가는 날: 붉은기가 있고, '조명이 달라도 그대로 기록'한 날이 아님 (judge.py와 같은 기준)."""
+    return r["redness"] is not None and not r.get("light_flag")
+
+
 def _me_payload(uid):
     saved = _mine(uid)
     today = config.today_kst().isoformat()
@@ -413,8 +419,8 @@ def _me_payload(uid):
             "today_verdict": last["verdict"] if last and last["redness"] is not None else None,
             "today_redness": last["redness"] if last else None,
             "today_cheeks": {k: "data:image/jpeg;base64," + x for k, x in _split(saved.get(today))[2].get("cheeks", {}).items()} or None,
-            "days_recorded": len(judged), "redness_days": sum(1 for r in judged if r["redness"] is not None),
-            "unlocked": sum(1 for r in judged if r["redness"] is not None) >= BASELINE_DAYS,
+            "days_recorded": len(judged), "redness_days": sum(1 for r in judged if _counts(r)),
+            "unlocked": sum(1 for r in judged if _counts(r)) >= BASELINE_DAYS,
             "needed": BASELINE_DAYS, "recent": recent, "district": district, "env": today_env}
 
 
@@ -527,21 +533,30 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
     """브라우저가 잰 측정값(숫자)만 받아 품질을 판정합니다. 사진은 서버로 오지 않아요.
     로그인했고 바뀐 처리방침(REDNESS_SINCE)에 동의했으면, 그날 처음 통과한 사진의 볼 색 숫자(a*, 조명 확인용 b*)만 오늘 기록에 남깁니다."""
     limit("capture", request, v)
-    res = quality.evaluate(body)
+    ref = None
+    if v:                                                    # 로그인: 내 평소 b*가 7일 넘게 쌓였으면 조명 색을 그 기준으로(judge와 같은 식)
+        saved = _mine(v["id"])
+        ref = judge.b_ref([m["b"] for m in (_split(e)[2] for e in saved.values()) if m.get("b") is not None and m.get("redness") is not None])
+    res = quality.evaluate(body, b_ref=ref)
     res["saved"] = False
     if v and res["passed"] and res["redness"] is not None and ((v.get("consent") or {}).get("version") or "") >= config.REDNESS_SINCE:
         today = config.today_kst().isoformat()
         try:
-            entry = store.load_all(v["id"]).get(today) or {}
-            if _split(entry)[1] is None:                              # 하루 1개: 처음 통과한 값만(다시 찍어 고르지 않게)
+            entry = saved.get(today) or {}
+            old = _split(entry)[2]
+            # 조명 색이 달랐던 사진으로 남긴 날은, 그날 나중에 정상으로 통과한 사진으로 바꿀 수 있다(그 반대는 안 됨)
+            fix = old.get("redness") is not None and not res.get("lighting_off") and judge.color_off(old.get("b"), ref)
+            if _split(entry)[1] is None or fix:                       # 하루 1개: 처음 통과한 값만(다시 찍어 고르지 않게)
                 b = None if body.b_L is None or body.b_R is None else round((body.b_L + body.b_R) / 2, 2)
                 L = None if body.L_star is None else round(body.L_star, 2)
                 store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2),
                                             **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {})})
                 res["saved_on"] = today                              # 브라우저가 볼 조각을 이 날짜로 기기에 남길 때 쓴다
             res["saved"] = True
-            res["already"] = _split(entry)[1] is not None          # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
+            res["already"] = _split(entry)[1] is not None and not fix   # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
+            res["replaced"] = fix
             res["note"] = ("오늘은 앞서 통과한 사진의 값이 이미 기록돼 있어요(하루에 처음 통과한 사진 하나만 써요)." if res["already"] else
+                           "조명 색이 달랐던 앞선 기록을 이 사진의 값으로 바꿨어요." if fix else
                            "오늘 기록에 볼 색 숫자를 남겼어요. 하루에 처음 통과한 사진의 값만 남기고, 사진은 남기지 않아요.")
         except Exception as e:
             raise _store_fail("볼 붉은기를 저장하지 못했어요.", e)

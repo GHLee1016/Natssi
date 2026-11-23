@@ -47,3 +47,29 @@ def test_grayscale_photo_is_rejected():
     r = quality.evaluate(quality.Features(**gray))
     assert not r["passed"] and r["redness"] is None
     assert next(c for c in r["checks"] if c["name"] == "색")["ok"] is False
+
+
+def test_color_cast_is_rejected():
+    """평소 b*가 아직 없으면 노란 조명(볼 b* 22 초과)만 탈락. 푸른 조명은 a* 변화가 MDC95 안이라 고정 기준으로는 막지 않는다.
+    평소 b*가 있으면 그 사람 범위로 본다(노랗게, 푸르게 모두). 근거: data_pipeline/data/color_robustness_summary.md"""
+    skin = {**BASE, "a_L": 14.0, "b_L": 16.5, "a_R": 13.5, "b_R": 16.0}
+    warm = {**BASE, "a_L": 24.0, "b_L": 27.0, "a_R": 23.0, "b_R": 26.0}     # 5000K 필터쯤
+    cool = {**BASE, "a_L": 11.0, "b_L": 5.0, "a_R": 11.5, "b_R": 6.0}       # 10000K 필터쯤
+    assert flags(skin) == []
+    assert flags(warm) == ["color_cast"] and flags(cool) == []
+    assert flags({**BASE, "a_L": 14.0, "b_L": 10.5, "a_R": 13.0, "b_R": 19.0}) == []   # 팀원 원본 범위(10.4~19.4)는 통과
+    w = quality.evaluate(quality.Features(**warm))
+    c = next(x for x in w["checks"] if x["name"] == "색")
+    assert not w["passed"] and w["redness"] is None and c["ok"] is False and "노랗게" in c["detail"]
+    # 평소 b*가 16 근처인 사람: 같은 푸른 사진이 걸리고, 평소 b*가 25인 사람에게는 '노란' 사진도 평소대로 통과
+    assert quality.quality_flags(cool, b_ref=(16.0, 3.0)) == ["color_cast"]
+    c = next(x for x in quality.evaluate(quality.Features(**cool), b_ref=(16.0, 3.0))["checks"] if x["name"] == "색")
+    assert "푸르게" in c["detail"] and "내 평소" in c["tech"] if "tech" in c else "푸르게" in c["detail"]
+    assert quality.quality_flags(warm, b_ref=(25.0, 3.0)) == []
+
+
+def test_gray_photo_is_not_also_called_color_cast():
+    gray = {**BASE, "a_L": 0.4, "b_L": 0.6, "a_R": -0.2, "b_R": 0.3}
+    assert flags(gray) == ["no_color"]
+    c = next(x for x in quality.evaluate(quality.Features(**gray))["checks"] if x["name"] == "색")
+    assert "흑백" in c["detail"]

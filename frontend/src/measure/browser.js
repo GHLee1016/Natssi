@@ -1,6 +1,6 @@
 // 브라우저에서 사진을 측정합니다. 사진은 이 기기 밖으로 나가지 않고, 숫자(측정값)만 서버로 보냅니다.
 // 순서는 검증 파이프라인과 같아요: 사진 방향 반영 → 얼굴 점 검출(긴 변 1600px로 줄여서) → 원본 해상도에서 볼 색 측정.
-import { extractFeatures, eulerFromMatrix, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT } from './core.js'
+import { extractFeatures, eulerFromMatrix, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT, FEATURE_VERSION } from './core.js'
 
 const WASM = '/mediapipe/wasm'                          // 빌드할 때 node_modules 에서 복사(scripts/copy-mediapipe.mjs)
 const MODELS = ['/mediapipe/face_landmarker.task',        // 빌드할 때 받아 둔 모델
@@ -164,5 +164,17 @@ export async function measurePhoto(src) {
   const feat = extractFeatures(img, face)
   lastCheeks = face ? cropCheeks(full, face.lm) : null
   // 숫자가 아닌 값(NaN)은 null 로 보냄
-  return Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v]))
+  return { ...Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v])),
+    feature_version: FEATURE_VERSION }
+}
+
+// 서버로 보낼 숫자만 고른다: 콧등 값(n_N, clip_ratio_N, a_N, b_N, L_N, a_rel)은 판정에 아직 안 쓰고 처리방침의 '서버에 보내는 숫자'에 없어서
+// 이 기기에서만 쓴다(결과 화면의 참고값). 보내려면 Legal.jsx 사진 처리 안내와 PHOTO_NOTICE_VERSION을 함께 바꿀 것.
+export function forServer(feat) {
+  return Object.fromEntries(Object.entries(feat).filter(([k]) => !/_N$/.test(k) && k !== 'a_rel'))
+}
+// 볼 a* − 콧등 a*(상대 붉은기). 콧등이 작게 잡히거나 번들거려 하얗게 날아갔으면 내지 않는다
+export function relRedness(feat) {
+  const ok = feat && Number.isFinite(feat.a_rel) && (feat.n_N || 0) >= 400 && (feat.clip_ratio_N || 0) <= 0.05
+  return ok ? Math.round(feat.a_rel * 100) / 100 : null
 }

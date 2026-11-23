@@ -8,6 +8,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from . import config, judge
+
 DEFAULT_THRESHOLDS = dict(
     min_side=480,                  # 짧은 변 픽셀
     bright_lo=70, bright_hi=210,   # 전체 평균 밝기(0~255)
@@ -20,8 +22,14 @@ DEFAULT_THRESHOLDS = dict(
     min_roi_pixels=400,
     min_chroma=5.0,                # 양 볼 색의 진하기 √(a*²+b*²). 흑백·색 빠진 사진 거르기(피부는 보통 15 이상). 앱에만 있는 기준(2026-11-22)
 )
+# 조명 색 틀어짐(앱에만 있는 기준, 2026-11-23)은 judge.color_off와 같은 식을 쓴다: 로그인해 평소 b*가 7일 넘게 쌓였으면
+# 그 사람 범위(capture가 b_ref로 넘김), 아니면 고정 위쪽 기준(config.LIGHT_B_MAX, 노란 조명)만. 근거: data_pipeline/data/color_robustness_summary.md
 
 Num = Optional[float]
+# 사용자가 '그래도 이 사진으로 기록하기'를 고를 수 있는 항목. 볼 위치는 맞게 잡혔고 색만 틀어진 경우라 숫자를 남길 수는 있다.
+# 남긴 날은 판정에서 '구분 불가(조명이 달랐어요)'로 다루고 평소 범위 계산에서 뺀다(judge.py light_flag).
+# 얼굴·각도·흐림 같은 항목은 볼 위치 자체가 틀릴 수 있어서 넘기지 못한다.
+SOFT_FLAGS = {"color_cast"}
 
 
 class Features(BaseModel):
@@ -53,6 +61,9 @@ class Features(BaseModel):
     a_star: Num = Field(None, ge=-128, le=128)
     L_star: Num = Field(None, ge=0, le=100)
     L_diff: Num = Field(None, ge=-100, le=100)
+    # 콧등 값(측정 버전 3의 n_N, a_N, b_N, a_rel)은 서버로 보내지 않는다: 판정에 아직 안 쓰고, 처리방침의 '서버에 보내는 숫자'에 없어서.
+    # 상대 붉은기(볼 a* − 콧등 a*)는 브라우저가 결과 화면에만 참고로 보여 준다.
+    override: bool = False         # 사용자가 SOFT_FLAGS만 걸린 사진을 그대로 기록하기로 골랐다
 
 
 def _missing(v):
@@ -64,7 +75,7 @@ def _bad(v, test):
     return _missing(v) or test(v)
 
 
-def quality_flags(feat: dict, th=None):
+def quality_flags(feat: dict, th=None, b_ref=None):
     """측정값 + 기준 → 걸린 항목 리스트. 빈 리스트면 통과. (파이프라인 quality_flags 와 같은 식)"""
     t = {**DEFAULT_THRESHOLDS, **(th or {})}
     g = lambda k: feat.get(k)
@@ -96,7 +107,16 @@ def quality_flags(feat: dict, th=None):
     chroma = [math.hypot(g(f"a_{s}"), g(f"b_{s}")) for s in ("L", "R") if not _missing(g(f"a_{s}")) and not _missing(g(f"b_{s}"))]
     if chroma and max(chroma) < t["min_chroma"]:           # 양쪽 다 색이 거의 없음 = 흑백 필터 등. 값이 없으면 다른 항목이 거른다
         flags.append("no_color")
+    elif judge.color_off(_b_mean(feat), b_ref):
+        flags.append("color_cast")                         # 조명 색이 평소와 다름 → 볼 붉은기(a*)도 틀어져 있다
     return flags
+
+
+def _b_mean(d, min_chroma=DEFAULT_THRESHOLDS["min_chroma"]):
+    """색이 제대로 잡힌 볼(진하기 min_chroma 이상)만의 b* 평균. 한쪽이 색 빠짐이면 그쪽은 빼고 본다."""
+    b = [d[f"b_{s}"] for s in ("L", "R") if not _missing(d.get(f"a_{s}")) and not _missing(d.get(f"b_{s}"))
+         and math.hypot(d[f"a_{s}"], d[f"b_{s}"]) >= min_chroma]
+    return sum(b) / len(b) if b else None
 
 
 def _chroma(d):
@@ -108,10 +128,11 @@ def _num(v, fmt):
     return "—" if _missing(v) else format(v, fmt)
 
 
-def evaluate(f: Features):
-    """측정값 → 앱 화면용 결과(형식은 예전 check() 와 같음). 사진도 측정값도 저장하지 않습니다."""
+def evaluate(f: Features, b_ref=None):
+    """측정값 → 앱 화면용 결과(형식은 예전 check() 와 같음). 사진도 측정값도 저장하지 않습니다.
+    b_ref: 로그인한 사람의 평소 b* 범위(judge.b_ref). 없으면 조명 색은 고정 위쪽 기준으로만 본다."""
     d = f.model_dump()
-    flags = set(quality_flags(d))
+    flags = set(quality_flags(d, b_ref=b_ref))
     t = DEFAULT_THRESHOLDS
     face = d["face_found"]
 
@@ -160,19 +181,33 @@ def evaluate(f: Features):
         item("볼 노출", {"clipped_L", "clipped_R"}, "볼에 빛이 고르게 닿았어요",
              "볼이 하얗게 번졌어요. 빛이 덜 센 곳에서 찍어 주세요",
              f"하얗게 날아간 부분 왼쪽 {_num(d['clip_ratio_L'], '.1%')}, 오른쪽 {_num(d['clip_ratio_R'], '.1%')} (1% 이하)"),
-        item("색", {"no_color"}, "피부 색이 잘 보여요", "흑백이거나 색이 빠진 사진 같아요. 필터 없이 다시 찍어 주세요",
-             f"볼 색 진하기 {_num(_chroma(d), '.1f')} ({t['min_chroma']:.0f} 이상)"),
+        item("색", {"no_color", "color_cast"}, "피부 색이 잘 보여요",
+             "흑백이거나 색이 빠진 사진 같아요. 필터 없이 다시 찍어 주세요" if "no_color" in flags else
+             ("조명이 노랗게 비쳐요. 낮 햇빛이나 하얀 조명 아래에서 다시 찍어 주세요" if (_b_mean(d) or 0) > (b_ref[0] if b_ref else config.LIGHT_B_MAX) else
+              "조명이 평소보다 푸르게 비쳐요. 낮 햇빛이나 하얀 조명 아래에서 다시 찍어 주세요"),
+             f"볼 색 진하기 {_num(_chroma(d), '.1f')} ({t['min_chroma']:.0f} 이상), 조명 색(b*) {_num(_b_mean(d), '.1f')} "
+             + (f"(내 평소 {b_ref[0] - b_ref[1]:.1f}~{b_ref[0] + b_ref[1]:.1f})" if b_ref else f"({config.LIGHT_B_MAX:.0f} 이하)")),
         item("볼 영역", {"roi_small_L", "roi_small_R"}, "양 볼이 잘 보여요",
              "볼이 가려졌어요. 머리카락이나 마스크를 치워 주세요",
              f"왼쪽 {_num(d['n_L'], ',.0f')}, 오른쪽 {_num(d['n_R'], ',.0f')} 픽셀"),
     ]
-    passed = not flags
+    overridable = bool(flags) and flags <= SOFT_FLAGS
+    lighting_off = overridable and d.get("override", False)      # 조명 색만 걸렸고 사용자가 그대로 기록하기로 함
+    passed = not flags or lighting_off
     redness = round(d["a_star"], 2) if passed and not _missing(d["a_star"]) else None
-    if passed:
+    if lighting_off:
+        message = "조명 색이 평소와 달랐던 사진으로 기록했어요."
+        note = ("붉은기가 조명 때문에 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고 '구분 불가'로 둬요. "
+                "평소 범위를 만들 때도 이날 값은 빼요.")
+    elif passed:
         message = "좋아요, 이 사진으로 괜찮아요."
         note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 오늘 기록에 볼 색 숫자만 남겨요(사진은 남기지 않아요)."
+    elif overridable:
+        message = "조명 색이 평소와 달라 보여요. 하얀 조명에서 다시 찍는 게 좋지만, 그대로 기록할 수도 있어요."
+        note = "그대로 기록하면 이날은 판정에서 단정하지 않아요(구분 불가)."
     else:
         message = "같은 장소와 조명에서 정면을 보고 다시 찍어 주세요."
         note = "품질 검사를 통과한 사진만 볼 붉은기를 보여 드려요."
     return {"passed": passed, "checks": checks, "flags": sorted(flags), "message": message,
-            "redness": redness, "note": note}
+            "redness": redness, "overridable": overridable and not lighting_off,
+            "lighting_off": lighting_off, "note": note}

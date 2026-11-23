@@ -1,10 +1,12 @@
 // 측정 계산(브라우저 API 없음). 검증 파이프라인(natssi_selfie_validation/code/measure_redness.py)과 같은 식입니다.
 // 바꾸면 measure/core.test.mjs 로 파이썬 결과와 다시 맞춰 보세요.
 
-export const FEATURE_VERSION = '2'
+export const FEATURE_VERSION = '3'   // 3: 콧등(N) 추가, 상대 붉은기 a_rel = 볼 a* − 콧등 a*
 // MediaPipe Face Mesh 478점 기준 볼 영역(사진 기준 왼쪽/오른쪽). 팀원 사진·AI Hub 20명으로 위치 확인함.
 export const CHEEK_IMG_LEFT = [116, 117, 118, 101, 36, 205, 187, 123]
 export const CHEEK_IMG_RIGHT = [345, 346, 347, 330, 266, 425, 411, 352]
+// 콧등(미간 아래~코끝 위). 조명 색은 얼굴 전체에 씌워지므로 볼에서 빼면 상쇄된다(조명 색 필터 실험, data_pipeline/data/color_robustness_summary.md)
+export const NOSE_IMG = [168, 351, 412, 437, 4, 217, 188, 122]
 
 // ── 색 변환: sRGB(8bit) → CIELAB(D65) ──────────────────────────────
 const M = [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]]
@@ -227,7 +229,7 @@ export function extractFeatures(img, face) {
     out.smile = Math.max(bs.mouthSmileLeft || 0, bs.mouthSmileRight || 0)
     out.blink = Math.max(bs.eyeBlinkLeft || 0, bs.eyeBlinkRight || 0)
   }
-  for (const [side, idx] of [['L', CHEEK_IMG_LEFT], ['R', CHEEK_IMG_RIGHT]]) {
+  for (const [side, idx] of [['L', CHEEK_IMG_LEFT], ['R', CHEEK_IMG_RIGHT], ['N', NOSE_IMG]]) {
     const st = roiStats(img, polygonMask(width, height, idx.map((i) => lm[i])))
     for (const [k, v] of Object.entries(st)) out[`${k}_${side}`] = v
   }
@@ -235,6 +237,7 @@ export function extractFeatures(img, face) {
   out.a_star = mean2(out.a_L, out.a_R)
   out.L_star = mean2(out.L_L, out.L_R)
   out.L_diff = out.L_L - out.L_R
+  out.a_rel = Number.isNaN(out.a_star) || Number.isNaN(out.a_N) ? NaN : out.a_star - out.a_N   // 참고값(판정에는 아직 안 씀)
   return out
 }
 
