@@ -115,11 +115,6 @@ export default function App() {
         <div className="side-in">{/* 메뉴는 화면에 붙어 있고, 흰 바탕과 경계선은 페이지 길이만큼 이어진다 */}
         <button className="brand" onClick={intro ? goIntro : goHome} aria-label={intro ? '낯씨 소개로' : '낯씨 홈으로'}><img src="/logo.svg" alt="" />낯씨</button>
         <nav aria-label="주 메뉴">
-          {intro && (
-            <button className={showLanding ? 'on' : ''} aria-current={showLanding ? 'page' : undefined} onClick={goIntro}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" /></svg>소개
-            </button>
-          )}
           {TABS.map((t) => (
             <button key={t.id} className={tab === t.id && !showLanding ? 'on' : ''} aria-current={tab === t.id && !showLanding ? 'page' : undefined}
               onClick={() => pickTab(t.id)}>
@@ -141,6 +136,7 @@ export default function App() {
         )}
         <div className="side-foot">
           <p>매일의 얼굴 날씨를 기록하는<br />AI 피부 일지</p>
+          {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}{/* 로그인 전 PC: 소개 페이지로 돌아가는 길(로고도 같은 동작) */}
           <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
         </div>
         </div>
