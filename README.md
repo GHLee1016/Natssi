@@ -23,7 +23,7 @@
 
 
 
-<a href="https://github.com/user-attachments/assets/27d981f8-b6e0-476f-86ad-7191d561491e"><img src="docs/readme/video_thumb.jpg" alt="낯씨 소개 영상 섬네일. 누르면 영상이 열려요" width="100%" /></a>
+<a href="https://natssiweb.vercel.app/intro.mp4"><img src="docs/readme/video_thumb.jpg" alt="낯씨 소개 영상 섬네일. 누르면 영상이 열려요" width="100%" /></a>
 
 <sub>섬네일을 누르면 소개 영상(48초)이 열려요.</sub>
 
