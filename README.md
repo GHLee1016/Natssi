@@ -21,7 +21,11 @@
 
 2026 AI 플랫폼 구축 경진대회 출품작
 
-https://github.com/user-attachments/assets/336ef273-d2bd-42e4-a6ec-3e59a6a8242f
+
+
+https://github.com/user-attachments/assets/27d981f8-b6e0-476f-86ad-7191d561491e
+
+
 
 <img src="docs/readme/hero.jpg" alt="낯씨를 폰과 노트북에서 보는 모습" width="100%" />
 
