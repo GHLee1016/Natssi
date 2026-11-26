@@ -1061,3 +1061,14 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .first-week .fw-what{margin-top:8px;font-size:14px;color:var(--sub)}
 .first-week .fw-what summary{cursor:pointer;color:var(--accent-ink);font-weight:600;min-height:32px;display:flex;align-items:center}
 .first-week .fw-what p{margin:6px 0 0;line-height:1.55}
+
+/* 사용법 시트: 어디서 하는지, 날씨 읽는 법, 버튼은 아래에 붙여 둔다 */
+.welcome-sheet .welcome-note{margin:-8px 0 14px}
+.welcome-sheet .welcome-where{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--accent-ink)}
+.welcome-sheet .welcome-legend{list-style:none;padding:0;margin:6px 0 0;display:grid;gap:6px}
+.welcome-sheet .welcome-legend li{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--sub)}
+.welcome-sheet .welcome-legend li b{display:inline;font-size:14px;color:var(--ink);margin-right:2px}
+.welcome-sheet .welcome-tips{display:grid;gap:6px;padding:12px;border-radius:14px;background:var(--bg);line-height:1.5}
+.welcome-sheet .welcome-tips p{margin:0}
+.welcome-sheet .actions{position:sticky;bottom:-24px;background:#fff;padding:12px 0 4px;margin-bottom:-4px}
+.welcome-sheet .welcome-legend .wi{margin:0}
