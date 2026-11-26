@@ -178,6 +178,7 @@ def quality_ok(f: dict) -> bool:
     if not f.get("face_found"):
         return False
     return bool(min(f["width"], f["height"]) >= Q["short"] and Q["bright"][0] <= f["brightness"] <= Q["bright"][1]
+                and f.get("n_faces", 1) <= 1                                   # 여러 얼굴(앱 quality.py와 같음)
                 and abs(f.get("yaw", 99)) <= Q["yaw"] and abs(f.get("pitch", 99) - Q["pitch_off"]) <= Q["pitch"]
                 and abs(f.get("roll", 99)) <= Q["roll"] and f.get("smile", 1) <= Q["smile"] and f.get("blink", 1) <= Q["blink"]
                 and f["face_ratio"] >= Q["face_ratio"] and f["sharpness"] >= Q["sharp"]

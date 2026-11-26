@@ -155,3 +155,14 @@ python analysis/fullface_redness.py summary                           # → data
 ```powershell
 python analysis/mdc95_check.py            # → data/mdc95_check.md (요약만)
 ```
+
+## 5. 원래 측정 코드와 비교 (`analysis/measure_compare.py`)
+
+MDC95 2.35를 낸 측정값은 `natssi_selfie_validation/code/measure_redness.py`로 만들었다. 그 코드를 찾지 못해 앱 코드를 바탕으로
+`analysis/color_robustness.py`를 다시 만들었으므로, 같은 사진에서 두 코드의 볼 a*와 품질 판정, MDC95를 나란히 낸다.
+알려진 차이: 사진 읽기(PIL/OpenCV), 얼굴 점을 찾는 해상도(원본/1600px), 볼 영역 좌표(버림/반올림+테두리), 선명도 축소 방식,
+위아래 각도 보정(없음/−3.7°), 여러 얼굴 세는 법. 지금 코드는 모두 앱과 같은 쪽이다.
+
+```powershell
+python analysis/measure_compare.py <face_data 폴더>   # → data/measure_compare.md (요약만)
+```
