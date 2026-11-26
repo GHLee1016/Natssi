@@ -118,3 +118,23 @@ python scripts/build_space.py                                     # 허깅페이
 | 3장, 예전 / 줄 단위 | 0.786 / 0.768 | 0.871 / 0.860 |
 
 예전 방식은 사진 경계에서 잘린 조각이 엉뚱하게 보정돼 정밀도가 떨어졌다. 실제로 돌려 찍은 사진(가장자리가 눌린)으로는 아직 확인하지 못했다.
+
+## 3. 얼굴 전체 붉은기 (시험, `analysis/fullface_redness.py`)
+
+지금 앱은 양쪽 볼만 잰다. 이마, 코, 입 주변, 턱까지 넓히고 '붉은 점'(주변보다 a*가 높은 작은 덩어리)을 세 보는 시험이다.
+앱에는 아직 넣지 않았다. 측정 바탕(사진 불러오기, 얼굴 점, Lab 식, 품질 검사, 조명 필터)은 `analysis/color_robustness.py`와 같다.
+
+- 빼는 곳: 눈 주변(안경 자리), 입술, 콧구멍, 얼굴 가장자리, 어두운 픽셀(머리카락, 안경테), 번들거림
+- 붉은 점: 주변보다 a* +6 넘게 높고 L*는 많이 낮지 않은 곳(갈색 점, 주근깨 제외). 진단이 아니라 관찰값
+
+```powershell
+pip install mediapipe scipy matplotlib tabulate
+# 얼굴 모델: frontend/public/mediapipe/face_landmarker.task 를 data_pipeline/models/ 에 복사(.gitignore)
+python analysis/fullface_redness.py pair 사진A.jpg 사진B.jpg 비교.png   # 두 사진의 부위별 숫자와 붉은기 지도
+python analysis/fullface_redness.py run <face_data 폴더>               # 반복 촬영 + 조명 필터 11종 → private/ (깃허브 X)
+python analysis/fullface_redness.py summary                           # → data/fullface_redness_summary.md (요약만)
+```
+
+`run`의 폴더 구조와 파일 이름(`이름/2026-11-08_1.jpg`)은 조명 실험과 같다. `summary`는 부위별 MDC95(같은 날 반복 촬영),
+조명 필터별 평균 변화, 붉은 점 개수가 같은 날 여러 장에서 같은지를 낸다. 사진은 숫자로만 처리하고 저장, 전송하지 않는다.
+
