@@ -65,3 +65,15 @@ def test_random_schemes_run_and_bracket_median():
         mid, lo, hi = mc.random_ci(d, how, b=200)
         assert lo <= mid <= hi, how
         assert 1.0 < mid < 4.0, how
+
+
+def test_original_formula_matches_manual():
+    d = _fake()
+    g = d.groupby(["member", "date"])["a"]
+    within = np.sqrt(np.average(g.var(ddof=1), weights=g.count() - 1))
+    sess = g.mean().reset_index()
+    means = np.sqrt(np.average(sess.groupby("member")["a"].var(ddof=1), weights=sess.groupby("member").size() - 1))
+    expect = mc.Z * np.sqrt(means ** 2 + within ** 2 * (1 - 1 / 3))
+    assert mc.original_mdc(d) == pytest.approx(expect)
+    lo, hi = mc.original_ci(d, b=200)
+    assert lo <= expect <= hi

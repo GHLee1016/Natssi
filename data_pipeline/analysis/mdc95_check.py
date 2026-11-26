@@ -1,8 +1,8 @@
 """앱 판정 기준 MDC95(볼 a*, 2.35)를 남아 있는 반복 셀카 측정값으로 다시 계산해 본다.
 
-2.35와 신뢰구간 1.85~2.97을 낸 원래 스크립트(natssi_selfie_validation)는 없어졌고, 어떤 반복을 기준으로 했는지
-(같은 날 여러 장인지, 날마다 1장인지)와 신뢰구간 방법이 기록에 없다. 그래서 반복의 정의를 4가지로 나눠 모두 내고,
-각각 두 가지 신뢰구간을 붙인다.
+2.35와 신뢰구간 1.85~2.97은 natssi_selfie_validation/code/analyze_reliability.py로 냈다.
+그 식을 original_mdc, original_ci로 옮겨(원래 코드와 결과 일치 확인) 지금 측정값으로 다시 내고,
+비교용으로 반복의 정의를 4가지로 나눠 두 가지 신뢰구간도 붙인다.
 
 반복의 정의 (모두 사람 안에서만 본다. 사람끼리의 차이는 빼고, 사람별 분산을 자유도로 가중해 합친다)
 - same_day   : 같은 날 여러 장의 흔들림 (color_robustness, fullface_redness의 MDC와 같은 식)
@@ -191,16 +191,48 @@ def random_table(d: pd.DataFrame, b=B) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def original_mdc(d: pd.DataFrame) -> float:
+    """원래 계산(natssi_selfie_validation/code/analyze_reliability.py의 core)과 같은 식.
+    SEM(하루 1장) = √(하루 평균들의 날짜 간 분산 + 같은 날 분산 × (1 − 1/하루 장수 조화평균)), MDC95 = 1.96·√2·SEM."""
+    within, _ = pooled_sd(units(d, "same_day"))
+    sess = d.groupby(["member", "date"], as_index=False).agg(a=("a", "mean"), r=("a", "size"))
+    means, _ = pooled_sd(sess.assign(group=sess["member"]))
+    r_h = len(sess) / (1 / sess["r"]).sum()
+    w = 0.0 if np.isnan(within) else within ** 2 * (1 - 1 / r_h)
+    return float(Z * np.sqrt(means ** 2 + w))
+
+
+def original_ci(d: pd.DataFrame, b=2000, seed=0):
+    """원래 신뢰구간: 사람 단위 부트스트랩 2000회(같은 사람이 두 번 뽑히면 다른 사람으로 본다), 2.5~97.5 백분위."""
+    rng = np.random.default_rng(seed)
+    subs = d["member"].unique()
+    vals = []
+    for _ in range(b):
+        pick = rng.choice(subs, len(subs), replace=True)
+        s = pd.concat([d[d.member == m].assign(member=f"{m}#{i}") for i, m in enumerate(pick)])
+        v = original_mdc(s)
+        if not np.isnan(v):
+            vals.append(v)
+    return float(np.nanpercentile(vals, 2.5)), float(np.nanpercentile(vals, 97.5))
+
+
 def main(path=None):
     d = load(path)
     t = check(d)
     r = random_table(d)
     best = r.iloc[r["원래구간과차이"].argmin()]
+    om = original_mdc(d)
+    olo, ohi = original_ci(d)
     close = t.iloc[(t["MDC95"] - TARGET).abs().argsort()[:1]]
     lines = ["# MDC95 다시 계산 (볼 a*, 앱 판정 기준)", "",
              f"사진: 원본 중 품질 통과 {len(d)}장, {d['member'].nunique()}명, 사람-날 {d.groupby(['member', 'date']).ngroups}개. "
              "측정은 analysis/mdc95_check.py.", "",
-             f"> 앱 값: MDC95 {TARGET}, 95% 신뢰구간 {TARGET_CI[0]}~{TARGET_CI[1]} (원래 계산 스크립트와 방법 기록 없음).", "",
+             f"> 앱 값: MDC95 {TARGET}, 95% 신뢰구간 {TARGET_CI[0]}~{TARGET_CI[1]}.", "",
+             "## 원래 방법 (natssi_selfie_validation/code/analyze_reliability.py)", "",
+             "SEM(하루 1장) = √(하루 평균들의 날짜 간 분산 + 같은 날 분산 × (1 − 1/하루 장수)), MDC95 = 1.96 × √2 × SEM. "
+             "신뢰구간은 사람 단위 부트스트랩 2000회(2.5~97.5 백분위).", "",
+             f"- 다시 계산: MDC95 **{om:.2f}**, 95% 신뢰구간 **{olo:.2f}~{ohi:.2f}**", "",
+             "## 반복의 정의를 바꿔 본 비교", "",
              t.to_markdown(index=False), "",
              f"- 2.35에 가장 가까운 정의: {close['정의'].iloc[0]} ({close['MDC95'].iloc[0]})",
              "- 모수적 구간은 정규분포를 가정하고, 부트스트랩은 사람별로 나눠 다시 뽑는다(사람이 3명이라 사람 단위로는 뽑지 않음).",
