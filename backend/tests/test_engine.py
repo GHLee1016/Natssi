@@ -109,7 +109,7 @@ def test_demo_insights_recap_challenge_overlap():
     c = TestClient(app)
     d = c.get("/api/insights").json()
     assert d["recap"]["month"] == "2026-11" and d["recap"]["weather"]["신호 있음"] == 5
-    assert any("평소 범위를 넘었어요" in x for x in d["recap"]["lines"])
+    assert any("평소보다 볼이 붉었어요" in x for x in d["recap"]["lines"])
     cal = d["recap"]["cal"]                                                        # 기록 칸 지도: 기록한 날마다 날씨
     assert len(cal) == d["recap"]["days"] and sum(1 for x in cal if x["level"]) == d["recap"]["photo_days"]
     assert sum(1 for x in cal if x["level"] == "신호 있음") == 5

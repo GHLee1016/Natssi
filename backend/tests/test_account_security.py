@@ -268,7 +268,7 @@ def test_my_verdict_after_seven_days(env, monkeypatch):
         if i == 6:
             assert me["today_verdict"]["level"] == "구분 불가" and me["redness_days"] == 7   # 평소 범위를 만드는 중
     assert me["today_verdict"]["level"] == "신호 있음" and me["recent"][0]["level"] == "신호 있음"
-    assert "바꾸지 않았는데" in me["today_verdict"]["message"]                    # 루틴을 바꾼 적 없으면 '바꾼 시기' 문장을 쓰지 않음
+    assert "루틴은 그대로였지만" in me["today_verdict"]["message"]                    # 루틴을 바꾼 적 없으면 '바꾼 시기' 문장을 쓰지 않음
 
 
 def test_photo_consent_is_renewed(env):
