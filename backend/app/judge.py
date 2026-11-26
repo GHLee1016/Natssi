@@ -7,7 +7,7 @@ from . import config
 
 NO_SIGNAL, WATCH, SIGNAL, UNKNOWN = "신호 없음", "관찰 중", "신호 있음", "구분 불가"
 MESSAGES = {
-    NO_SIGNAL: "붉은기가 평소 범위 안이에요.",
+    NO_SIGNAL: "평소와 비슷한 얼굴이에요.",
     WATCH: "며칠 더 지켜볼게요.",
     SIGNAL: "바꾼 시기와 붉은기가 오른 시기가 겹쳐요. 같은 장소, 같은 시간에 며칠 더 찍거나 빈도를 줄여 보세요.",
     UNKNOWN: "기록이 더 필요해요.",

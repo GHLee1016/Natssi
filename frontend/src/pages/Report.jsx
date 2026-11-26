@@ -172,7 +172,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
             ? <p className="muted small">{`문장은 판정 기록을 보고 AI가 썼어요(${r.model}). 판정은 AI가 하지 않아요.`}</p>
             : r.llm_error
               ? <>
-                  <p className="muted small">AI 문장을 만들지 못해 정해진 틀의 문장으로 보여요. 판정 내용은 같아요.</p>
+                  <p className="muted small">AI 문장을 만들지 못해 정해진 틀의 문장이 나와요. 판정 내용은 같아요.</p>
                   <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? '. ' + r.llm_problems.join(', ') : ''}`} />
                 </>
               : <p className="muted small">판정 기록만으로 만든 문장이에요.</p>}

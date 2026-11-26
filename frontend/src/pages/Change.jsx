@@ -191,7 +191,7 @@ export default function Change({ onOpenDay, mine = false }) {
   const canCompare = q.data?.records.some((r) => r.redness !== null)
   const head = <header className="page-head sr-head"><div><h1 className="sr-only">변화</h1></div></header>
   const ASK = { compare: '두 날 비교하기', overlap: '흐린 날 살펴보기' }
-  const DESC = { compare: mine ? '두 날의 볼 색을 숫자와 색 칩으로 견줘요.' : '두 날 사진을 겹쳐 봐요.', overlap: '흐린 날 무렵에 바꾼 루틴이에요. 시기만 겹쳤고, 제품이 원인이라고 단정할 수는 없어요.' }
+  const DESC = { compare: mine ? '두 날의 볼 색을 숫자와 색 칩으로 비교해요.' : '두 날 사진을 겹쳐 봐요.', overlap: '흐린 날 무렵에 바꾼 루틴이에요. 시기만 겹쳤고, 제품이 원인이라고 단정할 수는 없어요.' }
   const tabs = q.data && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     canCompare && { id: 'compare', icon: ICONS.compare, label: ASK.compare }, { id: 'overlap', icon: ICONS.cloud, label: ASK.overlap }]} />
   if (q.data && sub) return (
@@ -209,7 +209,7 @@ export default function Change({ onOpenDay, mine = false }) {
         <div>
           <div className="card">
             <h2 className="h3">볼 붉은기의 흐름</h2>
-            <p className="muted small">점수 대신 내 평소 범위를 기준으로 봐요. 점을 누르면 그날 기록이 나와요.</p>
+            <p className="muted small">점수 대신 내 평소 범위를 기준으로 봐요.</p>
             <Chart records={q.data.records} versions={q.data.versions} onPick={setPicked} picked={picked} />
             <div className="stepper">
               <button className="btn ghost" onClick={() => step(-1)} disabled={picked && picked.id === dated[0]?.id}>‹ 이전 날</button>

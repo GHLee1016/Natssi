@@ -37,7 +37,7 @@ const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바
 // 촬영 전 안내: 좋은 사진 한 장과 피해야 할 사진들(캐릭터 동작은 Face, 끝 자세가 그 모습)
 const BAD = [
   ['tilt', '고개는 기울이지 말고', '정면을 봐요'],
-  ['hair', '앞머리나 머리카락으로', '볼을 가리지 않아요'],
+  ['hair', '앞머리나 머리카락으로', '볼이 드러나게 해요'],
   ['mask', '마스크는 벗고', '얼굴이 다 보이게 찍어요'],
 ]
 const BAN = <svg className="cap-ban" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M5.600 5.600l12.800 12.800" /></svg>
