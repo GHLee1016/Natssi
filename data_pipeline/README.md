@@ -140,3 +140,17 @@ python analysis/fullface_redness.py summary                           # → data
 조명 필터별 평균 변화, 붉은 점 개수가 같은 날 여러 장에서 같은지를 낸다.
 팀원 3명 62장 결과는 `data/fullface_redness_summary.md`에 있다. 사진은 숫자로만 처리하고 저장, 전송하지 않는다.
 
+
+## 4. MDC95 다시 계산 (`analysis/mdc95_check.py`)
+
+앱 판정 기준 MDC95 2.35(95% 신뢰구간 1.85~2.97)를 낸 원래 스크립트가 없어져서, 어떤 반복을 기준으로 했는지와
+신뢰구간 방법을 확인할 수 없다. 이미 만든 측정 파일(`private/fullface_redness.csv` 또는 `private/color_robustness.csv`)의
+원본, 품질 통과 사진으로 다시 계산한다. 사진은 다시 읽지 않는다.
+
+- 반복의 정의 4가지: 같은 날 여러 장, 날마다 첫 장(날짜 사이), 날마다 평균(날짜 사이), 사람 안 모든 사진. 모두 사람 안에서만 본다
+- MDC95 = 1.96 × √2 × (사람 안 표준편차를 자유도로 가중해 합친 값)
+- 신뢰구간 2가지: 모수적(카이제곱), 부트스트랩(사람별로 나눠 날 또는 사진을 복원추출, 5000번)
+
+```powershell
+python analysis/mdc95_check.py            # → data/mdc95_check.md (요약만)
+```
