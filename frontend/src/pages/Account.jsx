@@ -26,7 +26,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
     URL.revokeObjectURL(url)
   }, '내 데이터를 파일로 내려받았어요.')
 
-  const reset = () => run('reset', async () => { await api.resetMine(); onChanged() }, '내 증상 체크인을 모두 지웠어요.')
+  const reset = () => run('reset', async () => { await api.resetMine(); onChanged() }, '내 증상 기록을 모두 지웠어요.')
   const remove = () => run('delete', async () => { await api.deleteAccount(); onLoggedOut() })
   const flip = (key, on, done) => run('opt-' + key, async () => { await api.setOptional(key, on); onChanged() }, done)
 
@@ -38,9 +38,9 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       <div className="grid2">
       <div className="card">
         <h2 className="h3">내 데이터</h2>
-        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 체크인, 루틴, 사는 구, 동의 기록을 파일로 받아요.</p></div>
+        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 기록, 루틴, 사는 구, 동의 기록을 파일로 받아요.</p></div>
           <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
-        <div className="row"><div><b>체크인 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 체크인만 지워요.</p></div>
+        <div className="row"><div><b>증상 기록 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 기록만 지워요.</p></div>
           <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
         <div className="row"><div><b>사진</b><p className="muted small">얼굴 전체 사진은 서버에 보내지 않아요. 볼 부분 사진 보관에 동의했다면 양 볼 네모 조각만 보관해요.</p></div><span className="done">{meta.viewer?.cheeks ? '볼 조각만' : '저장 안 함'}</span></div>
       </div>
@@ -74,7 +74,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="card danger">
         <h2 className="h3">탈퇴</h2>
-        <p className="muted small">계정과 함께 체크인, 볼 색 기록, 볼 부분 사진, 루틴, 사는 구가 모두 지워져요. 되돌릴 수 없어요.</p>
+        <p className="muted small">계정과 함께 증상 기록, 볼 색 기록, 볼 부분 사진, 루틴, 사는 구가 모두 지워져요. 되돌릴 수 없어요.</p>
         {!confirmDelete ? (
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>
         ) : (

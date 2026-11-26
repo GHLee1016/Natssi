@@ -109,7 +109,7 @@ def judge_all(records):
                 if prev_day_exceeded:
                     res["reasons"].append("이틀 이상 이어졌어요")
                 if max_symptom >= config.SYMPTOM_ALERT:
-                    res["reasons"].append("증상 체크인과 겹쳤어요")
+                    res["reasons"].append("증상 기록과 겹쳤어요")
             elif exceeds:
                 verdict = WATCH
                 res["reasons"].append("하루만 평소 범위를 벗어났어요")

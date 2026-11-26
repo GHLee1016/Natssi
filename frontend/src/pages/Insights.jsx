@@ -12,7 +12,7 @@ export function useInsights(mine, month) {
   return useLoad(() => (mine ? api.myInsights(month) : api.insights(month)), [mine, month])
 }
 
-const KIND = { added: '추가', removed: '사용 중단', usage: '빈도 변경' }
+const KIND = { added: '추가', removed: '사용 중단', usage: '사용 횟수 변경' }
 
 // 한 번에 하나만 바꾸기 14일 챌린지: 평소 7일 → 하나 바꾸기 → 바꾼 뒤 7일
 export function ChallengeCard({ data, go }) {
@@ -38,7 +38,7 @@ export function ChallengeCard({ data, go }) {
       {what && <p className="ch-what"><b>{fmt.plain(what)}</b></p>}
       <p className="small">{msg}</p>
       {c.round?.too_soon && <p className="warn small">앞서 바꾼 지 7일이 안 됐어요. 무엇 때문인지 가리기 어려울 수 있어요.</p>}
-      {c.phase === 'ready' && go && <div className="actions left"><button className="btn ghost" onClick={() => go('routine')}>루틴에서 하나 바꾸기</button></div>}
+      {c.phase === 'ready' && go && <div className="actions left"><button className="btn ghost" onClick={() => go('routine')}>루틴 관리에서 하나 바꾸기</button></div>}
       {done.length > 0 && (
         <details className="ch-rounds" open={c.phase !== 'watching'}>
           <summary>끝난 챌린지 {done.length}번</summary>
@@ -82,7 +82,7 @@ export function OverlapCard({ data }) {
       ))}
       </div>
       <div className="ov-note">
-        <p className="muted small">시기가 겹쳤을 뿐, 원인이라는 뜻은 아니에요. 다음 제품을 고를 때 참고해 보세요.</p>
+        <p className="muted small">시기가 겹쳤다는 뜻이에요. 제품이 원인이라고 단정할 수는 없어요. 다음 제품을 고를 때 참고해 보세요.</p>
         <p className="muted small">증상이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
       </div>
     </div>
