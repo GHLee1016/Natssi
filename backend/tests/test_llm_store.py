@@ -1,5 +1,7 @@
 import json
+import anthropic
 import httpx
+import httpx2
 import pytest
 from app import demo_data, judge, llm, report, store
 
@@ -11,27 +13,38 @@ GOOD = {"sentences": [
 ]}
 
 
-def fake(reply, status=200):
+def fake(reply, status=200, stop="end_turn"):
+    """Claude API(Messages)를 흉내 내는 가짜 서버. 보낸 요청도 함께 확인한다."""
     def handler(request):
         body = json.loads(request.content)
         assert "김서연" not in request.content.decode()          # 이름을 보내지 않음
-        assert body["models"][0].endswith(":free")
-        return httpx.Response(status, json={"model": body["model"], "choices": [{"message": {"content": reply}}]})
-    return httpx.Client(transport=httpx.MockTransport(handler))
+        assert body["model"] == "claude-sonnet-5-5"
+        assert body["output_config"]["format"]["type"] == "json_schema" and body["output_config"]["effort"] == "low"
+        assert "temperature" not in body                         # Sonnet 5.5는 샘플링 값을 받지 않음
+        if status != 200:
+            return httpx2.Response(status, json={"type": "error", "error": {"type": "rate_limit_error", "message": "slow down"}})
+        return httpx2.Response(200, json={
+            "id": "msg_test", "type": "message", "role": "assistant", "model": body["model"],
+            "content": [{"type": "text", "text": reply}], "stop_reason": stop, "stop_sequence": None,
+            "usage": {"input_tokens": 10, "output_tokens": 10}})
+    return anthropic.Anthropic(api_key="test", max_retries=0,
+                               http_client=anthropic.DefaultHttpxClient(transport=httpx2.MockTransport(handler)))
 
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
     llm._cache.clear()
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
     yield
     llm._client = None
 
 
 def test_good_reply_is_used():
-    llm._client = fake("```json\\n" + json.dumps(GOOD, ensure_ascii=False) + "\\n```")
+    llm._client = fake(json.dumps(GOOD, ensure_ascii=False))
     rep = report.build_report_llm(rows, demo_data.VERSIONS)
-    assert rep["source"] == "llm" and rep["sentences"][0]["cite_label"] == "근거: 기록 18~21"
+    assert rep["source"] == "llm" and rep["model"] == "claude-sonnet-5-5"
+    assert rep["sentences"][0]["cite_label"] == "근거: 기록 18~21"
 
 
 @pytest.mark.parametrize("bad", [
@@ -49,15 +62,16 @@ def test_bad_reply_falls_back_to_template(bad):
     assert rep["source"] == "template" and rep["llm_error"]
 
 
-def test_http_error_and_garbage_fall_back():
-    for client in (fake("{}", status=429), fake("죄송해요, 잘 모르겠어요")):
+def test_http_error_refusal_and_garbage_fall_back():
+    for client in (fake("{}", status=429), fake("", stop="refusal"), fake("죄송해요, 잘 모르겠어요"),
+                   fake(json.dumps(GOOD, ensure_ascii=False), stop="max_tokens")):
         llm._cache.clear()
         llm._client = client
         assert report.build_report_llm(rows, demo_data.VERSIONS)["source"] == "template"
 
 
 def test_no_key_means_no_call(monkeypatch):
-    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
     llm._client = None
     assert report.build_report_llm(rows, demo_data.VERSIONS)["source"] == "template"
 
@@ -97,3 +111,12 @@ def test_supabase_store_roundtrip_is_per_user(monkeypatch):
             store.load_all("x' or 1=1 --")                  # 형식이 틀린 id는 거부
     finally:
         store._client = None
+
+
+def test_ai_consent_before_switch_is_off():
+    """받는 곳(OpenRouter → Anthropic)이 바뀌기 전에 켠 AI 동의는 꺼진 것으로 보고 다시 묻는다."""
+    from app import main
+    on = lambda at: main._ai_on({"consent": {"ai_report": True, **({"ai_report_at": at} if at else {})}})
+    assert not on("2026-11-23T10:00:00+00:00") and not on(None)
+    assert on("2026-11-26T01:00:00+00:00")
+    assert not main._ai_on({"consent": {"ai_report": False, "ai_report_at": "2026-11-27T00:00:00+00:00"}})

@@ -99,7 +99,7 @@ def env(monkeypatch):
     fake = FakeSupabase()
     for k, v in {"SUPABASE_URL": "https://x.supabase.co", "SUPABASE_ANON_KEY": "anon", "SUPABASE_SERVICE_KEY": "svc"}.items():
         monkeypatch.setenv(k, v)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setattr(config, "OPEN_MODE", False)
     monkeypatch.setattr(config, "RECOVERY_ENABLED", True)
     client = httpx.Client(transport=httpx.MockTransport(fake.handler))
@@ -401,7 +401,7 @@ def test_ai_report_is_opt_in_and_pseudonymized(env, monkeypatch):
         monkeypatch.setattr(config, "today_kst", lambda d=day + timedelta(days=i): d)
         up(c, {**GOOD, "a_star": a}, headers=h)
     sent = []
-    monkeypatch.setenv("OPENROUTER_API_KEY", "x")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
     monkeypatch.setattr(llm, "write_report", lambda facts: sent.append(facts) or {"error": "test"})
     assert c.get("/api/me/report", headers=h).json()["source"] == "template" and not sent     # 동의 전: AI 호출 없음
     assert c.get("/api/meta", headers=h).json()["viewer"]["ai_report"] is False
