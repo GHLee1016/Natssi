@@ -21,10 +21,10 @@ export function ChallengeCard({ data, go }) {
   // 바꾼 것(제목)과 설명은 줄을 나눈다
   const what = (c.phase === 'watching' || c.phase === 'done') && c.round?.change
   const msg = {
-    baseline: `지금 루틴 그대로 사진 기록을 ${c.need}일 남겨요. 이 기록이 비교 기준이에요. 지금 ${c.have}일째예요.`,
-    ready: '이제 제품 하나만 더하거나, 빼거나, 빈도를 바꿔 보세요. 바꾼 날부터 7일을 지켜봐요.',
-    watching: `바꾼 뒤 ${c.have}일째예요(${c.need}일 중). 다른 제품은 그대로 두고 기록을 이어 가요.`,
-    done: '14일을 마쳤어요. 다음에도 한 번에 하나만 바꿔 보세요.',
+    baseline: `루틴을 그대로 두고 사진을 ${c.need}일 남겨요(지금 ${c.have}일째). 이 기록이 비교 기준이 돼요.`,
+    ready: '이제 제품 하나만 넣거나 빼 보세요. 쓰는 횟수만 바꿔도 돼요. 그날부터 7일을 지켜봐요.',
+    watching: `바꾼 뒤 ${c.have}일째예요(${c.need}일 중). 다른 제품은 손대지 말고 기록을 이어 가요.`,
+    done: '14일을 다 채웠어요. 다음에도 하나씩만 바꿔 보세요.',
   }[c.phase]
   const done = rounds.filter((r) => r.done)
   return (
@@ -37,7 +37,7 @@ export function ChallengeCard({ data, go }) {
       <div className="ch-legend muted small"><span>평소 기록 7일</span><span>바꾼 뒤 7일</span></div>
       {what && <p className="ch-what"><b>{fmt.plain(what)}</b></p>}
       <p className="small">{msg}</p>
-      {c.round?.too_soon && <p className="warn small">앞서 바꾼 지 7일이 안 됐어요. 무엇 때문인지 가리기 어려울 수 있어요.</p>}
+      {c.round?.too_soon && <p className="warn small">지난번에 바꾼 지 7일이 안 됐어요. 어느 변화와 겹친 건지 가리기 어려워요.</p>}
       {c.phase === 'ready' && go && <div className="actions left"><button className="btn ghost" onClick={() => go('routine')}>루틴 관리에서 하나 바꾸기</button></div>}
       {done.length > 0 && (
         <details className="ch-rounds" open={c.phase !== 'watching'}>
@@ -51,7 +51,7 @@ export function ChallengeCard({ data, go }) {
                 ['볼 붉은기 중앙값', r.delta != null && `${sign(r.before_median)} → ${sign(r.after_median)} (${sign(r.delta)})`],
               ]} />
               {r.delta != null && <p className="muted small">{r.beyond ? '측정 오차보다 큰 변화예요.' : '측정 오차 안의 변화예요.'}
-                {r.short_before ? ` 바꾸기 전 기록이 ${r.before_days}일뿐이라 덜 정확해요.` : ''}</p>}
+                {r.short_before ? ` 바꾸기 전 기록이 ${r.before_days}일밖에 없어서 덜 정확해요.` : ''}</p>}
             </div>
           ))}
         </details>
@@ -76,14 +76,14 @@ export function OverlapCard({ data }) {
             </div>
           ))}
           {o.in_current.length > 0 && (
-            <p className="small">지금 루틴에서 같은 계열이 든 제품: {o.in_current.map((i) => `${i.name}(${i.families.join(', ')})`).join(', ')}</p>
+            <p className="small">지금 루틴 중 같은 계열이 든 제품: {o.in_current.map((i) => `${i.name}(${i.families.join(', ')})`).join(', ')}</p>
           )}
         </div>
       ))}
       </div>
       <div className="ov-note">
-        <p className="muted small">시기가 겹쳤다는 뜻이에요. 제품이 원인이라고 단정할 수는 없어요. 다음 제품을 고를 때 참고해 보세요.</p>
-        <p className="muted small">증상이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
+        <p className="muted small">시기가 겹쳤을 뿐, 제품이 원인이라고 단정할 수는 없어요. 다음 제품을 고를 때 참고만 해 주세요.</p>
+        <p className="muted small">증상이 이어지면 그 제품을 그만 쓰고 전문의와 상담하세요.</p>
       </div>
     </div>
   )
@@ -126,5 +126,5 @@ export function RoutineView({ mine, which, versions, go }) {
   if (!q.data) return <Status {...q} />
   if (which === 'challenge') return <ChallengeCard data={q.data.challenge} go={go} />
   return q.data.overlap.length ? <OverlapCard data={q.data.overlap} />
-    : <div className="card"><p className="muted">흐림과 시기가 겹친 루틴 변경이 아직 없어요.</p></div>
+    : <div className="card"><p className="muted">흐린 날과 시기가 겹친 루틴 변경은 아직 없어요.</p></div>
 }

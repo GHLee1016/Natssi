@@ -11,8 +11,8 @@ function Writing() {
   return (
     <div className="chat">
       <div className="bubble ai" role="status" aria-live="polite">
-        기록을 바탕으로 리포트를 쓰는 중이에요<span className="typing" aria-hidden="true"><i /><i /><i /></span>
-        {long && <p className="muted small">AI가 문장을 쓰는 중이라 조금 더 걸려요.</p>}
+        기록을 보고 리포트를 쓰고 있어요<span className="typing" aria-hidden="true"><i /><i /><i /></span>
+        {long && <p className="muted small">AI가 문장을 쓰고 있어서 시간이 더 걸려요.</p>}
       </div>
     </div>
   )
@@ -94,9 +94,9 @@ function AiToggle({ on, onLegal, onChanged }) {
         <b>AI로 문장 다듬기 (선택)</b>
       </label>
       <div id="ai-help" className="muted small">
-        <p>켜면 제품 이름, 날짜, 이메일을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요.</p>
+        <p>켜면 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요. 제품 이름, 날짜, 이메일은 빼고 보내요.</p>
         <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수</p>
-        <p>판정은 낯씨가 해요. 끄면 정해진 틀 문장을 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
+        <p>판정은 낯씨가 해요. 끄면 정해진 틀의 문장이 나와요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
       </div>
       {err && <p className="err" role="alert">{err}</p>}
     </div>
@@ -152,7 +152,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
                       </li>
                     ))}
                   </ul>
-                  <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 기록은 판정 기록과 하나하나 대조했어요.</p>
+                  <p className="muted small">판정은 코드가 기록 숫자로 해요. AI는 문장만 다듬고, 문장 속 숫자와 근거 기록은 판정 기록과 하나씩 맞춰 봤어요.</p>
                 </div>
               )
               : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && onOpenDay && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
@@ -169,10 +169,10 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
           {canStart && <StartCard onStart={onStart} />}
           <p className="disclaimer">ⓘ {r.disclaimer}</p>
           {r.source === 'llm'
-            ? <p className="muted small">{`판정 기록을 바탕으로 AI가 문장을 썼어요 (${r.model}). 판정 자체는 AI가 하지 않아요.`}</p>
+            ? <p className="muted small">{`문장은 판정 기록을 보고 AI가 썼어요(${r.model}). 판정은 AI가 하지 않아요.`}</p>
             : r.llm_error
               ? <>
-                  <p className="muted small">AI 문장을 쓰지 못해, 정해진 틀의 문장으로 보여 드려요. 판정 내용은 같아요.</p>
+                  <p className="muted small">AI 문장을 만들지 못해 정해진 틀의 문장으로 보여요. 판정 내용은 같아요.</p>
                   <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? '. ' + r.llm_problems.join(', ') : ''}`} />
                 </>
               : <p className="muted small">판정 기록만으로 만든 문장이에요.</p>}
