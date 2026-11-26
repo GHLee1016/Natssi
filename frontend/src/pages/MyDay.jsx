@@ -20,7 +20,7 @@ const BLANK = { 따가움: 0, 화끈: 0, 가려움: 0, 당김: 0 }
 function EnvToday({ district, env, today, onAccount }) {
   if (!district) {
     return (
-      <p className="notice env-today">사는 구를 고르면 오늘 동네의 미세먼지, 습도, 기온을 함께 보여 드려요.{' '}
+      <p className="notice env-today">사는 구를 고르면 우리 동네 미세먼지, 습도, 기온이 여기에 나와요.{' '}
         <button className="link" onClick={onAccount}>내 계정에서 고르기</button></p>
     )
   }
@@ -31,7 +31,7 @@ function EnvToday({ district, env, today, onAccount }) {
       <p><b>오늘 {district}</b>{has && <span className="muted"> {env.unusual ? '평소와 달라요' : '평소와 비슷해요'}</span>}</p>
       {has
         ? <KV className="small" items={[['초미세먼지', env.pm25 != null && env.pm25], ['습도', env.humidity != null && `${env.humidity}%`], ['기온', env.temp != null && `${env.temp}℃`]]} />
-        : <p>측정값은 아직 없어요. 보통 다음 날 아침에 들어와요.</p>}
+        : <p>아직 측정값이 없어요. 보통 다음 날 아침에 들어와요.</p>}
       {when && <span className="sub-line">{when}</span>}
       {env?.facts?.length > 0 && <p className="small">{env.facts.join(' ')}</p>}
     </div>
@@ -42,10 +42,10 @@ function EnvToday({ district, env, today, onAccount }) {
 const POLICY_CHANGES = [
   ['2026-11-19', '얼굴 사진을 이 기기 안에서만 분석하고, 서버에는 측정한 숫자만 보내요.'],
   ['2026-11-20', '내 루틴(제품 이름, 전성분, 사용 횟수)을 저장해요.'],
-  ['2026-11-21', '사는 구(선택)를 저장할 수 있어요.'],
-  ['2026-11-24', '루틴에 제품 사진(선택)을 작게 줄여 함께 저장할 수 있어요.'],
-  ['2026-11-23', '볼 밝기 숫자도 함께 남겨 두 날의 볼 색을 색 칩으로 비교해요. 선택 동의 두 가지(볼 부분 사진 보관, AI로 리포트 문장 다듬기)가 생겼어요. 내 계정에서 고를 수 있어요.'],
-  ['2026-11-22', '품질 검사를 통과한 사진의 볼 색 숫자(붉은기, 조명 확인용 노란기)를 하루 1번 내 기록에 남겨요(사진은 남기지 않아요). 동의해야 내 판정이 열려요.'],
+  ['2026-11-21', '사는 구를 저장해요(선택).'],
+  ['2026-11-24', '루틴에 제품 사진을 작게 줄여 저장해요(선택).'],
+  ['2026-11-23', '볼 밝기 숫자도 남겨서 두 날의 볼 색을 색 칩으로 비교해요. 선택 동의 두 가지가 생겼어요(볼 부분 사진 보관, AI로 리포트 문장 다듬기). 내 계정에서 고르면 돼요.'],
+  ['2026-11-22', '품질 검사를 통과한 사진의 볼 색 숫자(붉은기, 조명 확인용 노란기)를 하루 1번 내 기록에 남겨요. 사진은 남기지 않아요. 동의해야 내 판정이 열려요.'],
 ]
 function PolicyNotice({ mine, current, onLegal, onConsented }) {
   const [busy, setBusy] = useState(false)
@@ -74,17 +74,17 @@ const sgn = (x) => (x > 0 ? '+' : '') + x
 export function compareLine(d, mdc95) {
   if (d.today_redness == null || !mdc95) return null
   const today = d.recent?.find((r) => r.date === d.today)
-  if (today?.light) return '오늘 사진은 조명 색이 평소와 달라서 다른 날과 비교하지 않았어요.'
+  if (today?.light) return '오늘 사진은 조명 색이 평소와 달라 다른 날과 비교하지 않았어요.'
   const prev = d.recent?.find((r) => r.date < d.today && r.redness != null && !r.light)
-  if (!prev) return '첫 사진 기록이에요. 내일부터 전날 기록과 비교해 보여 드려요.'
+  if (!prev) return '첫 사진 기록이에요. 내일부터는 전날 기록과 비교해요.'
   const gap = Math.round((Date.parse(d.today) - Date.parse(prev.date)) / 86400000)
   const when = gap === 1 ? '어제' : `${gap}일 전(${fmt.md(prev.date)})`
   const diff = Math.round((d.today_redness - prev.redness) * 10) / 10
   const head = `${when}보다 ${diff === 0 ? '변화 없음' : (diff > 0 ? '+' : '') + diff.toFixed(1)}.`
   const wa = gap === 1 ? '어제와' : `${gap}일 전과`
   return Math.abs(diff) <= mdc95
-    ? `${head} 측정 오차(±${mdc95}) 안이라 ${wa} 비슷한 편이에요.`
-    : `${head} 측정 오차(±${mdc95})보다 커서 ${wa} 달라 보여요. 아직 평소 범위가 없어 좋고 나쁨은 판단하지 않아요.`
+    ? `${head} 측정 오차(±${mdc95}) 안이라 ${wa} 비슷해요.`
+    : `${head} 측정 오차(±${mdc95})를 넘어서 ${wa} 달라 보여요. 평소 범위가 생기기 전이라 좋고 나쁨은 따지지 않아요.`
 }
 
 function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
@@ -103,7 +103,7 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
       {d.today_redness == null ? (
         <>
           <p className="fw-empty">오늘은 아직 사진이 없어요</p>
-          <p className="muted small">사진 한 장과 증상 네 가지로 오늘 기록을 남겨요. 1분이면 돼요.</p>
+          <p className="muted small">사진 한 장 찍고 증상 네 가지를 고르면 돼요. 1분쯤 걸려요.</p>
           <div className="actions left"><button className="btn" onClick={() => go('capture')}>오늘 기록하기</button></div>
         </>
       ) : (
@@ -119,21 +119,21 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
           </div>
           {range && <p className="fw-range">지금까지 내 기록 <b>{range.lo} ~ {range.hi}</b> <span className="muted">(사진 {range.n}일)</span></p>}
           <details className="fw-what">
-            <summary>이 숫자는 무엇인가요?</summary>
-            <p>양 볼 피부색이 얼마나 붉은지를 나타낸 값이에요(색을 숫자로 나타내는 Lab 색 공간의 a*). 0이면 붉지도 초록빛도 아닌 색이고, 클수록 붉어요.</p>
-            <p>사람마다 원래 피부색이 달라서 숫자 하나로 많다, 적다를 말할 수 없어요. 그래서 7일 동안 내 평소 범위를 만들고, 그다음부터 그 범위와 비교해요. 두 날의 차이가 ±{mdc95 ?? 2.35}(측정 오차)보다 작으면 비슷하다고 봐요.</p>
+            <summary>이 숫자는 뭔가요?</summary>
+            <p>양 볼 피부색이 붉은 정도예요. 색을 숫자로 나타내는 Lab 색 공간의 a* 값으로, 0은 붉지도 초록빛도 아닌 색이고 클수록 붉어요.</p>
+            <p>원래 피부색은 사람마다 달라서 숫자 하나로는 높다, 낮다를 말할 수 없어요. 7일 동안 내 평소 범위를 만든 뒤 그 범위와 비교해요. 두 날 차이가 ±{mdc95 ?? 2.35}(측정 오차)보다 작으면 비슷한 걸로 봐요.</p>
           </details>
           {cmp && <p className="fw-cmp">{cmp}</p>}
           <ul className="fw-list">
             <li><span className="fw-k">사진</span>{todayRec?.light ? '조명 색이 평소와 달랐던 사진으로 기록했어요' : '품질 검사(밝기, 각도, 선명도, 조명)를 통과했어요'}</li>
-            <li><span className="fw-k">증상</span>{d.today_checkin ? symptomText(d.today_checkin) : '아직 남기지 않았어요'}</li>
+            <li><span className="fw-k">증상</span>{d.today_checkin ? symptomText(d.today_checkin) : '아직 안 남겼어요'}</li>
           </ul>
           {!d.today_checkin && !draft && <div className="actions left"><button className="btn" onClick={onSymptoms}>증상 남기기</button></div>}
         </>
       )}
       <p className="fw-foot">{left > 0
-        ? `사진 기록을 ${left}일 더 남기면, 그다음 날부터 내 평소 범위와 비교해 얼굴 날씨를 보여 드려요.`
-        : '평소 범위를 만들 사진 기록이 모였어요. 다음 사진부터 얼굴 날씨를 보여 드려요.'}</p>
+        ? `사진 기록이 ${left}일 더 쌓이면 그다음 날부터 평소 범위와 비교한 얼굴 날씨가 나와요.`
+        : '평소 범위를 만들 사진 기록이 다 모였어요. 다음 사진부터 얼굴 날씨가 나와요.'}</p>
     </div>
   )
 }
@@ -215,8 +215,8 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
                 {Array.from({ length: d.needed }, (_, i) => <i key={i} className={i < filled ? 'on' : ''} />)}
               </div>
               <p className="bignum" aria-label={`사진 기록 ${d.redness_days}일, 필요 ${d.needed}일`}><span className="num">{d.redness_days}</span><span className="num-u">/ {d.needed}일 사진 기록</span></p>
-              <p>{d.redness_days >= d.needed ? '평소 범위가 만들어졌어요. 사진을 찍은 날마다 평소와 비교해 알려 드려요.' : `볼 붉은기를 ${d.needed}일 남기면 그다음 날부터 내 평소 범위와 비교해요.`}</p>
-              <p className="muted small">같은 폰으로, 같은 장소와 시간대에 찍어야 비교할 수 있어요. 사진은 서버에 남기지 않아요.</p>
+              <p>{d.redness_days >= d.needed ? '평소 범위가 생겼어요. 이제 사진을 찍는 날마다 평소와 비교해요.' : `볼 붉은기가 ${d.needed}일 쌓이면 그다음 날부터 평소 범위와 비교해요.`}</p>
+              <p className="muted small">비교하려면 같은 폰으로 같은 장소, 같은 시간대에 찍어 주세요. 사진은 서버에 남기지 않아요.</p>
             </div>
   )
   const ASK = d && { baseline: '평소 범위 보기', recap: 'Recap' }
@@ -242,8 +242,8 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   <div className="rec-row">
     <span className="rec-k">셀카</span>
     <div className="rec-v"><div>{
-      d.today_redness == null ? '사진 한 장과 증상 네 가지로 오늘 기록을 남겨요. 1분이면 돼요.'
-        : !d.today_checkin ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}을 남겼어요. 증상도 남기면 오늘 기록이 끝나요.`
+      d.today_redness == null ? '사진 한 장 찍고 증상 네 가지를 고르면 돼요. 1분쯤 걸려요.'
+        : !d.today_checkin ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}. 증상까지 남기면 오늘 기록이 끝나요.`
           : `오늘 기록을 마쳤어요. 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}`}</div></div>
     {d.today_cheeks && (
       <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
@@ -268,7 +268,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
     </div>
   ) : (
     <div className="row">
-      <div><b>오늘은 아직이에요</b><p className="muted small">따가움, 화끈, 가려움, 당김을 0~3으로 남겨요.</p></div>
+      <div><b>오늘은 아직이에요</b><p className="muted small">따가움, 화끈, 가려움, 당김을 0~3점으로 골라요.</p></div>
       <button className="btn" onClick={() => setDraft({})}>증상 기록하기</button>
     </div>
   )}
@@ -276,9 +276,9 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   )
   const notice = d && (
     <div className="notice wide">
-  <p>얼굴 날씨는 내 평소 기록과 비교한 결과예요. 진단이 아니에요.</p>
+  <p>얼굴 날씨는 내 평소 기록과 비교한 결과일 뿐, 진단이 아니에요.</p>
   <p>따가움이나 화끈거림이 계속되면 제품 사용을 멈추고 보건소나 피부과 전문의와 상담해 주세요.</p>
-  {!d.unlocked && <p>사진 기록이 {d.needed}일 쌓이면 달력, 변화, 리포트도 내 기록으로 볼 수 있어요. 지금 {d.redness_days}일이에요.</p>}
+  {!d.unlocked && <p>사진 기록이 {d.needed}일 쌓이면 달력, 변화, 리포트가 내 기록으로 열려요. 지금까지 {d.redness_days}일이에요.</p>}
 </div>
   )
   if (d && sub) return (

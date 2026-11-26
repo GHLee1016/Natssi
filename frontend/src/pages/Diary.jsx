@@ -26,7 +26,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
   const wide = useMedia(WIDE)                         // PC: 대시보드 배치
   const [sub, openSub, closeSub] = useSub()
   const ASK = { face: '재는 법 보기', recap: 'Recap' }
-  const DESC = { face: '낯씨는 양 볼의 붉은기만 재요. 트러블은 찾지 않고, 진단하지 않아요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
+  const DESC = { face: '낯씨는 양 볼 붉은기만 재요. 트러블을 찾거나 진단하지 않아요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
   const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     { id: 'face', icon: ICONS.target, label: ASK.face }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
   const log = d && (

@@ -121,7 +121,7 @@ export function EmptyDay({ isToday, action }) {
     <div className="empty-day" role="status">
       <img src="/logo.svg" alt="" className="empty-face" />
       <p className="empty-title">{isToday ? '오늘은 아직 기록이 없어요' : '이날은 기록이 없어요'}</p>
-      <p className="muted small">{isToday ? '사진 한 장과 증상 네 가지면 돼요.' : '다른 날을 골라 보세요.'}</p>
+      <p className="muted small">{isToday ? '사진 한 장 찍고 증상 네 가지만 고르면 돼요.' : '다른 날을 골라 보세요.'}</p>
       {action}
     </div>
   )
