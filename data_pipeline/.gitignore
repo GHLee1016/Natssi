@@ -12,3 +12,6 @@ build/
 private/
 # 모델 파일(휜 사진 펴기 uvdoc.onnx 등)은 크기가 커서 올리지 않는다. README 참고
 models/
+
+# import_photos.py가 만드는 기록 백업(건강 정보라 올리지 않음)
+backup_checkins_*.json
