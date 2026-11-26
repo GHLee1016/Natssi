@@ -13,10 +13,14 @@
     # 2) 올리기: Supabase 주소와 service 키, 시연 계정 id(SQL: select id from auth.users where email='...')
     set SUPABASE_URL=...  &  set SUPABASE_SERVICE_KEY=...
     python scripts/import_photos.py "C:/사진폴더" --user-id <uuid> --apply
+    # 볼 반사 허용치만 올려 보기(앱 기준은 1%. 시연용으로 지난 사진을 넣을 때만)
+    python scripts/import_photos.py "C:/사진폴더" --max-clip 0.05
 
 주의
   - 사진 주인(팀원)의 동의를 받은 사진만 쓴다. 사진 파일은 어디에도 올리지 않는다.
   - --apply 전에 그 계정의 지금 기록을 backup_checkins_<시각>.json으로 저장한다.
+  - --max-clip은 '볼이 하얗게 날아간 비율' 기준만 바꾼다. 날아간 픽셀은 원래도 계산에서 빼므로 값은 그대로 재지만,
+    앱이라면 다시 찍으라고 했을 사진이다. 이렇게 넣은 날은 표 끝에 '반사 허용'으로 표시하니 발표 때 밝힌다.
   - 계정의 처리방침 동의 버전이 2026-11-22(볼 붉은기 저장) 이상이어야 판정에 쓰인다.
 """
 import argparse
@@ -35,6 +39,7 @@ sys.path.insert(0, str(ROOT / "analysis"))
 import color_robustness as cr  # noqa: E402
 from photo_dates import exif_datetime, name_datetime  # noqa: E402
 
+APP_MAX_CLIP = cr.Q["clip"]            # 앱 기준(backend/app/quality.py max_clip_ratio 0.01)
 MIN_CHROMA = 5.0                       # backend/app/quality.py DEFAULT_THRESHOLDS["min_chroma"]와 같게
 IMG = {".jpg", ".jpeg", ".png"}
 APP_MODEL = ROOT.parent / "frontend" / "public" / "mediapipe" / "face_landmarker.task"
@@ -51,6 +56,8 @@ def measure_file(p: Path) -> dict:
     f = cr.measure(cr.load_rgb(p))
     ok = cr.quality_ok(f)
     out = {"ok": ok}
+    if f.get("face_found") and "clip_L" in f:
+        out["clip"] = max(f["clip_L"], f["clip_R"])
     if f.get("face_found") and "a_L" in f:
         a, b = f["a_star"], f["b_cheek"]
         chroma = math.hypot(a, b)
@@ -59,7 +66,9 @@ def measure_file(p: Path) -> dict:
         if ok and chroma < MIN_CHROMA:
             out.update(ok=False, why="색이 너무 옅음(흑백이나 색 빠진 사진)")
     if not ok and "why" not in out:
-        out["why"] = "얼굴을 찾지 못함" if not f.get("face_found") else "품질 기준 미달(밝기, 각도, 표정, 선명도, 볼 노출 중)"
+        out["why"] = ("얼굴을 찾지 못함" if not f.get("face_found") else
+                      f"볼이 하얗게 날아감 {out['clip']:.1%}" if out.get("clip", 0) > cr.Q["clip"] and cr.quality_ok({**f, "clip_L": 0, "clip_R": 0}) else
+                      "품질 기준 미달(밝기, 각도, 표정, 선명도, 볼 노출 중)")
     return out
 
 
@@ -101,11 +110,14 @@ def main():
     ap.add_argument("folder")
     ap.add_argument("--user-id", help="시연 계정의 user id(uuid). --apply 할 때 필요")
     ap.add_argument("--apply", action="store_true", help="실제로 올린다(없으면 확인만)")
+    ap.add_argument("--max-clip", type=float, default=APP_MAX_CLIP,
+                    help=f"볼이 하얗게 날아간 비율 허용치(앱 기준 {APP_MAX_CLIP}). 다른 품질 기준은 그대로")
     ap.add_argument("--overwrite", action="store_true", help="이미 볼 붉은기가 있는 날도 덮어쓴다")
     args = ap.parse_args()
     folder = Path(args.folder)
     if not folder.is_dir():
         sys.exit(f"폴더가 없어요: {folder}")
+    cr.Q["clip"] = args.max_clip
 
     try:
         chosen, skipped = plan(folder)
@@ -117,7 +129,8 @@ def main():
     for day, c in chosen.items():
         if c:
             t = '' if c['time'].startswith('99') else c['time']
-            print(f"{day:<11} {c['photos']:>4}  {c['redness']:>10.2f} {c['b']:>6.2f} {c['L']:>6.2f}  {c['file']} {t}")
+            relaxed = "  반사 허용 " + f"{c['clip']:.1%}" if c.get("clip", 0) > APP_MAX_CLIP else ""
+            print(f"{day:<11} {c['photos']:>4}  {c['redness']:>10.2f} {c['b']:>6.2f} {c['L']:>6.2f}  {c['file']} {t}{relaxed}")
         else:
             print(f"{day:<11}    -  {'통과한 사진 없음':>10}")
     good = {d: c for d, c in chosen.items() if c}
