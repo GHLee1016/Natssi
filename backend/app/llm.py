@@ -80,9 +80,12 @@ def model() -> str:
 
 def api_keys() -> list[str]:
     """쓸 키 목록(순서대로). ANTHROPIC_API_KEYS=키1,키2,키3 과 ANTHROPIC_API_KEY 를 합치고 겹치는 것은 뺀다."""
-    raw = (os.environ.get("ANTHROPIC_API_KEYS") or "").split(",") + [os.environ.get("ANTHROPIC_API_KEY") or ""]
+    # Vercel에 넣을 때 흔한 실수를 받아 준다: 따옴표로 감쌈, 줄바꿈이나 공백으로 나눔, ANTHROPIC_API_KEY에 여러 개를 쉼표로 넣음.
+    # (그대로 쓰면 키가 달라져 모든 호출이 401 AuthenticationError가 된다. 2026-11-26 배포에서 확인)
+    raw = " ".join(os.environ.get(n) or "" for n in ("ANTHROPIC_API_KEYS", "ANTHROPIC_API_KEY"))
     out = []
-    for k in (x.strip() for x in raw):
+    for k in re.split(r"[\s,;]+", raw):
+        k = k.strip().strip("'\"`")
         if k and k not in out:
             out.append(k)
     return out
