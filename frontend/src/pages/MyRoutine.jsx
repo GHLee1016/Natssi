@@ -39,13 +39,13 @@ export default function MyRoutine({ ocr }) {
   const openEdit = (it) => { setEditing(it.key); setNewUsage(''); setReason(''); setAsking(null); setError(null); setOn(null) }
   const change = async (key) => {
     setError(null); setSaving(true)
-    try { const data = await api.changeRoutineUsage(key, newUsage, r.setup_day ? '' : reason, on && on !== r.today ? on : null); q.setData(data); setEditing(null); setWarn(data.warnings || []); setNote('사용 빈도를 바꿨어요.') }
+    try { const data = await api.changeRoutineUsage(key, newUsage, r.setup_day ? '' : reason, on && on !== r.today ? on : null); q.setData(data); setEditing(null); setWarn(data.warnings || []); setNote('사용 횟수를 바꿨어요.') }
     catch (e) { setError(e.message) } finally { setSaving(false) }
   }
   // 섬네일만 바꾼다(새 버전을 만들지 않음). photo가 있으면 사진, 없으면 아이콘(null = 자동)
   const setLookOf = async (key, photo, icon) => {
     setError(null); setLookBusy(true)
-    try { q.setData(await api.changeRoutineLook(key, photo, icon)); setNote('섬네일을 바꿨어요.') }
+    try { q.setData(await api.changeRoutineLook(key, photo, icon)); setNote('제품 사진을 바꿨어요.') }
     catch (e) { setError(e.message) } finally { setLookBusy(false) }
   }
   const stop = async (key) => {
@@ -111,8 +111,8 @@ export default function MyRoutine({ ocr }) {
                         <span className="ask"><button className="link" onClick={() => stop(it.key)}>중단할게요</button><button className="link" onClick={() => setAsking(null)}>취소</button></span>
                       ) : (
                         <span className="ask">
-                          <button className="link" onClick={() => { setLook(look === it.key ? null : it.key); setEditing(null); setAsking(null) }} aria-expanded={look === it.key} aria-label={`${it.name} 섬네일 바꾸기`}>섬네일</button>
-                          <button className="link" onClick={() => { openEdit(it); setLook(null) }} aria-label={`${it.name} 사용 빈도 바꾸기`}>빈도 바꾸기</button>
+                          <button className="link" onClick={() => { setLook(look === it.key ? null : it.key); setEditing(null); setAsking(null) }} aria-expanded={look === it.key} aria-label={`${it.name} 제품 사진 바꾸기`}>제품 사진</button>
+                          <button className="link" onClick={() => { openEdit(it); setLook(null) }} aria-label={`${it.name} 사용 횟수 바꾸기`}>사용 횟수 바꾸기</button>
                           <button className="link" onClick={() => { setAsking(it.key); setEditing(null); setOn(null) }} aria-label={`${it.name} 사용 중단`}>사용 중단</button>
                         </span>
                       )}
@@ -132,7 +132,7 @@ export default function MyRoutine({ ocr }) {
                     {editing === it.key && (
                       <div className="edit-usage">
                         <p className="small"><b>{it.name}</b>을 얼마나 자주 쓰나요? <span className="muted">(지금: {fmt.plain(it.usage)})</span></p>
-                        <div role="radiogroup" aria-label="새 사용 빈도" className="opts">
+                        <div role="radiogroup" aria-label="새 사용 횟수" className="opts">
                           {r.usages.filter((u) => u !== it.usage).map((u) => (
                             <label className={'opt' + (newUsage === u ? ' on' : '')} key={u}>
                               <input type="radio" name={'u-' + it.key} checked={newUsage === u} onChange={() => setNewUsage(u)} />

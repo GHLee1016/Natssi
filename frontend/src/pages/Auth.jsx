@@ -184,7 +184,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
         <img src="/logo.svg" alt="" width="44" height="44" />
         <h2>루틴을 한 번에 하나만 바꾸고,<br />내 얼굴이 어떻게 달랐는지 확인해요</h2>
         <ul>
-          <li><b>기록</b><span>매일 셀카 한 장과 증상 체크인으로 남겨요.</span></li>
+          <li><b>기록</b><span>매일 셀카 한 장과 증상 기록으로 남겨요.</span></li>
           <li><b>변화</b><span>루틴을 바꾼 날을 기준으로 평소 범위와 비교해요.</span></li>
           <li><b>리포트</b><span>기록에 있는 사실만 문장으로 정리해요. 진단은 하지 않아요.</span></li>
         </ul>

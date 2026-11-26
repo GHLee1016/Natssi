@@ -189,7 +189,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   }
   const next1 = () => {
     if (!name.trim()) return setErr('제품 이름을 입력해 주세요.')
-    if (!usage) return setErr('사용 빈도를 골라 주세요.')
+    if (!usage) return setErr('사용 횟수를 골라 주세요.')
     go(1)
   }
   const analyze = async (skip) => {
@@ -321,7 +321,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
               placeholder="예: 레티놀 세럼" autoComplete="off" aria-describedby="p-name-help" />
             <small id="p-name-help" className="muted">{t.step1.hint}</small>
           </div>
-          <div role="radiogroup" aria-label="사용 빈도" className="opts">
+          <div role="radiogroup" aria-label="사용 횟수" className="opts">
             <p className="muted small">{t.step1.usage}</p>
             {usages.map((u) => (
               <label className={'opt' + (usage === u ? ' on' : '')} key={u}>
@@ -340,7 +340,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {first ? <small className="muted">처음부터 쓰던 제품이라면, 등록한 뒤 루틴 카드의 '시작일 고치기'로 실제로 쓰기 시작한 날을 고를 수 있어요.</small>
             : <WhenPicker id="p-when" label="언제 추가했나요?" value={on} onChange={setOn} min={changeFrom} max={today} />}
           <div className="field prod-photo-field">
-            <span className="muted small">섬네일 (선택)</span>
+            <span className="muted small">제품 사진 (선택)</span>
             <ThumbPicker photo={photo} icon={icon} onError={setErr}
               onPhoto={(p) => setPhoto(p)} onIcon={(k) => { setIcon(k); setPhoto(null) }} />
             <small className="muted">사진은 작게 줄여 저장해요. 루틴 목록에서 언제든 바꿀 수 있어요.</small>

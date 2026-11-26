@@ -530,7 +530,7 @@ def checkin(body: Checkin, request: Request, v=Depends(need_user)):
         kept = _split(store.load_all(v["id"]).get(today))[2]       # 먼저 찍은 측정값은 남긴다
         store.save(v["id"], today, {**body.model_dump(), **kept})
     except Exception as e:
-        raise _store_fail("체크인을 저장하지 못했어요.", e)
+        raise _store_fail("증상 기록을 저장하지 못했어요.", e)
     return _me_payload(v["id"])
 
 
@@ -699,7 +699,7 @@ def change_routine_look(key: str, body: LookChange, request: Request, v=Depends(
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
-        raise _store_fail("섬네일을 저장하지 못했어요.", e)
+        raise _store_fail("제품 사진을 저장하지 못했어요.", e)
     return _routine_response(data)
 
 
@@ -839,7 +839,7 @@ def reset(request: Request, v=Depends(need_user)):
     try:
         store.clear_checkins(v["id"])
     except Exception as e:
-        raise _store_fail("체크인을 지우지 못했어요.", e)
+        raise _store_fail("증상 기록을 지우지 못했어요.", e)
     return {"ok": True}
 
 

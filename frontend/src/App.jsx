@@ -22,7 +22,7 @@ const TABS = [
   { id: 'diary', label: '다이어리', icon: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4zm3 5h7M8 13h7' },
   { id: 'change', label: '변화', icon: 'M4 19h16M6 15l4-5 4 3 5-7' },
   { id: 'capture', label: '기록', icon: 'M4 8h3l2-3h6l2 3h3v11H4V8zm8 2.500a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7z' },
-  { id: 'routine', label: '루틴', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
+  { id: 'routine', label: '루틴 관리', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
   { id: 'report', label: '리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
 ]
 
@@ -48,7 +48,7 @@ function MineGate({ title, go, children }) {
 
 // 비밀번호 재설정 메일의 링크는 #access_token=…&type=recovery 로 돌아온다(만료되면 #error_code=…).
 const linkParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ''))
-const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴', report: '리포트' }
+const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴 관리', report: '리포트' }
 const GUIDE_KEY = 'natssi_guide'
 // PC 소개 페이지를 한 번 지나갔는지(예시 둘러보기를 누르거나 메뉴로 들어감). 저장이 막혀도 동작은 한다(매번 소개부터).
 // 소개 페이지(PC, 로그인 전): 이 탭에서 '예시 둘러보기'를 누르기 전까지 뜬다. 탭을 닫고 다시 들어오면 다시 뜬다(sessionStorage).

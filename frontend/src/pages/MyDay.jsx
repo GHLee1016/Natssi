@@ -41,7 +41,7 @@ function EnvToday({ district, env, today, onAccount }) {
 // 처리방침이 바뀌었는데 아직 동의하지 않은 사용자에게 무엇이 바뀌었는지 한 번에 알린다(촬영 화면과 따로).
 const POLICY_CHANGES = [
   ['2026-11-19', '얼굴 사진을 이 기기 안에서만 분석하고, 서버에는 측정한 숫자만 보내요.'],
-  ['2026-11-20', '내 루틴(제품 이름, 전성분, 사용 빈도)을 저장해요.'],
+  ['2026-11-20', '내 루틴(제품 이름, 전성분, 사용 횟수)을 저장해요.'],
   ['2026-11-21', '사는 구(선택)를 저장할 수 있어요.'],
   ['2026-11-24', '루틴에 제품 사진(선택)을 작게 줄여 함께 저장할 수 있어요.'],
   ['2026-11-23', '볼 밝기 숫자도 함께 남겨 두 날의 볼 색을 색 칩으로 비교해요. 선택 동의 두 가지(볼 부분 사진 보관, AI로 리포트 문장 다듬기)가 생겼어요. 내 계정에서 고를 수 있어요.'],
@@ -161,7 +161,7 @@ function PastLog({ rec, ver }) {
           </div>
           <div className="rec-row">
             <span className="rec-k">증상</span>
-            <div className="rec-v"><div>{Object.keys(rec.symptoms || {}).length ? symptomText(rec.symptoms) : '체크인 없음'}</div></div>
+            <div className="rec-v"><div>{Object.keys(rec.symptoms || {}).length ? symptomText(rec.symptoms) : '증상 기록 없음'}</div></div>
           </div>
           {ver?.items?.length > 0 && (
             <div className="rec-row">
@@ -187,7 +187,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
 
   const save = async (vals) => {
     setSaving(true); setError(null)
-    try { q.setData(await api.checkin(vals)); setDraft(null); setNote('오늘 체크인을 저장했어요.') }
+    try { q.setData(await api.checkin(vals)); setDraft(null); setNote('오늘 증상 기록을 저장했어요.') }
     catch (e) { setError(e.message) }
     finally { setSaving(false) }
   }
@@ -257,7 +257,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   )
   const checkinCard = d && (
     <div className="card" id="today-checkin">
-  <h2 className="h3">오늘의 증상 체크인</h2>
+  <h2 className="h3">오늘의 증상 기록</h2>
   {draft ? (
     <CheckinSteps initial={draft} saving={saving} error={error}
       onSave={(vals) => save(vals)} onCancel={() => { setDraft(null); setError(null) }} />
@@ -269,7 +269,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   ) : (
     <div className="row">
       <div><b>오늘은 아직이에요</b><p className="muted small">따가움, 화끈, 가려움, 당김을 0~3으로 남겨요.</p></div>
-      <button className="btn" onClick={() => setDraft({})}>체크인하기</button>
+      <button className="btn" onClick={() => setDraft({})}>증상 기록하기</button>
     </div>
   )}
     </div>
