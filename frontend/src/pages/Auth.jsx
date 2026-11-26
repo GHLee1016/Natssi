@@ -4,19 +4,19 @@ import { api } from '../api.js'
 // 입력 검사는 첫 번째로 칸을 벗어날 때(blur) 한다. 타이핑 중에는 오류를 보여주지 않고,
 // 오류가 난 칸에 다시 들어가거나 고쳐 쓰기 시작하면 바로 지운다.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const checkEmail = (v) => (!v.trim() ? '이메일 주소를 입력해 주세요.' : EMAIL_RE.test(v.trim()) ? '' : 'name@example.com처럼 입력해 주세요.')
+const checkEmail = (v) => (!v.trim() ? '이메일 주소를 입력해 주세요.' : EMAIL_RE.test(v.trim()) ? '' : '이메일 주소를 올바른 형식으로 입력해 주세요. 예: name@example.com')
 const checkPassword = (v, strict) => {
   if (!v) return '비밀번호를 입력해 주세요.'
-  if (strict && (v.length < 8 || /^[0-9]+$/.test(v) || /^\p{L}+$/u.test(v))) return '8자 이상, 글자와 숫자를 섞어 써 주세요.'
+  if (strict && (v.length < 8 || /^[0-9]+$/.test(v) || /^\p{L}+$/u.test(v))) return '문자와 숫자를 포함해 8자 이상 입력해 주세요.'
   return ''
 }
 // 서버가 돌려준 문구가 특정 칸에 대한 것이면 그 칸 아래에 보여준다.
 const fieldOf = (msg) => (msg.startsWith('이미 가입된') ? 'email' : /^(비밀번호|이전과 다른 비밀번호)/.test(msg) ? 'password' : null)
 
 // 만 14세 미만은 법정대리인 동의가 필요해 가입을 받지 않는다(개인정보 보호법 제22조의2). 나이 확인은 본인 확인 체크로 받는다.
-const CONSENTS = [['age14', '[필수] 만 14세 이상이에요'], ['terms', '[필수] 이용약관'], ['privacy', '[필수] 개인정보 수집·이용'], ['photo', '[필수] 얼굴 사진 처리 안내'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용']]
+const CONSENTS = [['age14', '[필수] 만 14세 이상입니다'], ['terms', '[필수] 이용약관'], ['privacy', '[필수] 개인정보 수집·이용'], ['photo', '[필수] 얼굴 사진 처리 안내'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용']]
 // 선택 동의: 항목마다 따로 고른다. 동의하지 않아도 가입·모든 기본 기능을 쓸 수 있고, 내 계정에서 언제든 바꿀 수 있다.
-const OPTIONALS = [['ai_report', '[선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)', 'ai'],
+const OPTIONALS = [['ai_report', '[선택] AI로 피부 리포트 문장 다듬기(가명 요약, 국외 이전)', 'ai'],
   ['improve', '[선택] 서비스 개선을 위한 얼굴 사진 제공', 'improve']]
 
 function Field({ id, label, error, helper, children }) {
@@ -92,8 +92,8 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
 
   if (done) {
     const text = {
-      signup: ['메일을 확인해 주세요', `${email} 주소로 인증 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.`],
-      forgot: ['메일을 확인해 주세요', `${email} 주소로 비밀번호를 새로 정하는 링크를 보냈어요. 가입된 이메일이면 곧 도착해요. 안 보이면 스팸함도 확인해 주세요.`],
+      signup: ['메일을 확인해 주세요', `인증 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요. 이메일 주소: ${email}`],
+      forgot: ['메일을 확인해 주세요', `가입한 이메일이라면 비밀번호 재설정 메일이 곧 도착해요. 메일이 보이지 않으면 스팸함도 확인해 주세요. 이메일 주소: ${email}`],
       reset: ['비밀번호를 바꿨어요', '새 비밀번호로 로그인해 주세요.'],
     }[done]
     return (
@@ -107,14 +107,14 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
     )
   }
 
-  const title = { login: '로그인', signup: '가입하기', forgot: '비밀번호 찾기', reset: '새 비밀번호 정하기' }[mode]
-  const submitText = busy ? '확인하는 중…' : { login: '로그인', signup: '동의하고 가입하기', forgot: '재설정 메일 받기', reset: '비밀번호 바꾸기' }[mode]
+  const title = { login: '로그인', signup: '가입하기', forgot: '비밀번호 찾기', reset: '새 비밀번호 설정' }[mode]
+  const submitText = busy ? '확인하는 중…' : { login: '로그인', signup: '동의하고 가입하기', forgot: '비밀번호 재설정 메일 받기', reset: '비밀번호 바꾸기' }[mode]
   const described = (id, hasErr, hasHelp) => (hasErr ? id + '-err' : hasHelp ? id + '-help' : undefined)
 
   return (
     <section className="auth">
       <header className="page-head"><div><h1>{title}</h1></div>
-        <button className="btn ghost" onClick={back}>예시로 돌아가기</button></header>
+        <button className="btn ghost" onClick={back}>예시 기록으로 돌아가기</button></header>
       <div className="auth-wrap">
       <form className="card" onSubmit={submit} noValidate>
         {(mode === 'login' || mode === 'signup') && (
@@ -124,7 +124,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           </div>
         )}
         {linkExpired && mode === 'forgot' && (
-          <p className="notice" role="status">재설정 링크가 만료됐거나 이미 쓰였어요. 이메일을 입력하면 새 링크를 보내요.</p>
+          <p className="notice" role="status">재설정 링크가 만료됐거나 이미 사용된 링크예요. 이메일 주소를 입력해 새 링크를 요청해 주세요.</p>
         )}
         {mode === 'forgot' && !linkExpired && <p className="muted small">가입한 이메일을 입력하면 비밀번호를 새로 정하는 링크를 보내요.</p>}
 
@@ -137,7 +137,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
         )}
         {mode !== 'forgot' && (
           <Field id="auth-pw" label={mode === 'reset' ? '새 비밀번호' : '비밀번호'} error={errs.password}
-            helper={strictPw ? '8자 이상, 글자와 숫자를 섞어 써 주세요.' : null}>
+            helper={strictPw ? '문자와 숫자를 포함해 8자 이상 입력해 주세요.' : null}>
             <div className="pw-wrap">
               <input id="auth-pw" ref={pwRef} type={showPw ? 'text' : 'password'} autoComplete={strictPw ? 'new-password' : 'current-password'}
                 value={password} onChange={(e) => { setPassword(e.target.value); if (errs.password) setErr('password', '') }} {...touch('password')}
@@ -168,7 +168,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
               )
             })}
             {consentTried && !all && <p id="consent-err" className="field-err" role="alert">필수 항목에 모두 동의해 주세요.</p>}
-            <p className="muted small opt-head">선택 항목은 동의하지 않아도 가입하고 기본 기능을 모두 쓸 수 있어요. 나중에 내 계정에서 바꿀 수 있어요.</p>
+            <p className="muted small opt-head">선택 항목에 동의하지 않아도 가입 및 기본 기능 이용이 가능해요. 내 계정에서 언제든 변경할 수 있어요.</p>
             {OPTIONALS.map(([k, label, doc]) => (
               <div className="check-row" key={k}>
                 <label className="check"><input id={'consent-' + k} type="checkbox" checked={opt[k]} onChange={(e) => setOpt({ ...opt, [k]: e.target.checked })} />{label}</label>
@@ -183,13 +183,13 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
       </form>
       <aside className="card auth-side" aria-label="낯씨 소개">
         <img src="/logo.svg" alt="" width="44" height="44" />
-        <h2>루틴은 한 번에 하나만 바꾸고,<br />그 뒤 얼굴이 어땠는지 봐요</h2>
+        <h2>루틴을 한 번에 하나씩 바꾸고,<br />피부 변화를 확인해요</h2>
         <ul>
-          <li><b>기록</b><span>매일 셀카 한 장과 증상을 남겨요.</span></li>
-          <li><b>변화</b><span>루틴을 바꾼 날 전후로 볼 붉은기가 평소 범위를 넘었는지 봐요.</span></li>
-          <li><b>리포트</b><span>기록에 있는 사실만 글로 정리해요. 진단은 하지 않아요.</span></li>
+          <li><b>기록</b><span>매일 얼굴 사진 한 장과 피부 증상을 기록해요.</span></li>
+          <li><b>변화</b><span>루틴을 바꾸기 전후의 붉은기 변화를 확인해요.</span></li>
+          <li><b>피부 리포트</b><span>피부 기록을 바탕으로 변화를 정리해요. 의료 진단은 하지 않아요.</span></li>
         </ul>
-        <p className="small muted">김서연(가상 인물)의 예시는 로그인하지 않아도 볼 수 있어요. 가입하면 사진 기록이 7일 쌓인 다음 날부터 내 기록으로 얼굴 날씨를 알려요. 얼굴 사진은 내 기기 안에서 검사하고 서버로 보내지 않아요.</p>
+        <p className="small muted">로그인 없이 예시 기록을 둘러볼 수 있어요. 가입하면 내 피부를 기록하고, 사진 기록이 7일 쌓인 뒤부터 얼굴 날씨를 확인할 수 있어요. 얼굴 사진은 내 기기 안에서 분석하고 서버로 보내지 않아요.</p>
       </aside>
       </div>
     </section>

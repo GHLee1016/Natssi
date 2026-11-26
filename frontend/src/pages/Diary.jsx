@@ -13,7 +13,7 @@ import { Dashboard, useMedia, WIDE } from './Dash.jsx'
 function Story({ date, setDate }) {
   const q = useLoad(() => api.timeline(), [])
   if (!q.data) return null
-  return <ChangeDays records={q.data.records} versions={q.data.versions} date={date} setDate={setDate} title="이 사람의 이야기" withSignal />
+  return <ChangeDays records={q.data.records} versions={q.data.versions} date={date} setDate={setDate} title="주요 변화 기록" withSignal />
 }
 
 export default function Diary({ date, setDate, meta, go, askLogin }) {
@@ -25,8 +25,8 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
   const isToday = date === meta.today
   const wide = useMedia(WIDE)                         // PC: 대시보드 배치
   const [sub, openSub, closeSub] = useSub()
-  const ASK = { face: '재는 법 보기', recap: 'Recap' }
-  const DESC = { face: '낯씨는 양 볼 붉은기만 재요. 트러블을 찾거나 진단하지 않아요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
+  const ASK = { face: '붉은기 측정 방법', recap: 'Monthly Skin Recap' }
+  const DESC = { face: '낯씨는 양쪽 볼의 붉은기를 측정해요. 여드름 등의 피부 트러블을 분석하거나 진단하지 않아요.', recap: '한 달간의 피부 기록을 돌아보세요.' }
   const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     { id: 'face', icon: ICONS.target, label: ASK.face }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
   const log = d && (
@@ -34,10 +34,10 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
       <h3>{date === meta.today ? '오늘의 기록' : '이날의 기록'}</h3>
       <div className="rec">
         <div className="rec-row">
-          <span className="rec-k">셀카</span>
+          <span className="rec-k">얼굴 사진</span>
           <div className="rec-v"><i className="thumb round" style={{ backgroundImage: `url(/faces/${d.record.photo}.jpg)` }} />
-            <div>{d.record.quality_ok ? '사진이 잘 찍혔어요' : d.record.quality_note}<p className="muted small">AI로 만든 이미지</p></div></div>
-          <button className="link" onClick={() => go('capture')}>내 얼굴 기록해 보기</button>
+            <div>{d.record.quality_ok ? '사진이 비교하기에 적합해요.' : d.record.quality_note}<p className="muted small">AI로 생성한 이미지</p></div></div>
+          <button className="link" onClick={() => go('capture')}>내 피부 기록하기</button>
         </div>
         <div className="rec-row">
           <span className="rec-k">증상</span>
@@ -78,7 +78,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
         <Dashboard today={meta.today} first={meta.first} date={date} records={tl.data.records} versions={tl.data.versions}
           rec={tl.data.records.find((r) => r.date === date) || d?.record} onPick={setDate} load={loadTl}
           empty={<p className="muted">이날은 기록이 없어요.</p>}
-          log={<>{log || <p className="card muted">이날은 기록이 없어요. 달력에서 다른 날을 골라 보세요.</p>}{meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}</>} />
+          log={<>{log || <p className="card muted">이날은 기록이 없어요. 달력에서 다른 날짜를 선택해 주세요.</p>}{meta.auth && !meta.viewer && <StartCard onStart={askLogin} />}</>} />
       ) : q.error && !d ? <EmptyDay isToday={isToday} /> : <Status {...q} />}
       {d && !(wide && tl.data) && (
         <>
