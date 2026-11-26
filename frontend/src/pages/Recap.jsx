@@ -83,10 +83,10 @@ function Bars({ r }) {
 // 마지막 카드 요약 2~3줄: 서버 Recap에서 센 숫자만 쓴다(원인은 말하지 않는다).
 function summary(r) {
   const w = r.weather
-  const out = [`사진 ${r.photo_days}일 가운데 맑음 ${w['신호 없음']}일, 흐림 ${w['신호 있음']}일이었어요.`]
-  if (r.changes.length) out.push(`루틴을 ${r.changes.length}번 바꿨어요.${r.signal_spans.length ? ` 흐렸던 때는 ${r.signal_spans.join(', ')}예요.` : ''}`)
-  else if (r.signal_spans.length) out.push(`흐렸던 때는 ${r.signal_spans.join(', ')}예요.`)
-  if (r.back_on) out.push(`${fmt.md(r.back_on)}부터 다시 맑아졌어요.`)
+  const out = [`사진을 ${r.photo_days}일 기록했어요. 그중 맑음은 ${w['신호 없음']}일, 흐림은 ${w['신호 있음']}일이었어요.`]
+  if (r.changes.length) out.push(`루틴을 ${r.changes.length}번 바꿨어요.${r.signal_spans.length ? ` 얼굴 날씨가 흐렸던 날은 ${r.signal_spans.join(', ')}였어요.` : ''}`)
+  else if (r.signal_spans.length) out.push(`얼굴 날씨가 흐렸던 날은 ${r.signal_spans.join(', ')}였어요.`)
+  if (r.back_on) out.push(`${fmt.md(r.back_on)}에 다시 맑음으로 기록됐어요.`)
   return out.slice(0, 3)
 }
 
@@ -95,16 +95,18 @@ function slides(r, today, restart) {
   const photoLv = LEVELS.filter((lv) => r.weather[lv] > 0)
   const top = photoLv.length ? photoLv.reduce((a, b) => (r.weather[b] > r.weather[a] ? b : a)) : null
   const s = span(r, today)
+  // 평소 범위와 비교할 수 있었던 날(안개 제외). 0일이면 '흐린 날이 없었어요' 대신 아직 비교할 기록이 없다고 말한다.
+  const compared = r.weather['신호 없음'] + r.weather['관찰 중'] + r.weather['신호 있음']
   return [
     {
       key: 'weather', tone: top ? WEATHER[top].cls : 'unknown',
       text: top ? (
         <>
-          <p className="rs-kicker">{m}월의 얼굴 날씨는</p>
+          <p className="rs-kicker">{m}월의 대표 얼굴 날씨</p>
           <p className="rs-big">{WEATHER[top].name}</p>
-          <p className="rs-sub">{r.weather[top]}일로 가장 많았어요.</p>
+          <p className="rs-sub">총 {r.weather[top]}일이었어요.</p>
         </>
-      ) : <><p className="rs-kicker">{m}월의 얼굴 날씨는</p><p className="rs-title">아직 몰라요</p><p className="rs-sub">사진 기록이 쌓이면 알 수 있어요.</p></>,
+      ) : <><p className="rs-kicker">{m}월의 대표 얼굴 날씨</p><p className="rs-title">아직 비교 기준을 만드는 중이에요.</p><p className="rs-sub">사진 기록이 쌓이면 얼굴 날씨를 확인할 수 있어요.</p></>,
       vis: top && <><span className="rs-icon"><WeatherIcon level={top} size={120} /></span><Bars r={r} /></>,
     },
     {
@@ -113,32 +115,38 @@ function slides(r, today, restart) {
         <>
           <p className="rs-kicker">{m}월에</p>
           <p className="rs-title">{r.photo_days}일 동안<br />사진을 남겼어요</p>
-          <p className="rs-sub">{r.days > r.photo_days ? `증상만 남긴 날을 더하면 ${r.days}일이에요.` : '같은 자리, 같은 조명에서 찍을수록 비교가 정확해요.'}</p>
+          <p className="rs-sub">{r.days > r.photo_days ? `증상만 기록한 날까지 포함하면 총 ${r.days}일이에요.` : '비슷한 장소와 조명에서 찍으면 붉은기를 비교하기 쉬워요.'}</p>
         </>
       ),
       vis: <Ring value={r.photo_days} total={s.n} />,
     },
     {
-      key: 'cloudy', tone: r.signal_spans.length ? 'signal' : 'ok',
+      key: 'cloudy', tone: r.signal_spans.length ? 'signal' : compared ? 'ok' : 'unknown',
       text: r.signal_spans.length ? (
         <>
-          <p className="rs-kicker">가장 흐렸던 때</p>
+          <p className="rs-kicker">평소보다 붉었던 기간</p>
           <p className="rs-title">{r.signal_spans.join(', ')}</p>
-          <p className="rs-sub">볼 붉은기가 평소 범위를 넘은 날이 {r.weather['신호 있음']}일이었어요.</p>
-          {r.back_on && <p className="rs-note">{fmt.md(r.back_on)}부터 다시 맑아졌어요</p>}
+          <p className="rs-sub">평소보다 붉었던 날이 {r.weather['신호 있음']}일이었어요.</p>
+          {r.back_on && <p className="rs-note">{fmt.md(r.back_on)}에 다시 맑음으로 기록됐어요</p>}
+        </>
+      ) : compared ? (
+        <>
+          <p className="rs-kicker">흐린 날</p>
+          <p className="rs-title">비교한 기록 중<br />흐린 날이 없었어요</p>
+          <p className="rs-sub">비교한 기록 중 평소보다 붉었던 날이 없었어요.</p>
         </>
       ) : (
         <>
-          <p className="rs-kicker">흐렸던 때</p>
-          <p className="rs-title">이달은 흐린 날이<br />없었어요</p>
-          <p className="rs-sub">볼 붉은기가 평소 범위를 넘은 날이 하루도 없었어요.</p>
+          <p className="rs-kicker">흐린 날</p>
+          <p className="rs-title">아직 비교할<br />기록이 없어요.</p>
+          <p className="rs-sub">사진 기록을 더 남기면 붉은기 변화를 확인할 수 있어요.</p>
         </>
       ),
       vis: r.signal_spans.length > 0 && (
         <dl className="rs-facts">
           <div><dt>흐린 날</dt><dd>{r.weather['신호 있음']}일</dd></div>
-          <div><dt>흐렸던 기간</dt><dd>{r.signal_spans.length}번</dd></div>
-          {r.back_on && <div><dt>다시 맑아진 날</dt><dd>{fmt.md(r.back_on)}</dd></div>}
+          <div><dt>흐린 날이 이어진 횟수</dt><dd>{r.signal_spans.length}회</dd></div>
+          {r.back_on && <div><dt>다시 맑음으로 기록된 날</dt><dd>{fmt.md(r.back_on)}</dd></div>}
         </dl>
       ),
     },
@@ -146,15 +154,15 @@ function slides(r, today, restart) {
       key: 'routine', tone: 'routine',
       text: r.changes.length ? (
         <>
-          <p className="rs-kicker">이달 바꾼 루틴</p>
+          <p className="rs-kicker">이번 달 루틴 변경</p>
           <p className="rs-big">{r.changes.length}번</p>
-          <p className="rs-sub">하나씩 바꿔야 어느 변화와 시기가 겹쳤는지 가리기 쉬워요.</p>
+          <p className="rs-sub">제품을 한 번에 하나씩 바꾸면 피부 변화를 비교하기 쉬워요.</p>
         </>
       ) : (
         <>
-          <p className="rs-kicker">이달 바꾼 루틴</p>
-          <p className="rs-title">그대로 지켰어요</p>
-          <p className="rs-sub">바꾸지 않은 달은 다음에 바꿀 때 비교 기준이 돼요.</p>
+          <p className="rs-kicker">이번 달 루틴 변경</p>
+          <p className="rs-title">루틴을 바꾸지 않았어요</p>
+          <p className="rs-sub">나중에 루틴을 바꾸면 이번 달 기록과 비교해 볼 수 있어요.</p>
         </>
       ),
       vis: r.changes.length > 0 && (
@@ -165,9 +173,9 @@ function slides(r, today, restart) {
       key: 'map', tone: 'paper',
       text: (
         <>
-          <p className="rs-kicker">{m}월 정리</p>
+          <p className="rs-kicker">{m}월의 피부 기록 한눈에 보기</p>
           <ul className="rs-sum">{summary(r).map((t) => <li key={t}>{t}</li>)}</ul>
-          <p className="rs-end">다음 달에도 하나씩만 바꿔 봐요.</p>
+          <p className="rs-end">다음 달에도 피부를 기록해 보세요.</p>
           {restart}
         </>
       ),
@@ -202,7 +210,7 @@ export default function Recap({ mine, today, desc, onClose }) {
       <div>
         <h2>
           {r && <button className="icon-btn rs-arrow" disabled={k <= 0} onClick={() => setMonth(r.months[k - 1])} aria-label="이전 달">‹</button>}
-          <span>{ym.slice(0, 4) !== today.slice(0, 4) && `${+ym.slice(0, 4)}년 `}{+ym.slice(5)}월 Recap</span>
+          <span>{ym.slice(0, 4) !== today.slice(0, 4) && `${+ym.slice(0, 4)}년 `}{+ym.slice(5)}월 Monthly Skin Recap</span>
           {r && <button className="icon-btn rs-arrow" disabled={k >= r.months.length - 1} onClick={() => setMonth(r.months[k + 1])} aria-label="다음 달">›</button>}
         </h2>
         {desc && <p className="muted small">{desc}</p>}
@@ -214,10 +222,10 @@ export default function Recap({ mine, today, desc, onClose }) {
   )
   // 폰(900px 미만)에서는 .recap-root가 화면 전체를 덮는다(아래 탭 바 위로). Esc로도 닫는다.
   const root = (body) => (
-    <div className="recap-root" role="region" aria-label="Recap">{head}{body}</div>
+    <div className="recap-root" role="region" aria-label="Monthly Skin Recap">{head}{body}</div>
   )
   if (!r) return root(<Status {...q} />)
-  if (r.empty || !r.cal) return root(<div className="card"><p className="muted">아직 Recap을 만들 기록이 없어요. 사진 기록을 남기면 만들어져요.</p></div>)
+  if (r.empty || !r.cal) return root(<div className="card"><p className="muted">Monthly Skin Recap을 만들 기록이 아직 없어요. 사진 기록을 남기면 만들어져요.</p></div>)
   const restart = () => { setI(0); setTimeout(() => box.current?.querySelector('.rs-card')?.focus(), 0) }   // 첫 카드로 가고 포커스도 옮긴다
   const list = slides(r, today, <button className="btn dark rs-again" onClick={restart}>처음부터 다시 보기</button>)
   // 카드를 넘기면 새 카드가 그려지므로, 키보드로 넘길 때는 포커스를 새 카드로 옮긴다(←/→를 이어서 누를 수 있게)
@@ -236,11 +244,11 @@ export default function Recap({ mine, today, desc, onClose }) {
         <button type="button" className="rs-tap next" onClick={() => tap(1)} disabled={i === list.length - 1} aria-label="다음 카드" />
         <div className="rs-top" aria-hidden="true">
           <div className="rs-bars">{list.map((x, n) => <i key={x.key} className={n < i ? 'done' : n === i ? 'on' : ''} />)}</div>
-          <p className="rs-brand"><img src="/logo.svg" alt="" />낯씨 {+r.month.slice(5)}월 Recap</p>
+          <p className="rs-brand"><img src="/logo.svg" alt="" />낯씨 {+r.month.slice(5)}월 Monthly Skin Recap</p>
         </div>
         <div className="rs-text">{s.text}</div>
         {s.vis && <div className="rs-vis">{s.vis}</div>}
-        {i === 0 && <p className="rs-hint" aria-hidden="true">화면을 누르면 다음 카드로 넘어가요</p>}
+        {i === 0 && <p className="rs-hint" aria-hidden="true">화면을 눌러 다음 카드 보기</p>}
       </section>
       <p className="sr-only" aria-live="polite">{list.length}장 중 {i + 1}번째 카드</p>
     </div>
