@@ -10,7 +10,7 @@ export const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
 // 환경 줄. district가 있으면 어느 구의 실측값인지 밝힌다.
 export function EnvLine({ e, district, day }) {
-  const src = district ? `환경(${district} 측정값)` : '환경'
+  const src = district ? `동네 환경(${district})` : '동네 환경'
   const has = e && (e.pm25 != null || e.humidity != null || e.temp != null)
   if (!has) return <span className="env-line"><b>{src}</b> <span className="muted">이날 측정값은 아직 없어요</span></span>
   const when = e.measured_on && e.measured_on !== day ? `${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값` : ''

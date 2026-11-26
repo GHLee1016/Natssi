@@ -293,7 +293,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
             <li>고개 각도, 표정, 선명도, 밝기를 확인한 뒤 양 볼 색(볼 붉은기)을 재요.</li>
-            <li>서버에는 잰 숫자만 보내고, 서버는 그 숫자로 사진이 잘 찍혔는지 확인해요. 로그인했다면 확인을 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
+            <li>서버에는 잰 숫자만 보내고, 그 숫자로 사진이 잘 찍혔는지 확인해요. 로그인했다면 확인을 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
           <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})를 읽고 동의해요</label>

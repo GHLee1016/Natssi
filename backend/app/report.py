@@ -59,7 +59,7 @@ def build_report(judged, versions):
             continue
         days = f["signal_days"]
         if days and f["carried_over"]:    # 앞 버전의 신호가 바꾼 직후까지 이어진 경우
-            sentences.append({"text": f"{f['phrase']} 뒤 {'첫날은' if len(days) == 1 else f'처음 {len(days)}일은'} 붉은기가 아직 평소보다 높았어요. 바꾸기 전부터 이어지던 붉은기예요.",
+            sentences.append({"text": f"{f['phrase']} 뒤 {'첫날은' if len(days) == 1 else f'처음 {len(days)}일은'} 붉은기가 아직 평소보다 높았어요. 이 붉은기는 바꾸기 전부터 이어졌어요.",
                               "cites": f["signal_ids"]})
         elif days:
             span = f"{days[0]}일째부터 {days[-1]}일째까지" if len(days) > 1 else f"{days[0]}일째에"
