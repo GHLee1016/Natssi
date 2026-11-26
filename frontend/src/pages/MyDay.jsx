@@ -91,6 +91,9 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
   const left = Math.max(0, d.needed - d.redness_days)
   const todayRec = d.recent?.find((r) => r.date === d.today)
   const cmp = compareLine(d, mdc95)
+  // 지금까지 내 기록의 범위(조명이 달랐던 날 빼고). 2일 이상일 때만
+  const vals = (d.recent || []).filter((r) => r.redness != null && !r.light).map((r) => r.redness)
+  const range = vals.length >= 2 ? { lo: Math.min(...vals).toFixed(1), hi: Math.max(...vals).toFixed(1), n: vals.length } : null
   return (
     <div className="card first-week" aria-labelledby="fw-title">
       <div className="fw-head">
@@ -108,12 +111,18 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
           <div className="fw-main">
             <div>
               <p className="fw-k">오늘 볼 붉은기</p>
-              <p className="fw-big">{sgn(d.today_redness)}</p>
+              <p className="fw-big">{d.today_redness.toFixed(1)}</p>
             </div>
             {d.today_cheeks && (
               <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
             )}
           </div>
+          {range && <p className="fw-range">지금까지 내 기록 <b>{range.lo} ~ {range.hi}</b> <span className="muted">(사진 {range.n}일)</span></p>}
+          <details className="fw-what">
+            <summary>이 숫자는 무엇인가요?</summary>
+            <p>양 볼 피부색이 얼마나 붉은지를 나타낸 값이에요(색을 숫자로 나타내는 Lab 색 공간의 a*). 0이면 붉지도 초록빛도 아닌 색이고, 클수록 붉어요.</p>
+            <p>사람마다 원래 피부색이 달라서 숫자 하나로 많다, 적다를 말할 수 없어요. 그래서 7일 동안 내 평소 범위를 만들고, 그다음부터 그 범위와 비교해요. 두 날의 차이가 ±{mdc95 ?? 2.35}(측정 오차)보다 작으면 비슷하다고 봐요.</p>
+          </details>
           {cmp && <p className="fw-cmp">{cmp}</p>}
           <ul className="fw-list">
             <li><span className="fw-k">사진</span>{todayRec?.light ? '조명 색이 평소와 달랐던 사진으로 기록했어요' : '품질 검사(밝기, 각도, 선명도, 조명)를 통과했어요'}</li>
