@@ -95,7 +95,7 @@ function AiToggle({ on, onLegal, onChanged }) {
       </label>
       <div id="ai-help" className="muted small">
         <p>켜면 제품 이름, 날짜, 이메일을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요.</p>
-        <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수</p>
+        <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수. 켜면 직접 물어보기도 쓸 수 있고, 그때는 적은 질문 문장도 함께 보내요.</p>
         <p>판정은 낯씨가 해요. 끄면 정해진 틀 문장을 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
       </div>
       {err && <p className="err" role="alert">{err}</p>}
@@ -103,7 +103,52 @@ function AiToggle({ on, onLegal, onChanged }) {
   )
 }
 
-export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = false, viewer, aiAvailable, onLegal, onChanged }) {
+// 직접 물어보기: 질문 문장을 AI(Anthropic의 Claude)로 보내 내 기록과 낯씨 자료만 근거로 답을 받는다.
+// 서버가 규칙 검사와 검증 AI를 모두 통과한 답만 보내고, 아니면 '확인된 답을 만들지 못했어요'를 보낸다.
+const ASK_EXAMPLES = ['요즘 흐린 날이 왜 많아요?', '레티놀은 어떤 성분이에요?', '사진이 자꾸 통과하지 않아요']
+function AskBox({ onAsk, busy, locked, onLegal }) {
+  const [text, setText] = useState('')
+  const send = (q) => { const v = (q ?? text).trim(); if (!v || busy) return; onAsk(v); setText('') }
+  if (locked) return <p className="muted small ask-locked">직접 물어보기는 위의 'AI로 문장 다듬기'를 켜면 쓸 수 있어요.</p>
+  return (
+    <form className="ask-box" onSubmit={(e) => { e.preventDefault(); send() }}>
+      <label htmlFor="ask-q" className="small"><b>직접 물어보기</b></label>
+      <div className="ask-row">
+        <input id="ask-q" value={text} maxLength={300} onChange={(e) => setText(e.target.value)} disabled={busy}
+          placeholder="기록, 사용법, 성분을 물어보세요" autoComplete="off" />
+        <button className="btn" type="submit" disabled={busy || !text.trim()}>{busy ? '확인 중…' : '묻기'}</button>
+      </div>
+      {!text && !busy && (
+        <div className="chips ask-ex">{ASK_EXAMPLES.map((q) => <button type="button" key={q} onClick={() => send(q)}>{q}</button>)}</div>
+      )}
+      <p className="muted small">질문 문장은 미국의 AI 서비스(Anthropic의 Claude)로 보내져요. 이름이나 연락처 같은 개인정보는 적지 마세요.{' '}
+        {onLegal && <button type="button" className="link" onClick={() => onLegal('ai')}>자세히</button>}</p>
+    </form>
+  )
+}
+
+function AskAnswer({ a, dateOf, open }) {
+  return (
+    <div className={'bubble ai ask-ans' + (a.source === 'llm' ? '' : ' ask-fail')}>
+      {a.sentences.map((s, i) => (
+        <div key={i} className="ask-sent">
+          <p>{s.text}</p>
+          {(s.cite_label && open) || s.sources?.length ? (
+            <p className="ask-src">
+              {s.cite_label && open && <Cite item={s} dateOf={dateOf} open={open} />}
+              {s.sources?.map((x) => <span key={x.id} className="src-chip">{x.title}</span>)}
+            </p>
+          ) : null}
+        </div>
+      ))}
+      {a.source === 'llm'
+        ? <p className="muted small">내 기록과 낯씨 자료만 근거로 AI가 쓰고, 규칙 검사와 검증 AI를 통과한 답이에요.</p>
+        : a.error && <TechDetails text={`${a.error}${a.problems?.length ? '. ' + a.problems.join(', ') : ''}`} />}
+    </div>
+  )
+}
+
+export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = false, viewer, aiAvailable, askAvailable, onLegal, onChanged }) {
   const q = useLoad(() => reportStore.load(cacheKey, mine ? api.myReport : api.report), [cacheKey], reportStore.data(cacheKey))
   const writing = useSlow(q.loading, 400)
   const tl = useLoad(() => (mine ? api.myTimeline() : api.timeline()), [mine])
@@ -118,6 +163,14 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
     try {
       const a = await (mine ? api.myAnswer(item.id) : api.answer(item.id))
       setThread((t) => [...t, { me: item.q }, a])
+    } catch (e) { setError(e.message) } finally { setBusy(null) }
+  }
+  const askFree = async (text) => {
+    setBusy('free'); setError(null)
+    setThread((t) => [...t, { me: text }])
+    try {
+      const a = await (mine ? api.myAsk(text) : api.ask(text))
+      setThread((t) => [...t, { ask: a }])
     } catch (e) { setError(e.message) } finally { setBusy(null) }
   }
   const r = q.data
@@ -155,7 +208,9 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
                   <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 기록은 판정 기록과 하나하나 대조했어요.</p>
                 </div>
               )
-              : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && onOpenDay && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
+              : m.ask
+                ? <AskAnswer key={i} a={m.ask} dateOf={dateOf} open={onOpenDay} />
+                : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && onOpenDay && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
           <p className="muted small">이어서 물어보기</p>
           <div className="chips">
             {!askedEvidence && <button onClick={showEvidence} disabled={busy !== null}>{EVIDENCE_Q}</button>}
@@ -165,6 +220,8 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
               </button>
             ))}
           </div>
+          {askAvailable && <AskBox onAsk={askFree} busy={busy !== null} locked={mine && !viewer?.ai_report} onLegal={onLegal} />}
+          {busy === 'free' && <p className="muted small" role="status">답을 쓰고, 기록과 맞는지 확인하고 있어요. 몇 초 걸려요.</p>}
           {error && <p className="err" role="alert">{error}</p>}
           {canStart && <StartCard onStart={onStart} />}
           <p className="disclaimer">ⓘ {r.disclaimer}</p>

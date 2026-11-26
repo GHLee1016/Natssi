@@ -59,6 +59,7 @@ ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
 LIMITS = {
     "auth": (8, 60),
     "report": (6, 60),
+    "ask": (5, 60),            # 직접 물어보기: 질문마다 AI를 2~4번 부른다
     "capture": (12, 60),
     "write": (30, 60),
     "suggest": (90, 60),

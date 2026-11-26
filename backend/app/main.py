@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, config, demo_data, env, ingredients, insights, judge, llm, quality, ratelimit, report, store
+from . import ask, auth, config, demo_data, env, ingredients, insights, judge, llm, quality, ratelimit, report, store
 from . import routine as myroutine
 
 log = logging.getLogger("natssi")
@@ -105,7 +105,7 @@ def meta(v=Depends(viewer)):
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version"),
                        "cheeks": bool((v.get("consent") or {}).get("cheeks")), "ai_report": _ai_on(v)} if v else None,
-            "ai_available": llm.enabled()}
+            "ai_available": llm.enabled(), "ask_available": llm.enabled()}
 
 
 # ── 가입·로그인 ────────────────────────────────────────────────
@@ -335,6 +335,30 @@ def get_answer(qid: str, v=Depends(viewer)):
     return ans
 
 
+class AskBody(BaseModel):
+    q: str = Field(..., min_length=1, max_length=ask.MAX_Q)
+
+
+def _demo_families():
+    """예시(김서연) 루틴 구간별 성분 계열."""
+    fams = set(ingredients.FAMILY_NAMES)
+    return {v["id"]: sorted({demo_data.PRODUCTS[k]["family"] for k, _ in v["items"]} & fams) for v in demo_data.VERSIONS}
+
+
+def _ask(fn):
+    try:
+        return fn()
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/ask")
+def ask_demo(body: AskBody, request: Request, v=Depends(viewer)):
+    """예시 기록에 대한 직접 질문. 질문 문장은 AI(Anthropic)로 보내진다(화면에서 미리 알림)."""
+    limit("ask", request, v)
+    return _ask(lambda: ask.answer(body.q, judged(v), demo_data.VERSIONS, _demo_families()))
+
+
 class Checkin(BaseModel):
     따가움: int = Field(0, ge=0, le=3)
     화끈: int = Field(0, ge=0, le=3)
@@ -495,6 +519,22 @@ def _ai_on(v) -> bool:
     """AI 문장 다듬기 선택 동의. 받는 곳이 바뀐 날(config.AI_CONSENT_SINCE) 이후에 켠 동의만 인정한다."""
     c = v.get("consent") or {}
     return bool(c.get("ai_report")) and (c.get("ai_report_at") or "") >= config.AI_CONSENT_SINCE
+
+
+@app.post("/api/me/ask")
+def ask_mine(body: AskBody, request: Request, v=Depends(need_user)):
+    """내 기록에 대한 직접 질문. 'AI로 문장 다듬기'에 동의한 사람만. 제품 이름·날짜를 뺀 가명 요약과 질문 문장만 보낸다."""
+    limit("ask", request, v)
+    if not _ai_on(v):
+        raise HTTPException(403, "직접 물어보기는 'AI로 문장 다듬기'에 동의한 뒤에 쓸 수 있어요.")
+    try:
+        rows, versions = _my_ctx(v["id"])
+    except HTTPException as e:
+        if e.status_code != 409:
+            raise
+        rows, versions = [], myroutine.payload(store.load_routine(v["id"]))["versions"]   # 기록 7일 전: 사용법·성분 질문은 답할 수 있게
+    fams = {x["id"]: sorted({f for it in x.get("items", []) for f in it.get("families") or []}) for x in versions}
+    return _ask(lambda: ask.answer(body.q, rows, report.pseudonymize(versions), fams))
 
 
 @app.get("/api/me/report")

@@ -87,6 +87,7 @@ PC에서 처음 열면 소개 페이지가 먼저 나오고, 'PC에서 예시 �
 ### 근거가 붙은 리포트
 - **틀 문장과 근거 번호:** 모든 문장에 근거가 된 기록 번호가 붙어요.
 - **AI는 문장만 다듬어요:** 선택 동의한 사람만 가명 요약을 보내 문장을 다듬어요. 금지어, 숫자, 근거 번호 검사에 걸리면 틀 문장으로 돌아가요.
+- **직접 물어보기는 근거가 있는 답만 보여 줘요:** 내 기록과 낯씨 자료(사용법, 성분 계열, 식약처 성분 사전)만 근거로 Claude Sonnet 5.5가 답을 쓰고, 규칙 검사와 검증 AI(Claude Haiku 5.5)를 모두 통과한 답만 보여 줘요. 진단, 원인 단정, 사용 권고는 하지 않고, 질문을 피하는 답도 검증에서 걸러요. 시험 질문 57개로 충실도와 답변 관련성을 재는 평가 스크립트가 `backend/eval/`에 있어요.
 - **인사이트:** 한 달을 카드 5장으로 넘겨 보는 Recap(날씨, 사진 기록, 흐렸던 때, 바꾼 루틴, 한 달 지도), 14일 챌린지, 흐린 날과 시기가 겹친 루틴 변경.
 
 ### PC에서 보기
@@ -264,7 +265,7 @@ Vercel 대시보드에서만 다루고, 채팅이나 저장소에 올리지 않�
 | 이름 | 내용 |
 |---|---|
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` | Supabase 주소와 키 |
-| `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`은 선택, 기본 `claude-sonnet-5-5`) | AI 문장 다듬기. Anthropic 콘솔에서 월 사용 한도를 걸어 두세요. 키가 없으면 정해진 틀 문장만 써요 |
+| `ANTHROPIC_API_KEY` (선택: `ANTHROPIC_MODEL` 기본 `claude-sonnet-5-5`, `ANTHROPIC_VERIFY_MODEL` 기본 `claude-haiku-5-5`) | AI 문장 다듬기. Anthropic 콘솔에서 월 사용 한도를 걸어 두세요. 키가 없으면 정해진 틀 문장만 써요 |
 | `NATSSI_OCR=1` | 전성분 사진 읽기 켜기. Space 주소를 바꾸면 `vercel.json` CSP의 connect-src도 바꾸기 |
 | `NATSSI_RECOVERY=1` | 비밀번호 찾기 켜기. Supabase 커스텀 SMTP를 설정한 뒤에만 |
 
