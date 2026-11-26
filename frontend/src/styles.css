@@ -1055,3 +1055,9 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .first-week .fw-list li{display:flex;align-items:baseline}
 .first-week .fw-list .fw-k{min-width:36px}
 .first-week .fw-foot{margin:14px 0 0;font-size:14px;color:var(--sub);line-height:1.5}
+
+.first-week .fw-range{margin:8px 0 0;font-size:15px}
+.first-week .fw-range b{font-variant-numeric:tabular-nums}
+.first-week .fw-what{margin-top:8px;font-size:14px;color:var(--sub)}
+.first-week .fw-what summary{cursor:pointer;color:var(--accent-ink);font-weight:600;min-height:32px;display:flex;align-items:center}
+.first-week .fw-what p{margin:6px 0 0;line-height:1.55}
