@@ -5,8 +5,7 @@
 - 부위: 얼굴 윤곽 안을 이마, 코, 왼쪽 볼, 오른쪽 볼, 입 주변, 턱으로 나눈다(사진 기준 왼쪽/오른쪽).
 - 빼는 곳: 눈 주변(눈썹~광대 위, 안경 자리. 안경 유무와 상관없이 늘 뺀다), 입술, 콧구멍, 얼굴 가장자리,
   어두운 픽셀(L*<30: 머리카락, 안경테, 그림자), 번들거림(L*가 중앙값+3×MAD 넘음), 날아간/아주 어두운 픽셀(앱과 같음).
-- 얼굴 전체 값은 이마와 입 주변을 뺀 피부(코, 양 볼, 턱)로 낸다. 두 부위는 따로 낸다(a_fh, a_mouth).
-  비교용으로 입 주변만 뺀 값(a_whole_all)도 남긴다.
+- 얼굴 전체 값은 입 주변을 뺀 피부로 낸다(입 주변은 a_mouth로 따로). 비교용으로 이마까지 뺀 값(a_whole_nofh)도 남긴다.
 - 붉은 점: 주변(얼굴 폭 6% 창의 중앙값)보다 a*가 6 넘게 높고 L*는 8 넘게 낮지 않은(갈색 점, 주근깨 제외) 작은 덩어리.
   얼굴 폭 2.5% 안의 조각은 한 점으로 센다.
   안경테 가장자리 근처는 뺀다. 진단이 아니라 '붉은 점'이라는 관찰값이다.
@@ -135,12 +134,12 @@ def measure_full(img: np.ndarray, lm: np.ndarray, spots=True) -> dict:
     A, L, B = lab[..., 1], lab[..., 0], lab[..., 2]
     # 얼굴 전체는 입 주변을 뺀다: 입 모양, 입술 경계에 따라 흔들려서 같은 날 반복 오차가 가장 컸다(팀원 1명 41장, MDC95 1.52).
     # 입 주변은 따로(a_mouth) 남긴다.
-    whole_all = skin & ~reg["입 주변"]
-    # 이마도 뺀다: 앞머리, 머리카락 경계, 이마 쪽 조명 차이로 같은 날 반복 오차가 가장 컸다(팀원 3명 62장, MDC95 2.21).
-    # 비교용으로 이마를 포함한 값(a_whole_all)도 남긴다.
-    whole = whole_all & ~reg["이마"]
+    whole = skin & ~reg["입 주변"]
+    # 이마는 그대로 둔다. 이마 하나만은 반복 오차가 가장 컸지만(MDC95 2.21), 얼굴 전체 중앙값에서 빼면 오히려 나빠졌다
+    # (팀원 3명 62장: 이마 포함 0.83, 이마 뺌 0.94). 비교용으로 이마를 뺀 값(a_whole_nofh)도 남긴다.
+    nofh = whole & ~reg["이마"]
     out = {"ff_ok": True, "a_whole": float(np.median(A[whole])), "b_whole": float(np.median(B[whole])),
-           "px_whole": int(whole.sum()), "a_whole_all": float(np.median(A[whole_all]))}
+           "px_whole": int(whole.sum()), "a_whole_nofh": float(np.median(A[nofh]))}
     for name, m in reg.items():
         c = COLS[name]
         out[f"a_{c}"] = float(np.median(A[m])) if m.sum() >= 400 else np.nan
@@ -196,7 +195,7 @@ def pair(a_path, b_path, out_png):
         canvas.paste(t, (0, y))
         y += t.height + 20
     canvas.save(out_png)
-    keys = ["a_star_app", "a_whole", "a_whole_all"] + [f"a_{COLS[r]}" for r in REGIONS] + ["spots", "spot_area"]
+    keys = ["a_star_app", "a_whole", "a_whole_nofh"] + [f"a_{COLS[r]}" for r in REGIONS] + ["spots", "spot_area"]
     table = {k: [round(float(r[2][k]), 2) for r in res] for k in keys}
     print(json.dumps(table, ensure_ascii=False, indent=1))
     return table
@@ -204,7 +203,7 @@ def pair(a_path, b_path, out_png):
 
 # ---------- 여러 사진: 반복 촬영 오차, 조명 필터 ----------
 
-KEEP = ["ff_ok", "a_whole", "a_whole_all", "b_whole", "a_rel_whole_nose", "spots", "spot_area"] + \
+KEEP = ["ff_ok", "a_whole", "a_whole_nofh", "b_whole", "a_rel_whole_nose", "spots", "spot_area"] + \
        [f"a_{c}" for c in COLS.values()] + [f"px_{c}" for c in COLS.values()]
 
 
@@ -249,7 +248,7 @@ def summary():
     orig = d[d.kind == "none"].set_index("key")
     use = orig[orig.quality_ok & orig.ff_ok].index
     o = orig.loc[use]
-    measures = {"a_star": "볼 (지금 앱)", "a_whole": "얼굴 전체 (이마, 입 주변 뺌)", "a_whole_all": "얼굴 전체 (입 주변만 뺌)"} | {f"a_{c}": r for r, c in COLS.items()} | \
+    measures = {"a_star": "볼 (지금 앱)", "a_whole": "얼굴 전체 (입 주변만 뺌)", "a_whole_nofh": "얼굴 전체 (이마, 입 주변 뺌)"} | {f"a_{c}": r for r, c in COLS.items()} | \
                {"a_rel_whole_nose": "얼굴 전체 − 코", "spots": "붉은 점 개수"}
     lines = ["# 얼굴 전체 붉은기 (시험)", "",
              f"사진: 셀카 {len(orig)}장 중 품질 통과하고 얼굴 전체를 잴 수 있었던 {len(use)}장, "
