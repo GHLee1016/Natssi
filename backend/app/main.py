@@ -60,7 +60,7 @@ def viewer(authorization: Optional[str] = Header(None)):
 
 def need_user(v=Depends(viewer)):
     if v is None:
-        raise HTTPException(401, "로그인하면 내 기록을 저장할 수 있어요.")
+        raise HTTPException(401, "로그인하면 기록이 저장돼요.")
     return v
 
 
@@ -146,12 +146,12 @@ class RefreshBody(BaseModel):
 
 def _check_password(pw: str):
     if pw.isdigit() or pw.isalpha():
-        raise HTTPException(400, "비밀번호에 글자와 숫자를 함께 써 주세요.")
+        raise HTTPException(400, "비밀번호에 글자와 숫자를 섞어 주세요.")
 
 
 def _auth_on():
     if not auth.enabled():
-        raise HTTPException(503, "로그인 기능이 아직 설정되지 않았어요.")
+        raise HTTPException(503, "지금은 로그인을 쓸 수 없어요.")
 
 
 @app.post("/api/auth/signup")
@@ -161,7 +161,7 @@ def signup(body: SignupBody, request: Request):
     if not body.consent_age14:
         raise HTTPException(400, "만 14세 이상만 가입할 수 있어요.")
     if not (body.consent_terms and body.consent_privacy and body.consent_photo and body.consent_health):
-        raise HTTPException(400, "필수 항목에 모두 동의해야 가입할 수 있어요.")
+        raise HTTPException(400, "가입하려면 필수 항목에 모두 동의해 주세요.")
     _check_password(body.password)
     try:
         return auth.signup(body.email.strip().lower(), body.password,
@@ -225,13 +225,13 @@ def export_account(request: Request, v=Depends(need_user)):
         my_routine = store.load_routine(v["id"])
         profile = store.load_profile(v["id"])
     except Exception as e:
-        raise _store_fail("저장소에 연결하지 못했어요.", e)
+        raise _store_fail("기록을 불러오지 못했어요.", e)
     return {"email": v["email"], "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "consent": v.get("consent"),
             "checkins": [{"day": d, "symptoms": _split(s)[0], **_split(s)[2]} for d, s in sorted(saved.items())],
             "routine": my_routine.get("versions", []),
             "district": profile.get("district"),
-            "note": "얼굴 사진은 서버에 저장하지 않아 내려받을 사진이 없어요."}
+            "note": "얼굴 사진은 서버에 저장하지 않아서 내려받을 사진이 없어요."}
 
 
 @app.delete("/api/account")
@@ -290,7 +290,7 @@ def compare(a: date, b: date, v=Depends(viewer)):
     rows = {r["date"]: r for r in judged(v)}
     ra, rb = rows.get(a.isoformat()), rows.get(b.isoformat())
     if not ra or not rb:
-        raise HTTPException(404, "두 날짜 모두 기록이 있어야 해요")
+        raise HTTPException(404, "기록이 있는 날짜 두 개를 골라 주세요")
     diff = None
     if ra["redness"] is not None and rb["redness"] is not None:
         diff = round(rb["redness"] - ra["redness"], 2)
@@ -314,7 +314,7 @@ def my_insights(request: Request, month: Optional[str] = Query(None, pattern=r"^
         data = store.load_routine(v["id"])
         district = store.load_profile(v["id"]).get("district")
     except Exception as e:
-        raise _store_fail("저장소에 연결하지 못했어요.", e)
+        raise _store_fail("기록을 불러오지 못했어요.", e)
     rows = _my_judged(v["id"], saved, district, data)
     return insights.build(rows, myroutine.payload(data)["versions"], month)
 
@@ -351,7 +351,7 @@ def _mine(uid):
     try:
         return store.load_all(uid)
     except Exception as e:
-        raise _store_fail("저장소에 연결하지 못했어요.", e)
+        raise _store_fail("기록을 불러오지 못했어요.", e)
 
 
 def _my_env(uid, today):
@@ -466,7 +466,7 @@ def _my_ctx(uid):
         data = store.load_routine(uid)
         district = store.load_profile(uid).get("district")
     except Exception as e:
-        raise _store_fail("저장소에 연결하지 못했어요.", e)
+        raise _store_fail("기록을 불러오지 못했어요.", e)
     rows = _my_judged(uid, saved, district, data)
     versions = myroutine.payload(data)["versions"] or [{"id": 1, "start": rows[0]["date"] if rows else config.today_kst().isoformat(),
                                                           "label": "처음 루틴", "change": None, "reason": None, "items": []}]
@@ -488,7 +488,7 @@ def my_compare(a: date, b: date, request: Request, v=Depends(need_user)):
     rows = {r["date"]: r for r in _my_ctx(v["id"])[0]}
     ra, rb = rows.get(a.isoformat()), rows.get(b.isoformat())
     if not ra or not rb or ra["redness"] is None or rb["redness"] is None:
-        raise HTTPException(404, "두 날짜 모두 사진 기록이 있어야 해요")
+        raise HTTPException(404, "사진 기록이 있는 날짜 두 개를 골라 주세요")
     diff = round(rb["redness"] - ra["redness"], 2)
     return {"a": ra, "b": rb, "diff": diff, "mdc95": config.MDC95_A_STAR, "beyond_error": abs(diff) > config.MDC95_A_STAR}
 
@@ -567,9 +567,9 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
             res["saved"] = True
             res["already"] = _split(entry)[1] is not None and not fix   # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
             res["replaced"] = fix
-            res["note"] = ("오늘은 앞서 통과한 사진의 값이 이미 기록돼 있어요(하루에 처음 통과한 사진 하나만 써요)." if res["already"] else
-                           "조명 색이 달랐던 앞선 기록을 이 사진의 값으로 바꿨어요." if fix else
-                           "오늘 기록에 볼 색 숫자를 남겼어요. 하루에 처음 통과한 사진의 값만 남기고, 사진은 남기지 않아요.")
+            res["note"] = ("오늘은 이미 기록했어요. 하루에 처음 통과한 사진 하나만 써요." if res["already"] else
+                           "조명 색이 달랐던 아까 기록을 이 사진 값으로 바꿨어요." if fix else
+                           "볼 색 숫자를 오늘 기록에 남겼어요. 사진은 남기지 않고, 하루에 처음 통과한 사진 값만 써요.")
         except Exception as e:
             raise _store_fail("볼 붉은기를 저장하지 못했어요.", e)
     return res
@@ -798,13 +798,13 @@ def save_cheeks(body: CheeksBody, request: Request, v=Depends(need_user)):
     """[선택 동의] 오늘 저장된 기록에 양 볼 조각(작은 JPEG)을 붙인다. 하루 1번, 처음 것만(숫자 기록과 같은 규칙)."""
     limit("capture", request, v)
     if not (v.get("consent") or {}).get("cheeks"):
-        raise HTTPException(403, "볼 부분 사진 보관에 동의한 경우에만 저장해요.")
+        raise HTTPException(403, "볼 부분 사진 보관에 동의해야 저장돼요.")
     parts = {"L": _check_jpeg(body.L), "R": _check_jpeg(body.R)}
     today = config.today_kst().isoformat()
     try:
         entry = _mine(v["id"]).get(today)
         if not entry or entry.get("redness") is None:
-            raise HTTPException(409, "오늘 사진 기록이 먼저 있어야 해요.")
+            raise HTTPException(409, "오늘 사진을 먼저 찍어 주세요.")
         if "cheeks" not in entry:
             store.save(v["id"], today, {**entry, "cheeks": parts})
     except HTTPException:
@@ -834,7 +834,7 @@ def update_consent(body: ConsentUpdate, request: Request, authorization: Optiona
     """바뀐 사진 처리 안내에 다시 동의한 기록을 남깁니다(서버가 시각을 찍음)."""
     limit("account", request, v)
     if not body.photo:
-        raise HTTPException(400, "바뀐 사진 처리 안내에 동의해야 촬영할 수 있어요.")
+        raise HTTPException(400, "촬영하려면 바뀐 사진 처리 안내에 동의해 주세요.")
     if config.OPEN_MODE:                                     # 로컬 개발: 메모리에만 기록
         LOCAL_USER["consent"] = {"version": config.CONSENT_VERSION, "photo": True}
         return {"consent_version": config.CONSENT_VERSION}
