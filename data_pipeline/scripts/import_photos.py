@@ -13,6 +13,8 @@
     # 2) 올리기: Supabase 주소와 service 키, 시연 계정 id(SQL: select id from auth.users where email='...')
     set SUPABASE_URL=...  &  set SUPABASE_SERVICE_KEY=...
     python scripts/import_photos.py "C:/사진폴더" --user-id <uuid> --apply
+    # 파일 이름의 날짜로 묶기(자정 넘어 찍은 사진도 이름에 적은 날로)
+    python scripts/import_photos.py "C:/사진폴더" --date-from name
     # 볼 반사 허용치만 올려 보기(앱 기준은 1%. 시연용으로 지난 사진을 넣을 때만)
     python scripts/import_photos.py "C:/사진폴더" --max-clip 0.05
 
@@ -47,9 +49,18 @@ if not cr.MODEL.exists() and APP_MODEL.exists():   # 앱에 들어 있는 얼굴
     cr.MODEL = APP_MODEL
 
 
-def when(p: Path):
-    """(날짜, 시각) 또는 None. EXIF 먼저, 없으면 파일 이름."""
-    return exif_datetime(p) or name_datetime(p.name)
+def when(p: Path, date_from: str = "exif"):
+    """(날짜, 정렬 키) 또는 None.
+    exif: 촬영 시각(EXIF) 먼저, 없으면 파일 이름(앱처럼 실제로 찍은 날).
+    name: 파일 이름의 날짜(자정 넘어 찍어도 이름에 적은 날). 같은 날 안에서는 촬영 시각 순, 없으면 이름 순."""
+    ex, nm = exif_datetime(p), name_datetime(p.name)
+    if date_from == "name":
+        if not nm:
+            return None
+        key = f"{ex[0]} {ex[1]}" if ex else f"{nm[0]} {nm[1] or '99:99:99'}"
+        return nm[0], key
+    dt = ex or nm
+    return (dt[0], dt[1] or "99:99:99") if dt else None
 
 
 def measure_file(p: Path) -> dict:
@@ -72,22 +83,22 @@ def measure_file(p: Path) -> dict:
     return out
 
 
-def plan(folder: Path):
+def plan(folder: Path, date_from: str = "exif"):
     """날짜별로 넣을 값 하나씩. 반환: {date: {...}}, 건너뛴 목록"""
     by_day, skipped = defaultdict(list), []
     files = sorted(p for p in folder.rglob("*") if p.suffix.lower() in IMG)
     for p in files:
-        dt = when(p)
+        dt = when(p, date_from)
         if not dt:
             skipped.append((p.name, "날짜를 알 수 없음"))
             continue
-        by_day[dt[0]].append((dt[1] or "99:99:99", p))
+        by_day[dt[0]].append((dt[1], p))
     chosen = {}
     for day in sorted(by_day):
         for t, p in sorted(by_day[day]):
             m = measure_file(p)
             if m["ok"]:
-                chosen[day] = {**m, "file": p.name, "time": t, "photos": len(by_day[day])}
+                chosen[day] = {**m, "file": p.name, "time": t.split(" ")[-1], "photos": len(by_day[day])}
                 break
             skipped.append((p.name, m["why"]))
         else:
@@ -112,6 +123,9 @@ def main():
     ap.add_argument("--apply", action="store_true", help="실제로 올린다(없으면 확인만)")
     ap.add_argument("--max-clip", type=float, default=APP_MAX_CLIP,
                     help=f"볼이 하얗게 날아간 비율 허용치(앱 기준 {APP_MAX_CLIP}). 다른 품질 기준은 그대로")
+    ap.add_argument("--date-from", choices=("exif", "name"), default="exif",
+                    help="날짜 기준: exif(촬영 시각, 앱과 같음) 또는 name(파일 이름의 날짜)")
+    ap.add_argument("--days", help="이 날짜들만 올린다(쉼표로 구분, 예: 2026-11-05,2026-11-10)")
     ap.add_argument("--overwrite", action="store_true", help="이미 볼 붉은기가 있는 날도 덮어쓴다")
     args = ap.parse_args()
     folder = Path(args.folder)
@@ -120,7 +134,7 @@ def main():
     cr.Q["clip"] = args.max_clip
 
     try:
-        chosen, skipped = plan(folder)
+        chosen, skipped = plan(folder, args.date_from)
     finally:
         if getattr(cr, "_LMK", None) is not None:      # 끝날 때 얼굴 모델을 닫아 종료 경고를 막는다
             cr._LMK.close()
@@ -134,6 +148,10 @@ def main():
         else:
             print(f"{day:<11}    -  {'통과한 사진 없음':>10}")
     good = {d: c for d, c in chosen.items() if c}
+    if args.days:
+        only = {d.strip() for d in args.days.split(",") if d.strip()}
+        good = {d: c for d, c in good.items() if d in only}
+        print(f"\n--days: 이 중 {len(good)}일만 올려요: {', '.join(sorted(good)) or '없음'}")
     print(f"\n넣을 날 {len(good)}일 / 사진이 있는 날 {len(chosen)}일. 건너뛴 사진 {len(skipped)}장")
     for name, why in skipped[:30]:
         print(f"  - {name}: {why}")
