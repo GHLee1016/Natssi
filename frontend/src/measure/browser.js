@@ -120,7 +120,7 @@ async function toCanvas(src) {
 // 얼굴 사진(이 기기 보관용): 두 눈이 수평이고 같은 자리, 같은 크기에 오게 잘라 둔다. 두 날을 겹쳐 볼 때 얼굴이 맞도록.
 let lastFace = null
 export const takeFace = () => { const p = lastFace; lastFace = null; return p }
-const FACE_W = 360, FACE_H = 480                        // 두 날 비교 화면(3:4)과 같은 비율
+const FACE_W = 720, FACE_H = 960                        // 두 날 비교 화면(3:4)과 같은 비율. PC와 고해상도 화면에서도 깨지지 않게 720px
 function alignFace(canvas, lm) {
   const mid = (ids) => ids.reduce((a, i) => [a[0] + lm[i][0] / ids.length, a[1] + lm[i][1] / ids.length], [0, 0])
   const [r, l] = [mid([33, 133]), mid([362, 263])]                   // 사진 왼쪽 눈, 오른쪽 눈 가운데
@@ -135,7 +135,7 @@ function alignFace(canvas, lm) {
   g.scale((FACE_W * 0.2) / dist, (FACE_W * 0.2) / dist)              // 눈 사이를 같은 길이로(폭의 20%: 머리와 턱까지 얼굴 전체가 들어오게)
   g.translate(-(r[0] + l[0]) / 2, -(r[1] + l[1]) / 2)
   g.drawImage(canvas, 0, 0)
-  return c.toDataURL('image/jpeg', 0.85)
+  return c.toDataURL('image/jpeg', 0.88)
 }
 
 export async function measurePhoto(src) {
