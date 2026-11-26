@@ -127,20 +127,27 @@ function AskBox({ onAsk, busy, locked, onLegal }) {
   )
 }
 
+// 같은 출처를 쓴 문장이 이어지면 출처를 그 묶음의 마지막 문장 아래에 한 번만 보인다.
+const srcKey = (s, open) => JSON.stringify([open && s.cite_label ? [s.cite_label, s.cites] : null, (s.sources || []).map((x) => x.id)])
+
 function AskAnswer({ a, dateOf, open }) {
+  const keys = a.sentences.map((s) => srcKey(s, open))
   return (
     <div className={'bubble ai ask-ans' + (a.source === 'llm' ? '' : ' ask-fail')}>
-      {a.sentences.map((s, i) => (
-        <div key={i} className="ask-sent">
-          <p>{s.text}</p>
-          {(s.cite_label && open) || s.sources?.length ? (
-            <p className="ask-src">
-              {s.cite_label && open && <Cite item={s} dateOf={dateOf} open={open} />}
-              {s.sources?.map((x) => <span key={x.id} className="src-chip">{x.title}</span>)}
-            </p>
-          ) : null}
-        </div>
-      ))}
+      {a.sentences.map((s, i) => {
+        const last = keys[i] !== keys[i + 1]
+        return (
+          <div key={i} className={'ask-sent' + (last ? '' : ' ask-sent-cont')}>
+            <p>{s.text}</p>
+            {last && ((s.cite_label && open) || s.sources?.length) ? (
+              <p className="ask-src">
+                {s.cite_label && open && <Cite item={s} dateOf={dateOf} open={open} />}
+                {s.sources?.map((x) => <span key={x.id} className="src-chip">{x.title}</span>)}
+              </p>
+            ) : null}
+          </div>
+        )
+      })}
       {a.source === 'llm'
         ? <p className="muted small">내 기록과 낯씨 자료만 근거로 AI가 쓰고, 규칙 검사와 검증 AI를 통과한 답이에요.</p>
         : a.error && <TechDetails text={`${a.error}${a.problems?.length ? '. ' + a.problems.join(', ') : ''}`} />}

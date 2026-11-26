@@ -1064,6 +1064,7 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ask-ex{margin-top:2px}
 .ask-locked{margin-top:14px}
 .ask-ans .ask-sent+.ask-sent{margin-top:8px}
+.ask-ans .ask-sent-cont+.ask-sent{margin-top:4px}
 .ask-ans .ask-src{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 0;font-size:12px}
 .ask-ans .src-chip{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--tint);color:var(--accent-ink);font-size:12px}
 .ask-ans.ask-fail{background:var(--bg)}
