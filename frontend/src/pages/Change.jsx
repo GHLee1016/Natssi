@@ -4,7 +4,6 @@ import { RoutineView } from './Insights.jsx'
 import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { WEATHER } from '../weather.jsx'
-import { labToCss } from '../cheeks.js'
 import { facesOn, getFaces } from '../faceStore.js'
 import KV from '../kv.jsx'
 
@@ -137,8 +136,8 @@ function Compare({ records, mine, email }) {
     <div className="card">
       <h2 className="h3">{showFaces ? '두 날 사진 겹쳐 보기' : '두 날 볼 붉은기 비교'}</h2>
       {mine && !showFaces && <p className="muted small">{keepOn
-        ? '두 날 중 이 기기에 사진이 없는 날이 있어서, 그날 잰 볼 붉은기 숫자와 볼 색으로 비교해요.'
-        : '사진 대신 그날 잰 볼 붉은기 숫자와 볼 색을 나란히 보여요. 내 계정에서 ‘이 기기에 얼굴 사진 보관’을 켜면 두 날 얼굴 사진을 겹쳐 볼 수 있어요.'}</p>}
+        ? '두 날 중 이 기기에 사진이 없는 날이 있어서, 그날 잰 볼 붉은기 숫자로 비교해요.'
+        : '사진 대신 그날 잰 볼 붉은기 숫자로 비교해요. 내 계정에서 ‘이 기기에 얼굴 사진 보관’을 켜면 두 날 얼굴 사진을 겹쳐 볼 수 있어요.'}</p>}
       <div className="pickers">
         <label>앞 날짜<select value={a} onChange={(e) => setA(e.target.value)}>{dated.map(opt)}</select></label>
         <label>뒤 날짜<select value={b} onChange={(e) => setB(e.target.value)}>{dated.map(opt)}</select></label>
@@ -163,23 +162,15 @@ function Compare({ records, mine, email }) {
               </p></div>
             <span className="muted small">같은 얼굴을 다시 찍어도 ±{c.mdc95} 정도는 달라져요. 팀원들이 여러 번 찍어서 잰 임시 값이에요.</span>
           </div>
-          <div className="swatches" aria-label="두 날의 볼 색">
-            {[c.a, c.b].map((r, i) => {
-              // 데모(가상) 기록은 붉은기가 '평소 대비 차이'로만 있어 피부색 기준(a*≈10)·밝기·노란기 고정값으로 그린다
-              const color = mine ? labToCss(r.L ?? 64, r.redness, r.b ?? 17) : labToCss(64, 10 + r.redness, 17)
-              const part = parts[r.date]
-              return (
-                <figure key={i}>
-                  <span className="chip" style={{ background: color }} role="img" aria-label={`${fmt.md(r.date)} 볼 평균 색`} />
-                  {part && <span className="cheek-pair"><img src={part.L} alt={`${fmt.md(r.date)} 왼쪽 볼`} /><img src={part.R} alt={`${fmt.md(r.date)} 오른쪽 볼`} /></span>}
-                  <figcaption><span className="sub-line">{i ? '뒤' : '앞'}</span>{fmt.md(r.date)}</figcaption>
-                </figure>
-              )
-            })}
-          </div>
-          <p className="muted small">위 색은 사진 속 양 볼의 평균 색이에요. 조명이나 화면에 따라 실제와 달라 보이기도 해요.
-            {mine && ' 볼 부분 사진은 \'볼 부분 사진 보관\'(선택)에 동의한 뒤 찍은 날만 보여요.'}</p>
-          <details className="tech"><summary>기술 정보</summary><p>볼 붉은기는 색을 숫자로 나타내는 방식(Lab 색공간)의 a* 값이에요. 위 차이는 뒤 날짜 값에서 앞 날짜 값을 뺀 Δa*이고, ±값은 MDC95 기준이에요. 볼 색은 그날 잰 L*, a*, b*를 화면 색(sRGB)으로 바꿔 칠했어요.</p></details>
+          {!showFaces && (parts[a] || parts[b]) && <div className="swatches" aria-label="두 날의 볼 부분 사진">
+            {[c.a, c.b].map((r, i) => parts[r.date] && (
+              <figure key={i}>
+                <span className="cheek-pair"><img src={parts[r.date].L} alt={`${fmt.md(r.date)} 왼쪽 볼`} /><img src={parts[r.date].R} alt={`${fmt.md(r.date)} 오른쪽 볼`} /></span>
+                <figcaption><span className="sub-line">{i ? '뒤' : '앞'}</span>{fmt.md(r.date)}</figcaption>
+              </figure>
+            ))}
+          </div>}
+          <details className="tech"><summary>기술 정보</summary><p>볼 붉은기는 색을 숫자로 나타내는 방식(Lab 색공간)의 a* 값이에요. 위 차이는 뒤 날짜 값에서 앞 날짜 값을 뺀 Δa*이고, ±값은 MDC95 기준이에요.</p></details>
         </>
       )}
     </div>

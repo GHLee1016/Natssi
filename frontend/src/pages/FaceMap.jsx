@@ -79,7 +79,7 @@ export default function FaceMap({ record }) {
         <p>{s.text}</p>
         <p className="muted small">네모를 누르면 그 부분이 크게 보여요.</p>
         <p className="muted small">네모 친 곳(양 볼)이 낯씨가 붉은기를 재는 자리예요. 여드름 같은 트러블은 찾지 않고 진단도 하지 않아요. 사진은 AI로 만든 예시예요.</p>
-        <p className="muted small">실제 기록에는 얼굴 사진을 저장하지 않고 이 부위의 색만 칩으로 보여요. 선택 동의를 하면 작은 볼 조각 사진도 보관해요.</p>
+        <p className="muted small">실제 기록에서는 얼굴 사진을 서버에 저장하지 않아요. 내 계정에서 ‘이 기기에 얼굴 사진 보관’을 켜면 그 폰에만 남겨요.</p>
       </div>
     </div>
   )
