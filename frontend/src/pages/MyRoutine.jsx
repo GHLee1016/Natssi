@@ -88,7 +88,7 @@ export default function MyRoutine({ ocr }) {
                   {r.current.id === 1 && startEdit === null && <button type="button" className="link start-fix" onClick={() => { setStartEdit(r.current.start); setError(null) }}>시작일 고치기</button>}</h2>
                 {startEdit !== null && (
                   <div className="edit-usage">
-                    <p className="small">처음 루틴을 등록하기 전부터 이 제품들을 썼다면, 실제로 쓰기 시작한 날로 고쳐요. 그날부터의 기록이 처음 루틴으로 묶여요.</p>
+                    <p className="small">등록하기 전부터 이 제품들을 썼다면 실제로 쓰기 시작한 날을 골라요. 그날부터의 기록이 처음 루틴에 들어가요.</p>
                     <input type="date" value={startEdit} max={r.today}
                       aria-label="처음 루틴 시작일" onChange={(e) => e.target.value && setStartEdit(e.target.value)} />
                     <div className="step-actions">
@@ -131,7 +131,7 @@ export default function MyRoutine({ ocr }) {
                     )}
                     {editing === it.key && (
                       <div className="edit-usage">
-                        <p className="small"><b>{it.name}</b>을 얼마나 자주 쓰나요? <span className="muted">(지금: {fmt.plain(it.usage)})</span></p>
+                        <p className="small"><b>{it.name}</b>, 얼마나 자주 쓰나요? <span className="muted">(지금: {fmt.plain(it.usage)})</span></p>
                         <div role="radiogroup" aria-label="새 사용 횟수" className="opts">
                           {r.usages.filter((u) => u !== it.usage).map((u) => (
                             <label className={'opt' + (newUsage === u ? ' on' : '')} key={u}>
