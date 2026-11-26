@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from . import ask, auth, config, demo_data, env, ingredients, insights, judge, llm, quality, ratelimit, report, store
 from . import routine as myroutine
@@ -65,7 +65,9 @@ def need_user(v=Depends(viewer)):
 
 
 def limit(bucket: str, request: Request, v=None):
-    ratelimit.hit(bucket, v["id"] if v else ratelimit.client_ip(request))
+    who = v["id"] if v else ratelimit.client_ip(request)
+    ratelimit.hit(bucket, who)
+    llm.CALLER.set(("u:" if v else "ip:") + llm.caller_id(who))      # AI 호출 기록에 남길 가명(원래 id, IP는 남기지 않음)
 
 
 def records(v=None):
@@ -570,7 +572,7 @@ def checkin(body: Checkin, request: Request, v=Depends(need_user)):
         kept = _split(store.load_all(v["id"]).get(today))[2]       # 먼저 찍은 측정값은 남긴다
         store.save(v["id"], today, {**body.model_dump(), **kept})
     except Exception as e:
-        raise _store_fail("체크인을 저장하지 못했어요.", e)
+        raise _store_fail("증상 기록을 저장하지 못했어요.", e)
     return _me_payload(v["id"])
 
 
@@ -618,9 +620,20 @@ class AnalyzeBody(BaseModel):
     text: str = Field(..., min_length=1, max_length=ingredients.MAX_TEXT)
 
 
+def _reason(v):
+    """바꾼 이유는 화면의 버튼 3개(routine.REASONS) 중 하나만 받는다. 자유 글이 저장·표시되지 않게."""
+    if v in (None, ""):
+        return None
+    if v not in myroutine.REASONS:
+        raise ValueError("바꾼 이유를 목록에서 골라 주세요.")
+    return v
+
+
 class UsageChange(BaseModel):
     usage: str = Field(..., max_length=20)
     reason: Optional[str] = Field(None, max_length=60)
+    _check_reason = field_validator("reason")(classmethod(lambda cls, v: _reason(v)))
+    on: Optional[date] = None                                            # 바꾼 날(없으면 오늘). routine.change_day가 범위를 확인
 
 
 class RoutineAdd(BaseModel):
@@ -629,14 +642,18 @@ class RoutineAdd(BaseModel):
     ingredients: list[str] = Field(default_factory=list, max_length=ingredients.MAX_ITEMS + 1)
     families: list[str] = Field(default_factory=list, max_length=20)     # 사용자가 '들어 있어요'라고 체크한 계열
     reason: Optional[str] = Field(None, max_length=60)
+    _check_reason = field_validator("reason")(classmethod(lambda cls, v: _reason(v)))
     recent: bool = False                                                 # 처음 등록 때: 최근 2주 안에 쓰기 시작한 제품
     photo: Optional[str] = Field(None, max_length=60_000)               # 제품 사진(선택): 긴 변 240px 이하 JPEG data URL
     icon: Optional[str] = Field(None, max_length=16)                    # 사진 대신 고른 모양 아이콘(선택, routine.ICONS)
+    on: Optional[date] = None                                            # 추가한 날(없으면 오늘)
 
 
 def _routine_response(data, warnings=()):
+    today = config.today_kst()
     return {**myroutine.payload(data), "warnings": list(warnings),
-            "setup_day": myroutine.is_setup_day(data, config.today_kst()), "ask_families": ingredients.ASK_FAMILIES}
+            "setup_day": myroutine.is_setup_day(data, today), "ask_families": ingredients.ASK_FAMILIES,
+            "today": today.isoformat(), "change_from": myroutine.earliest_day(data, today).isoformat()}
 
 
 @app.get("/api/me/routine")
@@ -673,7 +690,8 @@ def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     photo = _check_jpeg(body.photo, 240, "제품 사진") if body.photo else None   # 저장 오류 처리 밖에서 먼저 검사(400)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason,
+        day = myroutine.change_day(data, config.today_kst(), body.on)
+        warnings = myroutine.add_item(data, day, body.name, body.usage, body.ingredients, body.reason,
                                       body.families, body.recent, photo, body.icon)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
@@ -689,13 +707,32 @@ def change_routine_usage(key: str, body: UsageChange, request: Request, v=Depend
     limit("write", request, v)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.change_usage(data, config.today_kst(), key, body.usage, body.reason)
+        warnings = myroutine.change_usage(data, myroutine.change_day(data, config.today_kst(), body.on), key, body.usage, body.reason)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
         raise _store_fail("루틴을 저장하지 못했어요.", e)
     return _routine_response(data, warnings)
+
+
+class FirstStart(BaseModel):
+    on: date
+
+
+@app.put("/api/me/routine/start")
+def set_routine_start(body: FirstStart, request: Request, v=Depends(need_user)):
+    """처음 루틴을 언제부터 썼는지 고친다(등록을 늦게 한 경우). 판정의 '처음 루틴' 구간이 그날부터가 된다."""
+    limit("write", request, v)
+    try:
+        data = store.load_routine(v["id"])
+        myroutine.set_first_start(data, config.today_kst(), body.on)
+        store.save_routine(v["id"], data)
+    except myroutine.RoutineError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _store_fail("루틴을 저장하지 못했어요.", e)
+    return _routine_response(data)
 
 
 class LookChange(BaseModel):
@@ -715,17 +752,17 @@ def change_routine_look(key: str, body: LookChange, request: Request, v=Depends(
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
-        raise _store_fail("섬네일을 저장하지 못했어요.", e)
+        raise _store_fail("제품 사진을 저장하지 못했어요.", e)
     return _routine_response(data)
 
 
 @app.delete("/api/me/routine/items/{key}")
-def remove_routine_item(key: str, request: Request, v=Depends(need_user)):
-    """제품 사용을 멈춘다(기록은 지난 버전에 남아요)."""
+def remove_routine_item(key: str, request: Request, v=Depends(need_user), on: Optional[date] = None):
+    """제품 사용을 멈춘다(기록은 지난 버전에 남아요). on: 멈춘 날(없으면 오늘)."""
     limit("write", request, v)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.remove_item(data, config.today_kst(), key)
+        warnings = myroutine.remove_item(data, myroutine.change_day(data, config.today_kst(), on), key)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
@@ -855,7 +892,7 @@ def reset(request: Request, v=Depends(need_user)):
     try:
         store.clear_checkins(v["id"])
     except Exception as e:
-        raise _store_fail("체크인을 지우지 못했어요.", e)
+        raise _store_fail("증상 기록을 지우지 못했어요.", e)
     return {"ok": True}
 
 

@@ -10,7 +10,7 @@ import KV from '../kv.jsx'
 const PAD = { l: 34, r: 12, t: 44, b: 34 }
 const symptomLine = (s) => {
   const on = Object.entries(s || {}).filter(([, v]) => v > 0)
-  return !s || !Object.keys(s).length ? '체크인 없음' : on.length ? on.map(([k, v]) => `${k} ${v}점`).join(', ') : '증상 없음'
+  return !s || !Object.keys(s).length ? '증상 기록 없음' : on.length ? on.map(([k, v]) => `${k} ${v}점`).join(', ') : '증상 없음'
 }
 
 // 점들을 부드러운 곡선으로 잇는다(단조 3차 보간: 점 사이에서 값이 튀어 오르거나 꺼지지 않는다).
@@ -191,7 +191,7 @@ export default function Change({ onOpenDay, mine = false }) {
   const canCompare = q.data?.records.some((r) => r.redness !== null)
   const head = <header className="page-head sr-head"><div><h1 className="sr-only">변화</h1></div></header>
   const ASK = { compare: '두 날 비교하기', overlap: '흐린 날 살펴보기' }
-  const DESC = { compare: mine ? '두 날의 볼 색을 숫자와 색 칩으로 비교해요.' : '두 날의 사진을 겹쳐 비교해요.', overlap: '흐린 날과 시기가 겹친 루틴 변경이에요. 원인이라는 뜻은 아니에요.' }
+  const DESC = { compare: mine ? '두 날의 볼 색을 숫자와 색 칩으로 비교해요.' : '두 날의 사진을 겹쳐 비교해요.', overlap: '흐린 날과 시기가 겹친 루틴 변경이에요. 제품이 원인이라고 단정할 수는 없어요.' }
   const tabs = q.data && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     canCompare && { id: 'compare', icon: ICONS.compare, label: ASK.compare }, { id: 'overlap', icon: ICONS.cloud, label: ASK.overlap }]} />
   if (q.data && sub) return (

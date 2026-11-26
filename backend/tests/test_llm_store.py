@@ -120,3 +120,29 @@ def test_ai_consent_before_switch_is_off():
     assert not on("2026-11-23T10:00:00+00:00") and not on(None)
     assert on("2026-11-26T01:00:00+00:00")
     assert not main._ai_on({"consent": {"ai_report": False, "ai_report_at": "2026-11-27T00:00:00+00:00"}})
+
+
+def test_ai_call_is_logged_without_content_or_ids():
+    """AI 호출 기록(SEC-08): 시각, 가명, 종류, 결과, 토큰만. 문장 내용, 사용자 id, 키는 남기지 않는다."""
+    import logging
+    lines = []
+    h = logging.Handler()
+    h.emit = lambda r: lines.append(r.getMessage())
+    llm.audit_log.addHandler(h)
+    try:
+        llm._cache.clear()
+        llm._client = fake(json.dumps(GOOD, ensure_ascii=False))
+        uid = "3f2b8c1e-0000-4000-8000-000000000001"
+        llm.CALLER.set("u:" + llm.caller_id(uid))
+        report.build_report_llm(rows, demo_data.VERSIONS)
+        llm._client = fake("{}", status=429)
+        llm._cache.clear()
+        report.build_report_llm(rows, demo_data.VERSIONS)
+    finally:
+        llm.audit_log.removeHandler(h)
+        llm._client = None
+    recs = [json.loads(x) for x in lines]
+    assert [r["status"] for r in recs] == ["end_turn", "http_429"]
+    assert all(r["event"] == "ai_call" and r["kind"] == "report" and r["who"].startswith("u:") for r in recs)
+    text = "\n".join(lines)
+    assert uid not in text and "레티놀" not in text and "sentences" not in text

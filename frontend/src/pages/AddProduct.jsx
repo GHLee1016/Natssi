@@ -5,6 +5,7 @@ import { isBlurry, productThumbnail, readIngredientPhotos, wakeOcr } from '../oc
 import ThumbPicker from './ThumbPicker.jsx'
 import { useDesk, QR } from './Capture.jsx'
 import { useBackDepth, useBackLayer } from '../nav.js'
+import WhenPicker from './WhenPicker.jsx'
 
 // 제품 하나를 루틴에 등록한다: 이름·사용 빈도 → 전성분(사진으로 읽기 또는 글자 붙여넣기) → 확인.
 // 사진 읽기(OCR)는 서버 설정 NATSSI_OCR=1(/api/meta ocr)일 때만 보인다. 결과 모양이 글자 붙여넣기와 같아 확인 화면은 하나다.
@@ -93,7 +94,8 @@ function useSuggest(q) {
   return items
 }
 
-export default function AddProduct({ usages, askFamilies = [], ocr, first = false, onSaved, onCancel }) {
+export default function AddProduct({ usages, askFamilies = [], ocr, first = false, onSaved, onCancel, today, changeFrom }) {
+  const [on, setOn] = useState(today)                  // 추가한 날(기본 오늘). 지난 날도 고를 수 있다
   const t = routineCopy(ocr)
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
@@ -187,7 +189,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   }
   const next1 = () => {
     if (!name.trim()) return setErr('제품 이름을 입력해 주세요.')
-    if (!usage) return setErr('사용 빈도를 골라 주세요.')
+    if (!usage) return setErr('사용 횟수를 골라 주세요.')
     go(1)
   }
   const analyze = async (skip) => {
@@ -245,7 +247,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     setBusy(true); setErr(null)
     try {
       const pic = photo || (!icon && useOcrPhoto && ocrFile ? await productThumbnail(ocrFile) : null)   // 아이콘을 직접 골랐으면 전성분 사진을 쓰지 않는다
-      onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent, photo: pic, icon: pic ? null : icon }))
+      onSaved(await api.addRoutineItem({ name: name.trim(), usage, ingredients: list.map((i) => i.name), families: picked, recent: first && recent, photo: pic, icon: pic ? null : icon, on: !first && on && on !== today ? on : null }))
     }
     catch (e) { setErr(e.message); setBusy(false) }
   }
@@ -319,7 +321,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
               placeholder="예: 레티놀 세럼" autoComplete="off" aria-describedby="p-name-help" />
             <small id="p-name-help" className="muted">{t.step1.hint}</small>
           </div>
-          <div role="radiogroup" aria-label="사용 빈도" className="opts">
+          <div role="radiogroup" aria-label="사용 횟수" className="opts">
             <p className="muted small">{t.step1.usage}</p>
             {usages.map((u) => (
               <label className={'opt' + (usage === u ? ' on' : '')} key={u}>
@@ -334,8 +336,11 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
             </label>
           )}
           {first && <small id="p-recent-help" className="muted">{t.recent.help}</small>}
+          {/* 처음 루틴은 오늘로 함께 묶어 등록하고, 실제로 쓰기 시작한 날은 등록 뒤 '시작일 고치기'로 바꾼다(같은 날 묶음이 깨지지 않게) */}
+          {first ? <small className="muted">처음부터 쓰던 제품이라면, 등록한 뒤 루틴 카드의 '시작일 고치기'로 실제로 쓰기 시작한 날을 고를 수 있어요.</small>
+            : <WhenPicker id="p-when" label="언제 추가했나요?" value={on} onChange={setOn} min={changeFrom} max={today} />}
           <div className="field prod-photo-field">
-            <span className="muted small">섬네일 (선택)</span>
+            <span className="muted small">제품 사진 (선택)</span>
             <ThumbPicker photo={photo} icon={icon} onError={setErr}
               onPhoto={(p) => setPhoto(p)} onIcon={(k) => { setIcon(k); setPhoto(null) }} />
             <small className="muted">사진은 작게 줄여 저장해요. 루틴 목록에서 언제든 바꿀 수 있어요.</small>

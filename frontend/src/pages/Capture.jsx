@@ -311,7 +311,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       <header className="page-head"><div><h1>{title}</h1></div></header>
       {guideMode && (
         <div className="cap-guide">
-          <p className="muted cap-lead">사진은 이 기기 안에서만 분석하고, 서버에는 볼 색 숫자만 보내요.</p>
+          <p className="muted cap-lead">사진은 이 기기 안에서 확인해요. 서버에는 볼 피부색을 나타내는 숫자만 보내요.</p>
           <div className="cap-cols">
           <section className="cap-col">
           <h2 className="cap-sec ok"><i aria-hidden="true">✓</i>이런 사진이 좋아요</h2>

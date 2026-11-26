@@ -22,7 +22,7 @@ const TABS = [
   { id: 'diary', label: '다이어리', icon: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4zm3 5h7M8 13h7' },
   { id: 'change', label: '변화', icon: 'M4 19h16M6 15l4-5 4 3 5-7' },
   { id: 'capture', label: '기록', icon: 'M4 8h3l2-3h6l2 3h3v11H4V8zm8 2.500a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7z' },
-  { id: 'routine', label: '루틴', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
+  { id: 'routine', label: '루틴 관리', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
   { id: 'report', label: '리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
 ]
 
@@ -48,13 +48,19 @@ function MineGate({ title, go, children }) {
 
 // 비밀번호 재설정 메일의 링크는 #access_token=…&type=recovery 로 돌아온다(만료되면 #error_code=…).
 const linkParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ''))
-const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴', report: '리포트' }
+const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴 관리', report: '리포트' }
 const GUIDE_KEY = 'natssi_guide'
 // PC 소개 페이지를 한 번 지나갔는지(예시 둘러보기를 누르거나 메뉴로 들어감). 저장이 막혀도 동작은 한다(매번 소개부터).
+// 소개 페이지(PC, 로그인 전): 이 탭에서 '예시 둘러보기'를 누르기 전까지 뜬다. 탭을 닫고 다시 들어오면 다시 뜬다(sessionStorage).
+// 예전에는 브라우저에 계속 기억(localStorage)해서 한 번 보면 다시 안 떴다. 그 값은 지운다.
 const LANDING_KEY = 'natssi.landingSeen'
-const landingSeen = () => { try { return localStorage.getItem(LANDING_KEY) === '1' } catch { return false } }
-const rememberLanding = () => { try { localStorage.setItem(LANDING_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } }
+try { localStorage.removeItem(LANDING_KEY) } catch { /* 저장소가 막혀도 계속 */ }
+const landingSeen = () => { try { return sessionStorage.getItem(LANDING_KEY) === '1' } catch { return false } }
+const rememberLanding = () => { try { sessionStorage.setItem(LANDING_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } }
 const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return true } }
+// 로그인한 계정별로 한 번: 이메일을 그대로 두지 않으려고 짧은 해시로 키를 만든다
+const userGuideKey = (email) => { let h = 5381; for (const c of email || '') h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return `${GUIDE_KEY}_u${h.toString(36)}` }
+const guideSeenFor = (email) => { try { return localStorage.getItem(userGuideKey(email)) === '1' } catch { return true } }
 
 export default function App() {
   const [tab, setTab] = useState(() => { const t = new URLSearchParams(window.location.search).get('tab'); return TAB_TITLES[t] ? t : 'diary' })   // PC의 QR로 열면 ?tab=capture
@@ -79,9 +85,12 @@ export default function App() {
   const [authStart, setAuthStart] = useState('login')   // 소개 페이지 '무료로 시작하기'는 가입 화면으로 연다
   const intro = desk && !!meta.data && !viewer                                    // 소개 페이지를 쓸 수 있는 경우(PC, 로그인 전)
   const goIntro = () => { setPage(null); setLanding(true); window.scrollTo(0, 0) }                 // PC 로그인 전: 메뉴 아래 '낯씨 소개' 링크
-  const explore = () => { rememberLanding(); try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 계속 */ } goHome() }
+  const explore = () => { rememberLanding(); goHome(); if (!guideSeen()) { setAutoGuide(true); setGuide(true) } }   // PC 소개에서 처음 둘러볼 때도 사용법을 한 번 보여 준다
   const pickTab = (id) => { if (landing) { rememberLanding(); setLanding(false) } setPage(null); setTab(id) }
-  const closeGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } setGuide(false); setAutoGuide(false) }
+  const closeGuide = () => {
+    try { localStorage.setItem(GUIDE_KEY, '1'); if (viewer) localStorage.setItem(userGuideKey(viewer.email), '1') } catch { /* 저장이 막혀도 계속 */ }
+    setGuide(false); setAutoGuide(false)
+  }
   useEffect(() => { if (window.location.hash && (resetToken || linkExpired)) window.history.replaceState(null, '', window.location.pathname + window.location.search) }, [])   // 토큰이 주소창에 남지 않게
   const firstNav = useRef(true)
   useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
@@ -131,7 +140,9 @@ export default function App() {
     return () => window.removeEventListener('natssi:logout', h)
   }, [])
   // 오래된 로그인 정보 때문에 처음부터 막히면 정리하고 데모로 돌아감
-  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired && !(landing && desk)) { setAutoGuide(true); setGuide(true) } }, [meta.data])   // 소개 페이지가 보이면 사용법 시트는 띄우지 않는다
+  useEffect(() => { if (meta.data && !meta.data.viewer && !guideSeen() && !resetToken && !linkExpired && !(landing && desk)) { setAutoGuide(true); setGuide(true) } }, [meta.data])
+  // 로그인(가입)하면 그 계정으로 처음 한 번 사용법을 띄운다(이 기기 기준). 비밀번호 재설정 화면에서는 띄우지 않는다
+  useEffect(() => { if (viewer?.email && !guideSeenFor(viewer.email) && !resetToken && !linkExpired) { setAutoGuide(true); setGuide(true) } }, [viewer?.email])   // 소개 페이지가 보이면 사용법 시트는 띄우지 않는다
   useEffect(() => {
     if (meta.error && session.get()) { session.clear(); refreshAll() }
   }, [meta.error])

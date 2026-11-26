@@ -6,10 +6,13 @@
     하나라도 걸리거나 호출이 실패·거절되면 정해진 틀(template) 문장으로 돌아갑니다.
   - ANTHROPIC_API_KEY 가 없으면 호출하지 않습니다.
 """
+import contextvars
 import hashlib
 import json
+import logging
 import os
 import re
+import time
 import anthropic
 
 DEFAULT_MODEL = "claude-sonnet-5-5"          # 환경변수 ANTHROPIC_MODEL 로 바꿀 수 있음
@@ -17,6 +20,29 @@ BANNED = ["진단", "치료", "완치", "질환", "피부염", "알레르기", "
 
 _client = None                               # anthropic.Anthropic (테스트에서는 가짜로 바꿔 끼움)
 _cache: dict[str, dict] = {}
+
+# AI 호출 기록(SEC-08): 시각, 누가(가명), 무엇(kind), 모델, 결과, 토큰 수, 걸린 시간만 남긴다. 질문·답·기록 내용과 키는 남기지 않는다.
+CALLER = contextvars.ContextVar("natssi_ai_caller", default="-")
+audit_log = logging.getLogger("natssi.ai")
+if not audit_log.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    audit_log.addHandler(_h)
+    audit_log.setLevel(logging.INFO)
+    audit_log.propagate = False
+
+
+def caller_id(raw: str) -> str:
+    """사용자 id나 IP를 그대로 남기지 않도록 짧은 해시로."""
+    return hashlib.sha256(("natssi:" + str(raw)).encode()).hexdigest()[:12]
+
+
+def audit(kind: str, status: str, model_name: str | None = None, res=None, started: float | None = None):
+    usage = getattr(res, "usage", None)
+    audit_log.info(json.dumps({
+        "event": "ai_call", "kind": kind, "who": CALLER.get(), "model": model_name or getattr(res, "model", None),
+        "status": status, "in": getattr(usage, "input_tokens", None), "out": getattr(usage, "output_tokens", None),
+        "ms": round((time.monotonic() - started) * 1000) if started else None}, ensure_ascii=False))
 
 SYSTEM = """너는 피부 기록 앱 '낯씨'의 리포트 문장을 쓰는 역할이다.
 입력으로 주어지는 facts(JSON)에 있는 사실만 한국어 해요체로 풀어 쓴다.
@@ -121,7 +147,9 @@ def write_report(facts):
                                          "max_sting", "env_unusual", "calm_ids")} for f in facts]
     digest = hashlib.sha256(json.dumps([payload_facts, model(), SYSTEM], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     if digest in _cache:
+        audit("report", "cache")
         return _cache[digest]
+    started = time.monotonic()
     try:
         res = _api().beta.messages.create(
             model=model(), max_tokens=4000,
@@ -131,9 +159,12 @@ def write_report(facts):
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",   # 안전 판단으로 거절되면 서버가 다른 모델로 다시 시도
         )
     except anthropic.APIStatusError as e:              # 한도 초과(429), 서버 오류, 잘못된 요청 등
+        audit("report", f"http_{e.status_code}", model(), started=started)
         return {"error": f"LLM 호출 실패: HTTP {e.status_code}"}
     except anthropic.APIError as e:                    # 시간 초과, 연결 끊김 등
+        audit("report", type(e).__name__, model(), started=started)
         return {"error": f"LLM 호출 실패: {type(e).__name__}"}
+    audit("report", res.stop_reason or "ok", res=res, started=started)
     if res.stop_reason == "refusal":
         return {"error": "LLM이 답하지 않았어요 (refusal)"}
     if res.stop_reason == "max_tokens":

@@ -42,7 +42,7 @@ function EnvToday({ district, env, today, onAccount }) {
 const POLICY_CHANGES = [
   ['2026-11-26', "'AI로 문장 다듬기'(선택)의 받는 곳이 Anthropic(미국)으로 바뀌었어요. 쓰려면 내 계정에서 다시 켜 주세요. 켜면 리포트에서 직접 물어보기도 쓸 수 있고, 그때는 적은 질문 문장도 함께 보내요."],
   ['2026-11-19', '얼굴 사진을 이 기기 안에서만 분석하고, 서버에는 측정한 숫자만 보내요.'],
-  ['2026-11-20', '내 루틴(제품 이름, 전성분, 사용 빈도)을 저장해요.'],
+  ['2026-11-20', '내 루틴(제품 이름, 전성분, 사용 횟수)을 저장해요.'],
   ['2026-11-21', '사는 구(선택)를 저장할 수 있어요.'],
   ['2026-11-24', '루틴에 제품 사진(선택)을 작게 줄여 함께 저장할 수 있어요.'],
   ['2026-11-23', '볼 밝기 숫자도 함께 남겨 두 날의 볼 색을 색 칩으로 비교해요. 선택 동의 두 가지(볼 부분 사진 보관, AI로 리포트 문장 다듬기)가 생겼어요. 내 계정에서 고를 수 있어요.'],
@@ -92,6 +92,9 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
   const left = Math.max(0, d.needed - d.redness_days)
   const todayRec = d.recent?.find((r) => r.date === d.today)
   const cmp = compareLine(d, mdc95)
+  // 지금까지 내 기록의 범위(조명이 달랐던 날 빼고). 2일 이상일 때만
+  const vals = (d.recent || []).filter((r) => r.redness != null && !r.light).map((r) => r.redness)
+  const range = vals.length >= 2 ? { lo: Math.min(...vals).toFixed(1), hi: Math.max(...vals).toFixed(1), n: vals.length } : null
   return (
     <div className="card first-week" aria-labelledby="fw-title">
       <div className="fw-head">
@@ -109,12 +112,18 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
           <div className="fw-main">
             <div>
               <p className="fw-k">오늘 볼 붉은기</p>
-              <p className="fw-big">{sgn(d.today_redness)}</p>
+              <p className="fw-big">{d.today_redness.toFixed(1)}</p>
             </div>
             {d.today_cheeks && (
               <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
             )}
           </div>
+          {range && <p className="fw-range">지금까지 내 기록 <b>{range.lo} ~ {range.hi}</b> <span className="muted">(사진 {range.n}일)</span></p>}
+          <details className="fw-what">
+            <summary>이 숫자는 무엇인가요?</summary>
+            <p>양 볼 피부색이 얼마나 붉은지를 나타낸 값이에요(색을 숫자로 나타내는 Lab 색 공간의 a*). 0이면 붉지도 초록빛도 아닌 색이고, 클수록 붉어요.</p>
+            <p>사람마다 원래 피부색이 달라서 숫자 하나로 많다, 적다를 말할 수 없어요. 그래서 7일 동안 내 평소 범위를 만들고, 그다음부터 그 범위와 비교해요. 두 날의 차이가 ±{mdc95 ?? 2.35}(측정 오차)보다 작으면 비슷하다고 봐요.</p>
+          </details>
           {cmp && <p className="fw-cmp">{cmp}</p>}
           <ul className="fw-list">
             <li><span className="fw-k">사진</span>{todayRec?.light ? '조명 색이 평소와 달랐던 사진으로 기록했어요' : '품질 검사(밝기, 각도, 선명도, 조명)를 통과했어요'}</li>
@@ -153,7 +162,7 @@ function PastLog({ rec, ver }) {
           </div>
           <div className="rec-row">
             <span className="rec-k">증상</span>
-            <div className="rec-v"><div>{Object.keys(rec.symptoms || {}).length ? symptomText(rec.symptoms) : '체크인 없음'}</div></div>
+            <div className="rec-v"><div>{Object.keys(rec.symptoms || {}).length ? symptomText(rec.symptoms) : '증상 기록 없음'}</div></div>
           </div>
           {ver?.items?.length > 0 && (
             <div className="rec-row">
@@ -179,7 +188,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
 
   const save = async (vals) => {
     setSaving(true); setError(null)
-    try { q.setData(await api.checkin(vals)); setDraft(null); setNote('오늘 체크인을 저장했어요.') }
+    try { q.setData(await api.checkin(vals)); setDraft(null); setNote('오늘 증상 기록을 저장했어요.') }
     catch (e) { setError(e.message) }
     finally { setSaving(false) }
   }
@@ -249,7 +258,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   )
   const checkinCard = d && (
     <div className="card" id="today-checkin">
-  <h2 className="h3">오늘의 증상 체크인</h2>
+  <h2 className="h3">오늘의 증상 기록</h2>
   {draft ? (
     <CheckinSteps initial={draft} saving={saving} error={error}
       onSave={(vals) => save(vals)} onCancel={() => { setDraft(null); setError(null) }} />
@@ -261,7 +270,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   ) : (
     <div className="row">
       <div><b>오늘은 아직이에요</b><p className="muted small">따가움, 화끈, 가려움, 당김을 0~3으로 남겨요.</p></div>
-      <button className="btn" onClick={() => setDraft({})}>체크인하기</button>
+      <button className="btn" onClick={() => setDraft({})}>증상 기록하기</button>
     </div>
   )}
     </div>
