@@ -86,14 +86,14 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
           <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
         <div className="row"><div><b>증상 기록 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 기록만 지워요.</p></div>
           <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
-        <div className="row"><div><b>사진</b><p className="muted small">얼굴 전체 사진은 서버에 보내지 않아요. 볼 부분 사진 보관에 동의했다면 양 볼 네모 조각만 보관해요.</p></div><span className="done">{meta.viewer?.cheeks ? '볼 조각만' : '서버 저장 안 함'}</span></div>
+        <div className="row"><div><b>사진</b><p className="muted small">얼굴 사진은 서버에 보내지 않아요. 아래 ‘이 기기에 얼굴 사진 보관’을 켜면 이 폰에만 남겨요.</p></div><span className="done">서버 저장 안 함</span></div>
       </div>
 
       <div className="card">
         <h2 className="h3">선택 동의</h2>
         <p className="muted small">동의하지 않아도 기본 기능은 모두 쓸 수 있어요. 아래 스위치로 바로 켜고 꺼요.</p>
-        {[['cheeks', '볼 부분 사진 보관', meta.viewer?.cheeks ? '양 볼 네모 조각(작은 사진)을 보관해 두 날을 눈으로 비교해요. 끄면 보관한 조각을 바로 모두 지워요.' : '켜면 그날 처음 저장된 사진에서 양 볼 네모 조각만 보관해요. 두 날을 눈으로 비교할 때 써요.', '볼 부분 사진 보관을 껐어요. 보관한 볼 사진은 모두 지웠어요.', '볼 부분 사진 보관을 켰어요.', 'photo'],
-          ['ai_report', 'AI로 리포트 문장 다듬기', '이름, 이메일, 날짜, 제품 이름을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 리포트 문장을 다듬어요. 끄면 정해진 틀에 맞춘 문장으로 보여요.', 'AI 문장 다듬기를 껐어요.', 'AI 문장 다듬기를 켰어요.', 'ai']].map(([k, label, help, offMsg, onMsg, doc]) => (
+        {[['ai_report', 'AI로 리포트 문장 다듬기', '이름, 이메일, 날짜, 제품 이름을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 리포트 문장을 다듬어요. 끄면 정해진 틀에 맞춘 문장으로 보여요.', 'AI 문장 다듬기를 껐어요.', 'AI 문장 다듬기를 켰어요.', 'ai'],
+          ['improve', '서비스 개선을 위한 얼굴 사진 제공', '켜면 낯씨가 얼굴 찾기, 사진 검사, 볼 붉은기 재는 방법을 더 정확하게 고칠 때 내 얼굴 사진을 쓸 수 있어요. 지금은 동의만 받고, 사진을 실제로 받기 시작하면 먼저 알려 드릴게요. 받은 사진은 3개월 뒤 지우고, 끄면 바로 지워요.', '서비스 개선용 사진 제공을 껐어요.', '서비스 개선용 사진 제공에 동의했어요.', 'improve']].map(([k, label, help, offMsg, onMsg, doc]) => (
           <div className="row" key={k}>
             <div><b>{label}</b><p className="muted small">{help} <button className="link" onClick={() => onLegal(doc)}>자세히</button></p></div>
             <label className="switch"><input type="checkbox" checked={!!meta.viewer?.[k]} disabled={!!busy}
@@ -120,7 +120,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="card danger">
         <h2 className="h3">탈퇴</h2>
-        <p className="muted small">계정과 함께 증상 기록, 볼 색 기록, 볼 부분 사진, 루틴, 사는 구가 모두 지워져요. 되돌릴 수 없어요.</p>
+        <p className="muted small">계정과 함께 증상 기록, 볼 색 기록, 루틴, 사는 구가 모두 지워져요. 되돌릴 수 없어요.</p>
         {!confirmDelete ? (
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>
         ) : (

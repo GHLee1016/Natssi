@@ -114,9 +114,6 @@ function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
               <p className="fw-k">오늘 볼 붉은기</p>
               <p className="fw-big">{d.today_redness.toFixed(1)}</p>
             </div>
-            {d.today_cheeks && (
-              <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
-            )}
           </div>
           {range && <p className="fw-range">지금까지 내 기록 <b>{range.lo} ~ {range.hi}</b> <span className="muted">(사진 {range.n}일)</span></p>}
           <details className="fw-what">
@@ -247,9 +244,6 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
       d.today_redness == null ? '사진 한 장 찍고 증상 네 가지를 고르면 돼요. 1분쯤 걸려요.'
         : !d.today_checkin ? `오늘 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}. 증상까지 남기면 오늘 기록이 끝나요.`
           : `오늘 기록을 마쳤어요. 볼 붉은기 ${d.today_redness > 0 ? '+' : ''}${d.today_redness}`}</div></div>
-    {d.today_cheeks && (
-      <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
-    )}
     {d.today_redness == null && <button className="btn" onClick={() => go('capture')}>오늘 기록하기</button>}
     {d.today_redness != null && !d.today_checkin && !draft && (
       <button className="btn" onClick={() => { setDraft({}); setTimeout(() => document.getElementById('today-checkin')?.scrollIntoView({ block: 'center' }), 0) }}>증상 남기기</button>
