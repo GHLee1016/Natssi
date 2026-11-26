@@ -4,10 +4,10 @@ import { api } from '../api.js'
 // 입력 검사는 첫 번째로 칸을 벗어날 때(blur) 한다. 타이핑 중에는 오류를 보여주지 않고,
 // 오류가 난 칸에 다시 들어가거나 고쳐 쓰기 시작하면 바로 지운다.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const checkEmail = (v) => (!v.trim() ? '이메일 주소를 입력해 주세요.' : EMAIL_RE.test(v.trim()) ? '' : 'name@example.com 같은 이메일 주소를 입력해 주세요.')
+const checkEmail = (v) => (!v.trim() ? '이메일 주소를 입력해 주세요.' : EMAIL_RE.test(v.trim()) ? '' : 'name@example.com처럼 입력해 주세요.')
 const checkPassword = (v, strict) => {
   if (!v) return '비밀번호를 입력해 주세요.'
-  if (strict && (v.length < 8 || /^[0-9]+$/.test(v) || /^\p{L}+$/u.test(v))) return '8자 이상, 글자와 숫자를 함께 써 주세요.'
+  if (strict && (v.length < 8 || /^[0-9]+$/.test(v) || /^\p{L}+$/u.test(v))) return '8자 이상, 글자와 숫자를 섞어 써 주세요.'
   return ''
 }
 // 서버가 돌려준 문구가 특정 칸에 대한 것이면 그 칸 아래에 보여준다.
@@ -91,8 +91,8 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
 
   if (done) {
     const text = {
-      signup: ['메일을 확인해 주세요', `${email} 으로 인증 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.`],
-      forgot: ['메일을 확인해 주세요', `${email} 으로 비밀번호 재설정 링크를 보냈어요. 가입된 이메일이라면 곧 도착해요. 메일이 안 보이면 스팸함도 확인해 주세요.`],
+      signup: ['메일을 확인해 주세요', `${email} 주소로 인증 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.`],
+      forgot: ['메일을 확인해 주세요', `${email} 주소로 비밀번호를 새로 정하는 링크를 보냈어요. 가입된 이메일이면 곧 도착해요. 안 보이면 스팸함도 확인해 주세요.`],
       reset: ['비밀번호를 바꿨어요', '새 비밀번호로 로그인해 주세요.'],
     }[done]
     return (
@@ -113,7 +113,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
   return (
     <section className="auth">
       <header className="page-head"><div><h1>{title}</h1></div>
-        <button className="btn ghost" onClick={back}>김서연 데모로 돌아가기</button></header>
+        <button className="btn ghost" onClick={back}>예시로 돌아가기</button></header>
       <div className="auth-wrap">
       <form className="card" onSubmit={submit} noValidate>
         {(mode === 'login' || mode === 'signup') && (
@@ -123,9 +123,9 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           </div>
         )}
         {linkExpired && mode === 'forgot' && (
-          <p className="notice" role="status">재설정 링크가 만료됐거나 이미 사용됐어요. 이메일을 입력하면 새 링크를 보내 드려요.</p>
+          <p className="notice" role="status">재설정 링크가 만료됐거나 이미 쓰였어요. 이메일을 입력하면 새 링크를 보내요.</p>
         )}
-        {mode === 'forgot' && !linkExpired && <p className="muted small">가입한 이메일을 입력하면 비밀번호를 새로 정하는 링크를 보내 드려요.</p>}
+        {mode === 'forgot' && !linkExpired && <p className="muted small">가입한 이메일을 입력하면 비밀번호를 새로 정하는 링크를 보내요.</p>}
 
         {mode !== 'reset' && (
           <Field id="auth-email" label="이메일" error={errs.email}>
@@ -136,7 +136,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
         )}
         {mode !== 'forgot' && (
           <Field id="auth-pw" label={mode === 'reset' ? '새 비밀번호' : '비밀번호'} error={errs.password}
-            helper={strictPw ? '8자 이상, 글자와 숫자를 함께 써 주세요.' : null}>
+            helper={strictPw ? '8자 이상, 글자와 숫자를 섞어 써 주세요.' : null}>
             <div className="pw-wrap">
               <input id="auth-pw" ref={pwRef} type={showPw ? 'text' : 'password'} autoComplete={strictPw ? 'new-password' : 'current-password'}
                 value={password} onChange={(e) => { setPassword(e.target.value); if (errs.password) setErr('password', '') }} {...touch('password')}
@@ -147,7 +147,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           </Field>
         )}
         {mode === 'login' && recovery && (
-          <button type="button" className="link forgot" onClick={() => switchMode('forgot')}>비밀번호를 잊으셨나요?</button>
+          <button type="button" className="link forgot" onClick={() => switchMode('forgot')}>비밀번호 찾기</button>
         )}
 
         {signup && (
@@ -182,13 +182,13 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
       </form>
       <aside className="card auth-side" aria-label="낯씨 소개">
         <img src="/logo.svg" alt="" width="44" height="44" />
-        <h2>루틴을 한 번에 하나만 바꾸고,<br />내 얼굴이 어떻게 달랐는지 확인해요</h2>
+        <h2>루틴은 한 번에 하나만 바꾸고,<br />그 뒤 얼굴이 어땠는지 봐요</h2>
         <ul>
-          <li><b>기록</b><span>매일 셀카 한 장과 증상 기록으로 남겨요.</span></li>
-          <li><b>변화</b><span>루틴을 바꾼 날을 기준으로 평소 범위와 비교해요.</span></li>
-          <li><b>리포트</b><span>기록에 있는 사실만 문장으로 정리해요. 진단은 하지 않아요.</span></li>
+          <li><b>기록</b><span>매일 셀카 한 장과 증상을 남겨요.</span></li>
+          <li><b>변화</b><span>루틴을 바꾼 날 전후로 볼 붉은기가 평소 범위를 넘었는지 봐요.</span></li>
+          <li><b>리포트</b><span>기록에 있는 사실만 글로 정리해요. 진단은 하지 않아요.</span></li>
         </ul>
-        <p className="small muted">로그인하지 않아도 김서연 데모는 읽기 전용으로 볼 수 있어요. 가입하면 내 기록으로 판정해요(사진 기록 7일 뒤부터). 얼굴 사진은 기기 안에서 검사하고 서버에 보내지 않아요(볼 부분 사진 보관에 선택 동의한 경우만 양 볼 조각을 보관해요).</p>
+        <p className="small muted">김서연(가상 인물)의 예시는 로그인하지 않아도 볼 수 있어요. 가입하면 사진 기록이 7일 쌓인 다음 날부터 내 기록으로 얼굴 날씨를 알려요. 얼굴 사진은 내 기기 안에서 검사하고 서버로 보내지 않아요. 양 볼 조각 사진은 ‘볼 부분 사진 보관’에 동의했을 때만 보관해요.</p>
       </aside>
       </div>
     </section>

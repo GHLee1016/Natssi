@@ -80,7 +80,7 @@ function canvasOf(w, h) {
 const HEIF = /image\/hei[cf]|\.hei[cf]$/i
 async function decodePhoto(file) {
   if (HEIF.test(file.type || '') || HEIF.test(file.name || '')) {
-    throw userError("이 사진 형식(HEIF)은 브라우저에서 열 수 없어요. 카메라 설정에서 '고효율 사진'을 끄고 찍거나, 이 화면의 [사진 찍기]로 찍어 주세요.")
+    throw userError("이 사진 형식(HEIF)은 브라우저에서 열리지 않아요. 카메라 설정에서 '고효율 사진'을 끄고 찍거나, 이 화면의 카메라로 바로 찍어 주세요.")
   }
   const opt = { imageOrientation: 'from-image', colorSpaceConversion: 'none' }
   try {

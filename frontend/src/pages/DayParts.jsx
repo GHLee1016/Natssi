@@ -10,7 +10,7 @@ export const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
 // 환경 줄. district가 있으면 어느 구의 실측값인지 밝힌다.
 export function EnvLine({ e, district, day }) {
-  const src = district ? `환경(${district} 실측)` : '환경'
+  const src = district ? `동네 환경(${district})` : '동네 환경'
   const has = e && (e.pm25 != null || e.humidity != null || e.temp != null)
   if (!has) return <span className="env-line"><b>{src}</b> <span className="muted">이날 측정값은 아직 없어요</span></span>
   const when = e.measured_on && e.measured_on !== day ? `${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값` : ''
@@ -121,7 +121,7 @@ export function EmptyDay({ isToday, action }) {
     <div className="empty-day" role="status">
       <img src="/logo.svg" alt="" className="empty-face" />
       <p className="empty-title">{isToday ? '오늘은 아직 기록이 없어요' : '이날은 기록이 없어요'}</p>
-      <p className="muted small">{isToday ? '사진 한 장과 증상 네 가지면 돼요.' : '다른 날을 골라 보세요.'}</p>
+      <p className="muted small">{isToday ? '사진 한 장 찍고 증상 네 가지만 고르면 돼요.' : '다른 날을 골라 보세요.'}</p>
       {action}
     </div>
   )

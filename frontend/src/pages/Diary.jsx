@@ -26,7 +26,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
   const wide = useMedia(WIDE)                         // PC: 대시보드 배치
   const [sub, openSub, closeSub] = useSub()
   const ASK = { face: '재는 법 보기', recap: 'Recap' }
-  const DESC = { face: '낯씨는 양 볼의 붉은기만 재요. 트러블은 찾지 않고, 진단하지 않아요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
+  const DESC = { face: '낯씨는 양 볼 붉은기만 재요. 트러블을 찾거나 진단하지 않아요.', recap: '한 달 기록을 카드로 넘겨 봐요.' }
   const tabs = d && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     { id: 'face', icon: ICONS.target, label: ASK.face }, { id: 'recap', icon: ICONS.spark, label: ASK.recap }]} />
   const log = d && (
@@ -36,7 +36,7 @@ export default function Diary({ date, setDate, meta, go, askLogin }) {
         <div className="rec-row">
           <span className="rec-k">셀카</span>
           <div className="rec-v"><i className="thumb round" style={{ backgroundImage: `url(/faces/${d.record.photo}.jpg)` }} />
-            <div>{d.record.quality_ok ? '사진이 잘 찍혔어요' : d.record.quality_note}<p className="muted small">AI로 생성된 이미지</p></div></div>
+            <div>{d.record.quality_ok ? '사진이 잘 찍혔어요' : d.record.quality_note}<p className="muted small">AI로 만든 이미지</p></div></div>
           <button className="link" onClick={() => go('capture')}>내 얼굴 기록해 보기</button>
         </div>
         <div className="rec-row">

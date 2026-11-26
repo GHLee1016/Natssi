@@ -17,7 +17,7 @@ export default function ThumbPicker({ photo, icon, autoIcon = 'cream', onPhoto, 
   const pick = async (e) => {
     const f = e.target.files?.[0]; e.target.value = ''
     if (!f) return
-    try { setOpen(false); await onPhoto(await productThumbnail(f)) } catch { onError?.('사진을 열 수 없어요. JPG나 PNG로 골라 주세요.') }
+    try { setOpen(false); await onPhoto(await productThumbnail(f)) } catch { onError?.('사진이 열리지 않아요. JPG나 PNG로 골라 주세요.') }
   }
   const choose = async (k) => { setOpen(false); await onIcon(k) }
   const name = icon && ICON_CHOICES.find(([k]) => k === icon)?.[1]

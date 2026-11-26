@@ -32,7 +32,7 @@ export default function Routine() {
                 <div className="row" key={it.key}>
                   <ProductIcon name={it.key} tone={TONE[it.family] || '#e8f2f8'} />
                   <div><b>{it.name}</b>
-                    <KV className="small" items={[['사용', fmt.plain(it.usage)], ['종류', it.kind === 'device' ? '디바이스' : it.family + ' 계열']]} /></div>
+                    <KV className="small" items={[['사용', fmt.plain(it.usage)], ['종류', it.kind === 'device' ? '기기' : it.family + ' 계열']]} /></div>
                 </div>
               ))}
             </div>

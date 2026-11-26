@@ -154,13 +154,13 @@ def evaluate(f: Features, b_ref=None):
         if abs(d["yaw"]) > t["max_yaw"]:
             return "얼굴이 옆으로 돌아갔어요. 정면을 봐 주세요"
         if pitch is not None and abs(pitch) > t["max_pitch"]:
-            return "고개를 숙였거나 들었어요. 눈높이를 맞춰 주세요"
+            return "고개를 숙였거나 들었어요. 폰을 눈높이에 맞춰 주세요"
         return "고개가 기울었어요. 머리를 똑바로 세워 주세요"
 
     def expr_bad():
         if "eyes_closed" in flags:
             return "눈을 감았어요. 눈을 뜨고 찍어 주세요"
-        return "웃고 있어요. 편안한 표정으로 찍어 주세요"
+        return "웃고 있어요. 무표정으로 찍어 주세요"
 
     dark = d["brightness"] < t["bright_lo"]
     checks = [
@@ -170,10 +170,10 @@ def evaluate(f: Features, b_ref=None):
              "너무 어두워요. 더 밝은 곳에서 찍어 주세요" if dark else "너무 밝아요. 빛이 덜 센 곳에서 찍어 주세요",
              f"평균 {d['brightness']:.0f} (70~210)", needs_face=False),
         {"name": "얼굴", "ok": face and "multiple_faces" not in flags, "implemented": True,
-         "tech": f"{d['n_faces']}명 검출",
-         "detail": ("얼굴을 찾지 못했어요. 얼굴이 화면 안에 들어오게 해 주세요" if not face
+         "tech": f"{d['n_faces']}명 보임",
+         "detail": ("얼굴을 찾지 못했어요. 얼굴 전체가 화면에 들어오게 찍어 주세요" if not face
                     else "여러 명이 보여요. 한 명만 나오게 찍어 주세요" if "multiple_faces" in flags else "얼굴이 잘 보여요")},
-        item("얼굴 크기", {"face_small"}, "알맞은 크기예요", "얼굴이 작아요. 조금 더 가까이서 찍어 주세요",
+        item("얼굴 크기", {"face_small"}, "알맞은 크기예요", "얼굴이 작아요. 더 가까이서 찍어 주세요",
              f"사진 폭의 {_num(d['face_ratio'], '.0%')} (25% 이상)"),
         item("선명도", {"blur"}, "또렷하게 보여요", "흐려요. 폰을 고정하고 다시 찍어 주세요",
              f"{_num(d['sharpness'], '.0f')} ({t['min_sharpness']:.0f} 이상)"),
@@ -182,7 +182,7 @@ def evaluate(f: Features, b_ref=None):
         item("표정", {"smile", "eyes_closed"}, "편안한 표정이에요", expr_bad(),
              f"미소 {_num(d['smile'], '.2f')}, 눈 감음 {_num(d['blink'], '.2f')}"),
         item("볼 노출", {"clipped_L", "clipped_R"}, "볼에 빛이 고르게 닿았어요",
-             "볼이 하얗게 번졌어요. 빛이 덜 센 곳에서 찍어 주세요",
+             "볼 일부가 너무 밝아 하얗게 찍혔어요. 빛이 덜 센 곳에서 찍어 주세요",
              f"하얗게 날아간 부분 왼쪽 {_num(d['clip_ratio_L'], '.1%')}, 오른쪽 {_num(d['clip_ratio_R'], '.1%')} (1% 이하)"),
         item("색", {"no_color", "color_cast"}, "피부 색이 잘 보여요",
              "흑백이거나 색이 빠진 사진 같아요. 필터 없이 다시 찍어 주세요" if "no_color" in flags else
@@ -200,17 +200,16 @@ def evaluate(f: Features, b_ref=None):
     redness = round(d["a_star"], 2) if passed and not _missing(d["a_star"]) else None
     if lighting_off:
         message = "조명 색이 평소와 달랐던 사진으로 기록했어요."
-        note = ("붉은기가 조명 때문에 틀어졌을 수 있어서, 이날은 판정에서 단정하지 않고 '안개'로 둬요. "
-                "평소 범위를 만들 때도 이날 값은 빼요.")
+        note = "조명이 다르면 붉은기도 다르게 찍혀서 이날 얼굴 날씨는 안개로 둬요. 평소 범위를 정할 때도 이날 값은 빼요."
     elif passed:
-        message = "좋아요, 이 사진으로 괜찮아요."
-        note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 오늘 기록에 볼 색 숫자만 남겨요(사진은 남기지 않아요)."
+        message = "잘 찍혔어요."
+        note = "볼 붉은기는 이 사진에서 잰 값이에요. 로그인하면 볼 색 숫자만 오늘 기록에 남고, 사진은 남지 않아요."
     elif overridable:
-        message = "조명 색이 평소와 달라 보여요. 하얀 조명에서 다시 찍는 게 좋지만, 그대로 기록할 수도 있어요."
-        note = "그대로 기록하면 이날은 판정에서 단정하지 않고 '안개'로 둬요."
+        message = "조명 색이 평소와 달라 보여요. 하얀 조명에서 다시 찍거나, 이 사진 그대로 기록해도 돼요."
+        note = "그대로 기록하면 이날은 평소와 비교하지 않고 안개로 둬요."
     else:
         message = "같은 장소와 조명에서 정면을 보고 다시 찍어 주세요."
-        note = "품질 검사를 통과한 사진만 볼 붉은기를 보여 드려요."
+        note = "볼 붉은기는 잘 찍힌 사진에서만 재요."
     return {"passed": passed, "checks": checks, "flags": sorted(flags), "message": message,
             "redness": redness, "overridable": overridable and not lighting_off,
             "lighting_off": lighting_off, "note": note}

@@ -63,7 +63,7 @@ function Chart({ records, versions, onPick, picked }) {
   const peakOut = base && peak.redness > base.high
   return (
     <div ref={box}>
-    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="chart" role="group" aria-label="볼 붉은기 변화 그래프. 점을 누르면 그날 기록이 보여요.">
+    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="chart" role="group" aria-label="볼 붉은기 그래프. 점을 누르면 그날 기록이 아래에 보여요.">
       <defs>
         <linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#d9653f" stopOpacity=".16" /><stop offset="1" stopColor="#d9653f" stopOpacity="0" /></linearGradient>
         <clipPath id="plot"><rect x={PAD.l} y={PAD.t - 12} width={W - PAD.l - PAD.r} height={floor - PAD.t + 12} rx="14" /></clipPath>
@@ -90,7 +90,7 @@ function Chart({ records, versions, onPick, picked }) {
             {(sig || on) && <circle cx={x(idx(r))} cy={y(r.redness)} r={on ? 12 : 10} fill={sig ? '#ff8a65' : '#1f2a37'} opacity=".2" pointerEvents="none" />}
             {/* 누르는 곳은 점이 아니라 그날 세로 한 줄 전체(점이 작고 촘촘해서 손가락으로 맞히기 어려움) */}
             <rect x={x(idx(r)) - step / 2} y={PAD.t - 12} width={step} height={floor - PAD.t + 12} fill="transparent" className="hit" tabIndex="0" role="button"
-              aria-label={`${fmt.md(r.date)} 붉은기 ${r.redness} ${WEATHER[r.verdict.level].name}`} aria-pressed={on}
+              aria-label={`${fmt.md(r.date)} 볼 붉은기 ${r.redness} ${WEATHER[r.verdict.level].name}`} aria-pressed={on}
               onClick={() => onPick(r)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onPick(r))} />
             <circle cx={x(idx(r))} cy={y(r.redness)} r={on ? 6.500 : sig ? 5.500 : 3.600}
               className={'pt ' + LEVEL_CLASS[r.verdict.level]} pointerEvents="none" />
@@ -128,8 +128,8 @@ function Compare({ records, mine }) {
   const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} ({r.version}번째 루틴)</option>
   return (
     <div className="card">
-      <h2 className="h3">{mine ? '두 날의 볼 붉은기 비교' : '두 날의 사진 겹쳐 비교'}</h2>
-      {mine && <p className="muted small">얼굴 사진 대신 그날 잰 볼 색 숫자와 색 칩으로 비교해요.</p>}
+      <h2 className="h3">{mine ? '두 날 볼 붉은기 비교' : '두 날 사진 겹쳐 보기'}</h2>
+      {mine && <p className="muted small">사진 대신 그날 잰 볼 붉은기 숫자와 볼 색을 나란히 보여요.</p>}
       <div className="pickers">
         <label>앞 날짜<select value={a} onChange={(e) => setA(e.target.value)}>{dated.map(opt)}</select></label>
         <label>뒤 날짜<select value={b} onChange={(e) => setB(e.target.value)}>{dated.map(opt)}</select></label>
@@ -144,17 +144,17 @@ function Compare({ records, mine }) {
             <span className="tag l">{fmt.md(c.a.date)} ({c.a.version}번째 루틴)</span>
             <span className="tag r">{fmt.md(c.b.date)} ({c.b.version}번째 루틴)</span>
             <span className="tag ai">{c.photo_note}</span>
-            <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="비교 위치 조절" />
+            <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="두 사진을 가르는 선 옮기기" />
           </div>}
           <div className="diff">
             <div><p className="muted small">두 날의 볼 붉은기 차이</p>
               <b>{c.diff > 0 ? '+' : ''}{c.diff}</b>
               <p className={'diff-note ' + (c.beyond_error ? 'warn' : 'calm')}>
-                {c.beyond_error ? '측정 오차보다 커서, 달라진 것으로 보여요' : '측정 오차 안이라, 달라졌다고 보기 어려워요'}
+                {c.beyond_error ? '다시 찍어도 생기는 차이보다 커서, 달라졌다고 볼 만해요' : '다시 찍어도 생기는 정도의 차이라, 달라졌다고 보기 어려워요'}
               </p></div>
-            <span className="muted small">측정 오차는 ±{c.mdc95} 정도예요 (팀원 반복 촬영 예비 측정)</span>
+            <span className="muted small">같은 얼굴을 다시 찍어도 ±{c.mdc95} 정도는 달라져요. 팀원들이 여러 번 찍어서 잰 임시 값이에요.</span>
           </div>
-          <div className="swatches" aria-label="두 날의 볼 색 견본">
+          <div className="swatches" aria-label="두 날의 볼 색">
             {[c.a, c.b].map((r, i) => {
               // 데모(가상) 기록은 붉은기가 '평소 대비 차이'로만 있어 피부색 기준(a*≈10)·밝기·노란기 고정값으로 그린다
               const color = mine ? labToCss(r.L ?? 64, r.redness, r.b ?? 17) : labToCss(64, 10 + r.redness, 17)
@@ -168,9 +168,9 @@ function Compare({ records, mine }) {
               )
             })}
           </div>
-          <p className="muted small">색 칩은 사진 속 양 볼의 평균 색이에요. 조명과 화면에 따라 조금 달라 보일 수 있어요.
+          <p className="muted small">위 색은 사진 속 양 볼의 평균 색이에요. 조명이나 화면에 따라 실제와 달라 보이기도 해요.
             {mine && ' 볼 부분 사진은 \'볼 부분 사진 보관\'(선택)에 동의한 뒤 찍은 날만 보여요.'}</p>
-          <details className="tech"><summary>기술 정보</summary><p>붉은기는 Lab 색공간의 a* 값이고, 위 차이는 Δa*(뒤 날짜 − 앞 날짜)예요. 측정 오차는 MDC95 기준이에요. 색 칩은 그날 잰 L*, a*, b*를 화면 색(sRGB)으로 바꾼 거예요.</p></details>
+          <details className="tech"><summary>기술 정보</summary><p>볼 붉은기는 색을 숫자로 나타내는 방식(Lab 색공간)의 a* 값이에요. 위 차이는 뒤 날짜 값에서 앞 날짜 값을 뺀 Δa*이고, ±값은 MDC95 기준이에요. 볼 색은 그날 잰 L*, a*, b*를 화면 색(sRGB)으로 바꿔 칠했어요.</p></details>
         </>
       )}
     </div>
@@ -191,7 +191,7 @@ export default function Change({ onOpenDay, mine = false }) {
   const canCompare = q.data?.records.some((r) => r.redness !== null)
   const head = <header className="page-head sr-head"><div><h1 className="sr-only">변화</h1></div></header>
   const ASK = { compare: '두 날 비교하기', overlap: '흐린 날 살펴보기' }
-  const DESC = { compare: mine ? '두 날의 볼 색을 숫자와 색 칩으로 비교해요.' : '두 날의 사진을 겹쳐 비교해요.', overlap: '흐린 날과 시기가 겹친 루틴 변경이에요. 제품이 원인이라고 단정할 수는 없어요.' }
+  const DESC = { compare: mine ? '고른 두 날의 볼 붉은기를 숫자와 색으로 견줘요.' : '두 날 사진을 겹쳐 놓고, 가운데 선을 밀어 견줘요.', overlap: '흐린 날 무렵에 바꾼 루틴과 그 제품의 성분 계열이에요. 시기만 겹쳤어요. 제품이 원인인지는 알 수 없어요.' }
   const tabs = q.data && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     canCompare && { id: 'compare', icon: ICONS.compare, label: ASK.compare }, { id: 'overlap', icon: ICONS.cloud, label: ASK.overlap }]} />
   if (q.data && sub) return (
@@ -209,7 +209,7 @@ export default function Change({ onOpenDay, mine = false }) {
         <div>
           <div className="card">
             <h2 className="h3">볼 붉은기의 흐름</h2>
-            <p className="muted small">점수가 아니라 내 평소 범위와 비교해요. 점을 누르면 그날 기록이 보여요.</p>
+            <p className="muted small">점수를 매기지 않아요. 내 평소 볼 붉은기 범위(초록 띠)와 비교해요.</p>
             <Chart records={q.data.records} versions={q.data.versions} onPick={setPicked} picked={picked} />
             <div className="stepper">
               <button className="btn ghost" onClick={() => step(-1)} disabled={picked && picked.id === dated[0]?.id}>‹ 이전 날</button>
@@ -220,14 +220,14 @@ export default function Change({ onOpenDay, mine = false }) {
               <span><i className="sw band" />내 평소 범위</span>
               {Object.values(WEATHER).map((w) => <span key={w.name}><i className={'sw dotsw ' + w.cls} />{w.name}</span>)}
             </div>
-            <p className="muted small">세로는 볼 붉은기(a*)예요. 0보다 클수록 붉어요. 안개는 사진 품질 때문에 측정을 보류했거나 아직 평소 범위가 없어 판단하지 않은 날이에요.</p>
+            <p className="muted small">세로축은 볼 붉은기예요. 위로 갈수록 붉어요. 안개는 사진 품질이 낮아 붉은기를 재지 않았거나, 평소 범위가 아직 없어 비교하지 않은 날이에요.</p>
             {picked ? (
               <div className={'picked ' + LEVEL_CLASS[picked.verdict.level]}>
                 <b>{fmt.full(picked.date)}</b>
-                <KV className="small" items={[['날씨', WEATHER[picked.verdict.level].name], ['붉은기', `${picked.redness > 0 ? '+' : ''}${picked.redness}`], ['증상', symptomLine(picked.symptoms)]]} />
+                <KV className="small" items={[['얼굴 날씨', WEATHER[picked.verdict.level].name], ['볼 붉은기', `${picked.redness > 0 ? '+' : ''}${picked.redness}`], ['증상', symptomLine(picked.symptoms)]]} />
                 {onOpenDay && <button className="link" onClick={() => onOpenDay(picked.date)}>다이어리에서 보기</button>}
               </div>
-            ) : <p className="muted small hint">점을 누르거나 아래에서 날짜를 골라 보세요.</p>}
+            ) : <p className="muted small hint">그래프에서 점을 누르면 그날 기록이 여기에 보여요.</p>}
             {cloudy.length > 0 && (
               <div className="jump">
                 <p className="muted small">흐렸던 날</p>

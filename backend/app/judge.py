@@ -7,13 +7,13 @@ from . import config
 
 NO_SIGNAL, WATCH, SIGNAL, UNKNOWN = "신호 없음", "관찰 중", "신호 있음", "구분 불가"
 MESSAGES = {
-    NO_SIGNAL: "지금 루틴과 잘 지내고 있어요.",
+    NO_SIGNAL: "평소와 비슷한 얼굴이에요.",
     WATCH: "며칠 더 지켜볼게요.",
-    SIGNAL: "바꾼 시기와 붉은기가 오른 시기가 겹쳐요. 같은 장소와 시간에 며칠 더 찍거나, 빈도를 줄여 보세요.",
+    SIGNAL: "루틴을 바꾼 시기와 붉은기가 오른 시기가 겹쳐요. 며칠 더 같은 장소, 같은 시간에 찍거나 그 제품을 쓰는 횟수를 줄여 보세요.",
     UNKNOWN: "기록이 더 필요해요.",
 }
 # 루틴을 바꾸지 않은 채(같은 버전 안에서) 평소 범위를 넘은 경우: '바꾼 시기'가 없으므로 다른 문장을 쓴다
-SIGNAL_NO_CHANGE = "루틴을 바꾸지 않았는데 붉은기가 평소 범위를 넘은 날이 이어졌어요. 같은 장소와 시간에 며칠 더 찍어 확인해 보세요."
+SIGNAL_NO_CHANGE = "루틴을 바꾸지 않았는데 붉은기가 평소 범위를 넘은 날이 이어졌어요. 같은 장소, 같은 시간에 며칠 더 찍어 보세요."
 
 
 def _mad(values, med):
@@ -84,13 +84,13 @@ def judge_all(records):
 
         if not r["quality_ok"] or r["redness"] is None:
             verdict = UNKNOWN
-            res["reasons"].append(r.get("quality_note") or "사진 품질이 낮아요")
+            res["reasons"].append(r.get("quality_note") or "사진이 잘 찍히지 않았어요")
         elif r["light_flag"]:          # 조명 색이 평소와 달랐던 날(볼 b*로 판단)
             verdict = UNKNOWN
-            res["reasons"].append("사진의 조명 색이 평소와 달라요. 붉은기가 조명 때문에 틀어졌을 수 있어 단정하지 않아요")
+            res["reasons"].append("조명 색이 평소와 달랐어요. 붉은기가 실제와 다르게 찍혔을 수 있어 이날은 비교하지 않아요")
         elif len(base_vals) < config.MIN_BASELINE_RECORDS:
             verdict = UNKNOWN
-            res["reasons"].append(f"평소 범위를 만들 기록이 부족해요 ({len(base_vals)}/{config.MIN_BASELINE_RECORDS})")
+            res["reasons"].append(f"평소 범위를 정할 사진 기록이 아직 적어요 ({len(base_vals)}/{config.MIN_BASELINE_RECORDS}일)")
         else:
             b = baseline_from(base_vals)
             exceeds = r["redness"] > b["high"]
@@ -102,20 +102,20 @@ def judge_all(records):
             # 이 규칙이 잡음, 필터 없는 사진 57장 중 2장이 걸림. 2026-11-22 데모 얼굴 필터 시험에서 차갑게, 채도 내림, 흑백 확인).
             if exceeds and r["env"].get("unusual"):
                 verdict = UNKNOWN
-                res["reasons"].append("같은 시기에 환경도 크게 달라졌어요")
+                res["reasons"].append("같은 날 동네 환경(미세먼지, 습도, 기온)도 평소와 많이 달랐어요")
             elif exceeds and (prev_day_exceeded or max_symptom >= config.SYMPTOM_ALERT):
                 verdict = SIGNAL
                 res["reasons"].append("붉은기가 평소 범위를 넘었어요")
                 if prev_day_exceeded:
                     res["reasons"].append("이틀 이상 이어졌어요")
                 if max_symptom >= config.SYMPTOM_ALERT:
-                    res["reasons"].append("증상 기록과 겹쳤어요")
+                    res["reasons"].append("같은 날 증상도 기록했어요")
             elif exceeds:
                 verdict = WATCH
                 res["reasons"].append("하루만 평소 범위를 벗어났어요")
             elif max_symptom >= config.SYMPTOM_ALERT:
                 verdict = WATCH
-                res["reasons"].append("사진 변화 없이 증상만 있어요")
+                res["reasons"].append("볼 색은 평소와 같고 증상만 기록했어요")
             else:
                 verdict = NO_SIGNAL
             _ = prev_same
