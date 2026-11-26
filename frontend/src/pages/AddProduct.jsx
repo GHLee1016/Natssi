@@ -22,7 +22,7 @@ const josa = (w) => {
 const uniq = (items) => { const seen = new Set(); return items.filter((i) => !seen.has(key(i.name)) && seen.add(key(i.name))) }
 const MAX_PHOTOS = 3
 const FEW = 10                                   // 사진에서 이보다 적게 읽히면 일부만 찍혔을 수 있다고 알린다
-const NOT_FOUND = '전성분을 찾지 못했어요. 전성분이 화면에 가득 차게 다시 찍거나, 쇼핑몰 상세 화면을 캡처해 올려 주세요. 글자를 붙여 넣어도 돼요.'
+const NOT_FOUND = '사진에서 전성분을 찾지 못했어요. 전성분이 화면에 가득 차게 다시 찍거나 쇼핑몰 상세 화면을 캡처해 올려 주세요. 전성분 글자를 붙여 넣어도 돼요.'
 // 둥근 통 찍는 법: 가장자리 글자는 눌려서 잘 못 읽으니, 통을 돌려 가며 가운데에 오게 여러 장
 function RoundTip() {
   return (
@@ -77,7 +77,7 @@ function Label({ kind }) {
 const BAD_OCR = [['glare', '둥근 병은 빛 반사를 피해', '조금씩 돌려 가며 찍어요'], ['blur', '폰을 흔들리지 않게 잡고', '글자를 눌러 초점을 맞춰요'], ['cut', '전성분이 잘리지 않게', '처음부터 끝까지 담아요']]
 const BAN_OCR = <svg className="cap-ban" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M5.600 5.600l12.800 12.800" /></svg>
 // 분석 단계(실제로 하는 일 순서). 0은 이 기기에서 하는 흐림 검사, 1~3은 ocr.js가 알려 준다.
-const OCR_STAGES = ['사진 선명도 확인', '사진 정리(위치 정보 지우기)', '읽기 서버 연결', '글자 읽고 성분 사전과 맞추기']
+const OCR_STAGES = ['사진이 흐리지 않은지 보기', '사진에서 위치 정보 지우기', '전성분 읽을 준비', '글자를 읽고 식약처 성분 이름과 맞추기']
 
 const SAMPLE = '정제수, 글리세린, 나이아신아마이드, 판테놀, 병풀추출물, 세라마이드엔피, 향료'
 
@@ -157,7 +157,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
     const next = [...shots, f]
     setShots(next)
     if (next.length >= MAX_PHOTOS) return finishCam(next)
-    setShotHint({ bad: false, text: `${next.length}장 찍었어요. 남은 전성분이 있으면 이어서 찍고, 다 찍었으면 완료를 눌러요.` })
+    setShotHint({ bad: false, text: `${next.length}장 찍었어요. 남은 전성분이 있으면 이어서 찍고, 다 찍었으면 ‘완료’를 눌러요.` })
   }
   const finishCam = (list) => { stopCam(); if (list.length) readPhotos(list, true) }
   const head = useRef(null)
@@ -274,11 +274,11 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
   )
 
   const camView = ocr && (
-    <div className={'camview ocr-cam' + (cam === 'on' ? ' on' : '')} hidden={cam !== 'on'} role="dialog" aria-modal="true" aria-label="전성분 촬영">
+    <div className={'camview ocr-cam' + (cam === 'on' ? ' on' : '')} hidden={cam !== 'on'} role="dialog" aria-modal="true" aria-label="전성분 찍는 화면">
       <video ref={video} playsInline muted />
       <div className="ocr-box" />
       <div className="cam-top">
-        <button className="cam-pill" onClick={() => { stopCam(); setShots([]) }}>촬영 가이드</button>
+        <button className="cam-pill" onClick={() => { stopCam(); setShots([]) }}>찍는 법</button>
         <span className="cam-pill" aria-live="polite">{shots.length}/{MAX_PHOTOS}장</span>
       </div>
       <p className={'cam-hint' + (shotHint && !shotHint.bad ? ' ok' : '')} role="status">
@@ -337,8 +337,8 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           )}
           {first && <small id="p-recent-help" className="muted">{t.recent.help}</small>}
           {/* 처음 루틴은 오늘로 함께 묶어 등록하고, 실제로 쓰기 시작한 날은 등록 뒤 '시작일 고치기'로 바꾼다(같은 날 묶음이 깨지지 않게) */}
-          {first ? <small className="muted">전부터 쓰던 제품이면, 등록한 뒤 루틴 카드의 '시작일 고치기'에서 실제로 쓰기 시작한 날을 골라요.</small>
-            : <WhenPicker id="p-when" label="언제 추가했나요?" value={on} onChange={setOn} min={changeFrom} max={today} />}
+          {first ? <small className="muted">전부터 쓰던 제품이면 등록한 뒤 ‘시작일 고치기’를 눌러 실제로 쓰기 시작한 날을 골라요.</small>
+            : <WhenPicker id="p-when" label="언제부터 썼나요?" value={on} onChange={setOn} min={changeFrom} max={today} />}
           <div className="field prod-photo-field">
             <span className="muted small">제품 사진 (선택)</span>
             <ThumbPicker photo={photo} icon={icon} onError={setErr}
@@ -375,14 +375,14 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
               </div>
               <RoundTip />
               {blurBox}
-              {cam === 'blocked' && <p className="err" role="alert">카메라가 열리지 않아요. 브라우저에서 카메라 권한을 허용하거나 사진을 골라 주세요.</p>}
+              {cam === 'blocked' && <p className="err" role="alert">카메라가 열리지 않아요. 브라우저 설정에서 카메라를 허용하거나 사진을 골라 주세요.</p>}
               {desk ? (
                 <div className="ocr-actions">
                   <label className={'btn dark file' + (reading ? ' disabled' : '')} aria-disabled={reading}>사진 고르기 (쇼핑몰 캡처도 돼요){pickInput((f) => readPhotos(f))}</label>
                   <details className="ocr-phone">
                     <summary className="small">폰으로 찍으려면</summary>
                     <div><QR text={`${window.location.origin}/?tab=routine`} />
-                      <p className="small">폰 카메라로 QR을 비추면 낯씨 루틴 화면이 열려요. 거기서 '제품 추가'를 눌러 찍어요.</p></div>
+                      <p className="small">폰 카메라로 QR을 비추면 낯씨 루틴 화면이 열려요. 거기서 ‘제품 추가’를 눌러 찍어요.</p></div>
                   </details>
                 </div>
               ) : (
@@ -418,7 +418,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {list.length === 0 ? <p className="muted">{t.step3.none}</p> : (
             <>
               <div className="ocr-sum">
-                <div><p>{fromPhotos ? '읽은 성분' : '나눈 성분'}</p><b>{list.length}개</b></div>
+                <div><p>{fromPhotos ? '읽은 성분' : '찾은 성분'}</p><b>{list.length}개</b></div>
                 <div><p>고친 오타</p><b>{fixed.length}개</b></div>
                 <div className={review ? 'warn' : ''}><p>확인 필요</p><b>{review}개</b></div>
               </div>
@@ -453,7 +453,7 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
                   </li>
                 )))}
               </ol>
-              <p className="muted small ing-src">식약처 화장품 원료성분 사전 기준</p>
+              <p className="muted small ing-src">성분 이름은 식약처 화장품 원료성분 사전을 따라요.</p>
               {fixed.length > 0 && (
                 <div className="fixed-list">
                   <p className="muted small">{t.step3.fixed}</p>
@@ -473,8 +473,8 @@ export default function AddProduct({ usages, askFamilies = [], ocr, first = fals
           {note && <p className="muted small" role="status">{note}</p>}
           {fromPhotos && ocrFiles.length < MAX_PHOTOS && (
             <div className="more-photos">
-              <p className="small"><b>빠진 성분이 있나요?</b> 둥근 통은 조금 돌려 찍은 사진을 더해 다시 읽어요
-                (지금 {ocrFiles.length}장, 최대 {MAX_PHOTOS}장). 다시 읽으면 위에서 고친 내용은 새 결과로 바뀌어요.</p>
+              <p className="small"><b>빠진 성분이 있나요?</b> 둥근 통이면 조금 돌려서 한 장 더 찍어 함께 읽어요
+                (지금 {ocrFiles.length}장, 최대 {MAX_PHOTOS}장). 다시 읽으면 위에서 고친 내용은 사라지고 새로 읽은 결과로 바뀌어요.</p>
               <label className={'btn ghost file' + (reading ? ' disabled' : '')} aria-disabled={reading}>
                 {reading ? '다시 읽는 중… (10~20초)' : '돌려 찍은 사진 더해서 다시 읽기'}
                 {pickInput((f) => readPhotos([...ocrFiles, ...f], false, ocrFiles.length))}

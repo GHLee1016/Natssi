@@ -50,7 +50,7 @@ export default function MyRoutine({ ocr }) {
   }
   const stop = async (key) => {
     setError(null)
-    try { const data = await api.removeRoutineItem(key, on && on !== r.today ? on : null); q.setData(data); setAsking(null); setWarn(data.warnings || []); setNote('사용 중단으로 기록했어요.') }
+    try { const data = await api.removeRoutineItem(key, on && on !== r.today ? on : null); q.setData(data); setAsking(null); setWarn(data.warnings || []); setNote('사용 중단을 기록했어요.') }
     catch (e) { setError(e.message) }
   }
 
@@ -88,7 +88,7 @@ export default function MyRoutine({ ocr }) {
                   {r.current.id === 1 && startEdit === null && <button type="button" className="link start-fix" onClick={() => { setStartEdit(r.current.start); setError(null) }}>시작일 고치기</button>}</h2>
                 {startEdit !== null && (
                   <div className="edit-usage">
-                    <p className="small">등록하기 전부터 이 제품들을 썼다면 실제로 쓰기 시작한 날을 골라요. 그날부터의 기록이 처음 루틴에 들어가요.</p>
+                    <p className="small">등록 전부터 이 제품들을 썼다면 실제로 쓰기 시작한 날을 골라요. 그날부터 쌓인 기록이 처음 루틴에 들어가요.</p>
                     <input type="date" value={startEdit} max={r.today}
                       aria-label="처음 루틴 시작일" onChange={(e) => e.target.value && setStartEdit(e.target.value)} />
                     <div className="step-actions">
@@ -104,14 +104,14 @@ export default function MyRoutine({ ocr }) {
                       {it.photo ? <img className="prod-photo" src={it.photo} alt={`${it.name} 사진`} />
                         : <ProductIcon name={it.icon || ICON[it.family] || 'cream'} tone={TONE[it.family] || '#e8f2f8'} />}
                       <div><b>{it.name}</b>
-                        <KV className="small" items={[['사용', fmt.plain(it.usage)], ['성분', it.ingredients.length ? `${it.ingredients.length}개` : '미입력']]} />
+                        <KV className="small" items={[['사용', fmt.plain(it.usage)], ['성분', it.ingredients.length ? `${it.ingredients.length}개` : '안 넣음']]} />
                         {it.families.length > 0 && <p className="fam">{it.families.map((f) => <span key={f}>{f}</span>)}</p>}
                       </div>
                       {asking === it.key ? (
                         <span className="ask"><button className="link" onClick={() => stop(it.key)}>중단할게요</button><button className="link" onClick={() => setAsking(null)}>취소</button></span>
                       ) : (
                         <span className="ask">
-                          <button className="link" onClick={() => { setLook(look === it.key ? null : it.key); setEditing(null); setAsking(null) }} aria-expanded={look === it.key} aria-label={`${it.name} 제품 사진 바꾸기`}>제품 사진</button>
+                          <button className="link" onClick={() => { setLook(look === it.key ? null : it.key); setEditing(null); setAsking(null) }} aria-expanded={look === it.key} aria-label={`${it.name} 사진 바꾸기`}>사진 바꾸기</button>
                           <button className="link" onClick={() => { openEdit(it); setLook(null) }} aria-label={`${it.name} 사용 횟수 바꾸기`}>사용 횟수 바꾸기</button>
                           <button className="link" onClick={() => { setAsking(it.key); setEditing(null); setOn(null) }} aria-label={`${it.name} 사용 중단`}>사용 중단</button>
                         </span>

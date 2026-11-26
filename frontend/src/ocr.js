@@ -67,7 +67,7 @@ export async function readIngredientPhotos(files, onStage = () => {}) {
   try {
     out = await app.predict('/ocr', { images: photos.map((f) => handle_file(f)) })
   } catch {
-    throw new Error('성분 읽기 서버에 연결되지 않았어요. 나중에 다시 올리거나, 전성분 글자를 붙여 넣어 주세요.')
+    throw new Error('지금은 사진을 읽지 못해요. 잠시 뒤 다시 올리거나 전성분 글자를 붙여 넣어 주세요.')
   }
   const r = out?.data?.[0] || {}
   return { ingredients: r.ingredients || [], ask_families: r.ask_families || [], message: r.message, seconds: r.seconds }
