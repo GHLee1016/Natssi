@@ -57,3 +57,11 @@ def test_boot_ci_brackets_estimate():
         sd, _ = mc.pooled_sd(mc.units(d, how))
         lo, hi = mc.boot_ci(d, how, b=300)
         assert lo <= mc.Z * sd * 1.05 and hi >= mc.Z * sd * 0.95, how
+
+
+def test_random_schemes_run_and_bracket_median():
+    d = _fake()
+    for how in mc.RANDOM:
+        mid, lo, hi = mc.random_ci(d, how, b=200)
+        assert lo <= mid <= hi, how
+        assert 1.0 < mid < 4.0, how

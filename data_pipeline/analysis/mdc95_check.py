@@ -132,9 +132,70 @@ def check(d: pd.DataFrame, b=B) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+RANDOM = {
+    "pick": "날마다 1장 무작위로 고르기만",
+    "pick_days": "날마다 1장 무작위 + 날 다시 뽑기",
+    "photos": "날 안 사진 다시 뽑기 → 하루 평균",
+    "days_photos": "날 다시 뽑기 + 날 안 사진 다시 뽑기 → 하루 평균",
+    "mixed_days": "사람 섞어 날 다시 뽑기 → 하루 평균",
+}
+
+
+def _mdc_from_days(member_vals: dict) -> float:
+    """{사람: 하루값 배열} → 사람 안 날짜 사이 표준편차를 합쳐 MDC95."""
+    ss = dof = 0.0
+    for v in member_vals.values():
+        if len(v) > 1:
+            ss += float(((v - v.mean()) ** 2).sum())
+            dof += len(v) - 1
+    return Z * np.sqrt(ss / dof) if dof else float("nan")
+
+
+def random_ci(d: pd.DataFrame, how: str, b=B, seed=0):
+    """'무작위로 몇 장 뽑기' 계열 방식. 반환: (가운데값, 2.5 백분위, 97.5 백분위)."""
+    rng = np.random.default_rng(seed)
+    days = {m: [g["a"].to_numpy() for _, g in x.groupby("date")] for m, x in d.groupby("member")}
+    vals = []
+    for _ in range(b):
+        mv = {}
+        for m, ds in days.items():
+            pick_days = rng.integers(0, len(ds), len(ds)) if how in ("pick_days", "days_photos") else range(len(ds))
+            out = []
+            for i in pick_days:
+                p = ds[i]
+                if how in ("pick", "pick_days"):
+                    out.append(p[rng.integers(0, len(p))])
+                else:
+                    out.append(p[rng.integers(0, len(p), len(p))].mean() if how != "mixed_days" else p.mean())
+            mv[m] = np.array(out)
+        if how == "mixed_days":
+            keys = [(m, i) for m, ds in days.items() for i in range(len(ds))]
+            sel = rng.integers(0, len(keys), len(keys))
+            mv = {}
+            for j in sel:
+                m, i = keys[j]
+                mv.setdefault(m, []).append(days[m][i].mean())
+            mv = {m: np.array(v) for m, v in mv.items()}
+        v = _mdc_from_days(mv)
+        if not np.isnan(v):
+            vals.append(v)
+    return float(np.median(vals)), float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))
+
+
+def random_table(d: pd.DataFrame, b=B) -> pd.DataFrame:
+    rows = []
+    for how, label in RANDOM.items():
+        mid, lo, hi = random_ci(d, how, b)
+        rows.append(dict(방식=label, 가운데값=round(mid, 2), 구간=f"{lo:.2f}~{hi:.2f}",
+                         원래구간과차이=round(abs(lo - TARGET_CI[0]) + abs(hi - TARGET_CI[1]), 2)))
+    return pd.DataFrame(rows)
+
+
 def main(path=None):
     d = load(path)
     t = check(d)
+    r = random_table(d)
+    best = r.iloc[r["원래구간과차이"].argmin()]
     close = t.iloc[(t["MDC95"] - TARGET).abs().argsort()[:1]]
     lines = ["# MDC95 다시 계산 (볼 a*, 앱 판정 기준)", "",
              f"사진: 원본 중 품질 통과 {len(d)}장, {d['member'].nunique()}명, 사람-날 {d.groupby(['member', 'date']).ngroups}개. "
@@ -143,7 +204,11 @@ def main(path=None):
              t.to_markdown(index=False), "",
              f"- 2.35에 가장 가까운 정의: {close['정의'].iloc[0]} ({close['MDC95'].iloc[0]})",
              "- 모수적 구간은 정규분포를 가정하고, 부트스트랩은 사람별로 나눠 다시 뽑는다(사람이 3명이라 사람 단위로는 뽑지 않음).",
-             ""]
+             "", "## 무작위로 뽑는 방식 비교 (날짜 사이 정의)", "",
+             f"원래 구간 {TARGET_CI[0]}~{TARGET_CI[1]}이 어떤 뽑기에서 나왔는지 찾으려고 {B}번씩 돌린 결과. "
+             "'원래구간과차이'는 하한, 상한 차이의 합(작을수록 비슷).", "",
+             r.to_markdown(index=False), "",
+             f"- 원래 구간에 가장 가까운 방식: {best['방식']} ({best['구간']})", ""]
     out = ROOT / "data" / "mdc95_check.md"
     out.write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
