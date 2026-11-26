@@ -5,6 +5,7 @@ import { api, fmt, LEVEL_CLASS } from '../api.js'
 import { useLoad, Status } from '../useLoad.jsx'
 import { WEATHER } from '../weather.jsx'
 import { labToCss } from '../cheeks.js'
+import { facesOn, getFaces } from '../faceStore.js'
 import KV from '../kv.jsx'
 
 const PAD = { l: 34, r: 12, t: 44, b: 34 }
@@ -114,7 +115,7 @@ function Chart({ records, versions, onPick, picked }) {
   )
 }
 
-function Compare({ records, mine }) {
+function Compare({ records, mine, email }) {
   const dated = records.filter((r) => r.redness !== null)
   // 기본: 처음 루틴의 마지막 측정일 ↔ 붉은기가 가장 높았던 날. 측정 보류한 날은 고르지 않는다(선택 목록에 없음).
   const peak = dated.reduce((m, r) => (r.redness > m.redness ? r : m), dated[0])
@@ -125,11 +126,19 @@ function Compare({ records, mine }) {
   const q = useLoad(() => (mine ? api.myCompare(a, b) : api.compare(a, b)), [a, b])
   const c = q.data
   const parts = useLoad(() => (mine ? api.myCheeks([a, b]) : Promise.resolve({})), [a, b, mine]).data || {}
+  // 내 기록: '이 기기에 얼굴 사진 보관'을 켠 뒤 이 기기에 남은 사진이 두 날 모두 있으면 예시처럼 겹쳐 본다
+  const [faces, setFaces] = useState({})
+  useEffect(() => { let on = true; if (mine && email) getFaces(email, [a, b]).then((f) => on && setFaces(f)); return () => { on = false } }, [mine, email, a, b])
+  const photo = (r) => (mine ? faces[r.date] : `/faces/${r.photo}.jpg`)
+  const showFaces = !mine || (faces[a] && faces[b])
+  const keepOn = mine && email && facesOn(email)
   const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} ({r.version}번째 루틴)</option>
   return (
     <div className="card">
-      <h2 className="h3">{mine ? '두 날 볼 붉은기 비교' : '두 날 사진 겹쳐 보기'}</h2>
-      {mine && <p className="muted small">사진 대신 그날 잰 볼 붉은기 숫자와 볼 색을 나란히 보여요.</p>}
+      <h2 className="h3">{showFaces ? '두 날 사진 겹쳐 보기' : '두 날 볼 붉은기 비교'}</h2>
+      {mine && !showFaces && <p className="muted small">{keepOn
+        ? '두 날 중 이 기기에 사진이 없는 날이 있어서, 그날 잰 볼 붉은기 숫자와 볼 색으로 비교해요.'
+        : '사진 대신 그날 잰 볼 붉은기 숫자와 볼 색을 나란히 보여요. 내 계정에서 ‘이 기기에 얼굴 사진 보관’을 켜면 두 날 얼굴 사진을 겹쳐 볼 수 있어요.'}</p>}
       <div className="pickers">
         <label>앞 날짜<select value={a} onChange={(e) => setA(e.target.value)}>{dated.map(opt)}</select></label>
         <label>뒤 날짜<select value={b} onChange={(e) => setB(e.target.value)}>{dated.map(opt)}</select></label>
@@ -137,13 +146,13 @@ function Compare({ records, mine }) {
       <Status {...q} />
       {c && (
         <>
-          {!mine && <div className="cmp">
-            <img src={`/faces/${c.a.photo}.jpg`} alt={`${fmt.md(c.a.date)} 사진`} />
-            <img src={`/faces/${c.b.photo}.jpg`} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
+          {showFaces && <div className="cmp">
+            <img src={photo(c.a)} alt={`${fmt.md(c.a.date)} 사진`} />
+            <img src={photo(c.b)} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
             <div className="bar" style={{ left: pos + '%' }}><span>⇆</span></div>
             <span className="tag l">{fmt.md(c.a.date)} ({c.a.version}번째 루틴)</span>
             <span className="tag r">{fmt.md(c.b.date)} ({c.b.version}번째 루틴)</span>
-            <span className="tag ai">{c.photo_note}</span>
+            <span className="tag ai">{mine ? '이 기기에만 보관한 사진' : c.photo_note}</span>
             <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="두 사진을 가르는 선 옮기기" />
           </div>}
           <div className="diff">
@@ -177,7 +186,7 @@ function Compare({ records, mine }) {
   )
 }
 
-export default function Change({ onOpenDay, mine = false }) {
+export default function Change({ onOpenDay, mine = false, email }) {
   const q = useLoad(() => (mine ? api.myTimeline() : api.timeline()), [mine])
   const [picked, setPicked] = useState(null)
   const dated = useMemo(() => q.data?.records.filter((r) => r.redness !== null) ?? [], [q.data])
@@ -191,13 +200,13 @@ export default function Change({ onOpenDay, mine = false }) {
   const canCompare = q.data?.records.some((r) => r.redness !== null)
   const head = <header className="page-head sr-head"><div><h1 className="sr-only">변화</h1></div></header>
   const ASK = { compare: '두 날 비교하기', overlap: '흐린 날 살펴보기' }
-  const DESC = { compare: mine ? '고른 두 날의 볼 붉은기를 숫자와 색으로 견줘요.' : '두 날 사진을 겹쳐 놓고, 가운데 선을 밀어 견줘요.', overlap: '흐린 날 무렵에 바꾼 루틴과 그 제품의 성분 계열이에요. 시기만 겹쳤어요. 제품이 원인인지는 알 수 없어요.' }
+  const DESC = { compare: mine ? '고른 두 날의 볼 붉은기를 비교해요. 이 기기에 두 날 사진이 있으면 얼굴도 겹쳐 봐요.' : '두 날 사진을 겹쳐 놓고, 가운데 선을 밀어 견줘요.', overlap: '흐린 날 무렵에 바꾼 루틴과 그 제품의 성분 계열이에요. 시기만 겹쳤어요. 제품이 원인인지는 알 수 없어요.' }
   const tabs = q.data && <AskButtons value={sub} onChange={(v) => (v ? openSub(v) : closeSub())} items={[
     canCompare && { id: 'compare', icon: ICONS.compare, label: ASK.compare }, { id: 'overlap', icon: ICONS.cloud, label: ASK.overlap }]} />
   if (q.data && sub) return (
     <SubPage head={head} tabs={tabs}>
       <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
-      {sub === 'compare' ? <Compare records={q.data.records} mine={mine} /> : <RoutineView mine={mine} which="overlap" versions={q.data.versions} />}
+      {sub === 'compare' ? <Compare records={q.data.records} mine={mine} email={email} /> : <RoutineView mine={mine} which="overlap" versions={q.data.versions} />}
     </SubPage>
   )
   return (

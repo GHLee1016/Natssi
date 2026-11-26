@@ -206,7 +206,7 @@ export default function App() {
         {meta.data && !page && !showLanding && (
           <div key={epoch}>
             {tab === 'diary' && (viewer ? <MyDay key={homeN} mdc95={meta.data.mdc95} date={date} setDate={setDate} go={setTab} onAccount={() => setPage('account')} viewer={viewer} policyVersion={meta.data.consent_version} onLegal={goLegal} onConsented={refreshAll} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
-            {tab === 'change' && (viewer ? <MineGate title="변화" go={setTab}><Change mine /></MineGate> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
+            {tab === 'change' && (viewer ? <MineGate title="변화" go={setTab}><Change mine email={viewer.email} /></MineGate> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
             {tab === 'capture' && <Capture onLegal={goLegal} viewer={viewer} photoVersion={meta.data.photo_notice_version} mdc95={meta.data.mdc95} onConsented={refreshAll} go={setTab} />}
             {tab === 'routine' && (viewer ? <MyRoutine ocr={!!meta.data.ocr} /> : <Routine />)}
             {tab === 'report' && (viewer ? <MineGate title="리포트" go={setTab}><Report mine viewer={viewer} aiAvailable={meta.data.ai_available} onLegal={goLegal} onChanged={refreshAll} cacheKey={'mine|' + viewer.email + '|' + meta.data.today + '|' + (viewer.ai_report ? 'ai' : 'tpl')} /></MineGate> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}

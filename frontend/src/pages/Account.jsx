@@ -1,5 +1,47 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { clearFaces, countFaces, dayFromName, facesOn, saveFace, setFacesOn } from '../faceStore.js'
+import { measurePhoto, takeFace } from '../measure/browser.js'
+
+// 이 기기에 얼굴 사진 보관(서버로 보내지 않음). 켜면 그날 처음 기록된 사진을 이 브라우저에만 남겨 두 날을 겹쳐 본다.
+// '지난 사진 넣기': 앱 밖에서 찍어 둔 사진을 파일 이름의 날짜(2026-11-04 등)로 이 기기에 넣는다. 날짜마다 이름순 첫 사진.
+function DeviceFaces({ email }) {
+  const [on, setOn] = useState(() => facesOn(email))
+  const [count, setCount] = useState(0)
+  const [note, setNote] = useState(null)
+  const [busy, setBusy] = useState(null)
+  useEffect(() => { countFaces(email).then(setCount) }, [email, on, busy])
+  const flip = async (v) => {
+    await setFacesOn(email, v); setOn(v)
+    setNote(v ? '이제 사진을 찍으면 그날 처음 기록된 얼굴 사진을 이 기기에 남겨요.' : '이 기기에 보관한 얼굴 사진을 모두 지웠어요.')
+  }
+  const add = async (e) => {
+    const files = [...e.target.files]; e.target.value = ''
+    const byDay = {}
+    for (const f of files.sort((x, y) => x.name.localeCompare(y.name))) { const d = dayFromName(f.name); if (d && !byDay[d]) byDay[d] = f }
+    const days = Object.keys(byDay).sort()
+    if (!days.length) { setNote('파일 이름에서 날짜를 찾지 못했어요. 이름에 2026-11-04처럼 날짜가 있어야 해요.'); return }
+    let done = 0
+    for (const d of days) {
+      setBusy(`${days.length}일 중 ${done + 1}일째 넣는 중…`)
+      try { await measurePhoto(byDay[d]); const face = takeFace(); if (face) { await saveFace(email, d, face); done += 1 } } catch { /* 얼굴을 못 찾은 사진은 건너뜀 */ }
+    }
+    setBusy(null)
+    setNote(`${done}일 치 사진을 이 기기에 넣었어요.${done < days.length ? ` 얼굴을 찾지 못한 ${days.length - done}일은 건너뛰었어요.` : ''}`)
+  }
+  return (
+    <div className="card">
+      <h2 className="h3">이 기기에 얼굴 사진 보관 <span className="muted small">(선택)</span></h2>
+      <div className="row">
+        <div><p className="muted small">켜면 그날 처음 기록된 얼굴 사진을 이 폰(브라우저)에만 보관해요. 변화 탭의 ‘두 날 비교하기’에서 두 날 얼굴을 겹쳐 볼 수 있어요. 서버로는 보내지 않아서, 다른 기기에서는 보이지 않아요. 끄면 이 기기에 보관한 사진을 바로 모두 지워요.</p></div>
+        <label className="switch"><input type="checkbox" checked={on} disabled={!!busy} onChange={(e) => flip(e.target.checked)} aria-label="이 기기에 얼굴 사진 보관" /><span aria-hidden="true" /></label>
+      </div>
+      {on && <div className="row"><div><b>지난 사진 넣기</b><p className="muted small">앱 밖에서 찍어 둔 사진을 이 기기에 넣어요. 파일 이름에 날짜(예: 2026-11-04)가 있어야 해요. 지금 {count}일 치가 있어요.</p></div>
+        <label className="btn ghost">{busy || '사진 고르기'}<input type="file" accept="image/*" multiple hidden disabled={!!busy} onChange={add} /></label></div>}
+      {note && <p className="muted small" role="status">{note}</p>}
+    </div>
+  )
+}
 
 export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
   const [busy, setBusy] = useState(null)
@@ -27,7 +69,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
   }, '내 기록을 파일로 내려받았어요.')
 
   const reset = () => run('reset', async () => { await api.resetMine(); onChanged() }, '내 증상 기록을 모두 지웠어요.')
-  const remove = () => run('delete', async () => { await api.deleteAccount(); onLoggedOut() })
+  const remove = () => run('delete', async () => { await api.deleteAccount(); await clearFaces(meta.viewer.email); onLoggedOut() })
   const flip = (key, on, done) => run('opt-' + key, async () => { await api.setOptional(key, on); onChanged() }, done)
 
   return (
@@ -42,7 +84,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
           <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
         <div className="row"><div><b>증상 기록 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 기록만 지워요.</p></div>
           <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
-        <div className="row"><div><b>사진</b><p className="muted small">얼굴 전체 사진은 서버에 보내지 않아요. 볼 부분 사진 보관에 동의했다면 양 볼 네모 조각만 보관해요.</p></div><span className="done">{meta.viewer?.cheeks ? '볼 조각만' : '저장 안 함'}</span></div>
+        <div className="row"><div><b>사진</b><p className="muted small">얼굴 전체 사진은 서버에 보내지 않아요. 볼 부분 사진 보관에 동의했다면 양 볼 네모 조각만 보관해요.</p></div><span className="done">{meta.viewer?.cheeks ? '볼 조각만' : '서버 저장 안 함'}</span></div>
       </div>
 
       <div className="card">
@@ -57,6 +99,8 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
           </div>
         ))}
       </div>
+
+      <DeviceFaces email={meta.viewer.email} />
 
       <div className="card">
         <h2 className="h3">사는 구 <span className="muted small">(선택)</span></h2>
