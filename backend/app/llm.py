@@ -1,26 +1,21 @@
-"""OpenRouter 무료 모델로 리포트 문장을 다듬습니다.
+"""Claude API(Claude Sonnet 5.5)로 리포트 문장을 다듬습니다.
 
 원칙
   - LLM에는 판정 기록에서 뽑은 사실(facts)만 줍니다. 사진·이름·원본 기록은 보내지 않습니다.
-  - LLM의 출력은 guard()를 통과해야만 쓰고, 하나라도 걸리면 정해진 틀(template) 문장으로 돌아갑니다.
-  - OPENROUTER_API_KEY 가 없으면 호출하지 않습니다.
+  - 응답 형식은 구조화 출력(JSON 스키마)으로 고정하고, 내용은 guard()를 통과해야만 씁니다.
+    하나라도 걸리거나 호출이 실패·거절되면 정해진 틀(template) 문장으로 돌아갑니다.
+  - ANTHROPIC_API_KEY 가 없으면 호출하지 않습니다.
 """
 import hashlib
 import json
 import os
 import re
-import httpx
+import anthropic
 
-URL = "https://openrouter.ai/api/v1/chat/completions"
-# 2026-11 기준 무료 모델 중 JSON 출력이 안정적이었던 순서. 환경변수 OPENROUTER_MODELS 로 바꿀 수 있음(쉼표 구분).
-DEFAULT_MODELS = [
-    "nvidia/nemotron-3.5-super-vl:free",
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "openrouter/free",
-]
+DEFAULT_MODEL = "claude-sonnet-5-5"          # 환경변수 ANTHROPIC_MODEL 로 바꿀 수 있음
 BANNED = ["진단", "치료", "완치", "질환", "피부염", "알레르기", "염증", "부작용", "처방", "때문에", "때문이", "원인은", "효과가 있", "개선됩니다", "추천"]
 
-_client: httpx.Client | None = None
+_client = None                               # anthropic.Anthropic (테스트에서는 가짜로 바꿔 끼움)
 _cache: dict[str, dict] = {}
 
 SYSTEM = """너는 피부 기록 앱 '낯씨'의 리포트 문장을 쓰는 역할이다.
@@ -38,32 +33,32 @@ SYSTEM = """너는 피부 기록 앱 '낯씨'의 리포트 문장을 쓰는 역�
 9. 신호가 없는 구간(calm_ids)은 "기록이 없었어요" 대신 "붉은기와 따가움이 평소 범위 안이었어요"라고 쓴다.
 10. calm_ids 중 번호가 앞선 signal_ids보다 큰(신호 뒤에 온) 기록이 있을 때만 "그 뒤 붉은기가 평소 범위로 돌아왔어요"를 마지막에 한 번, 별도 문장으로 쓴다. 신호보다 번호가 작은 calm_ids(신호 전에 평온했던 날)로는 '돌아왔다'고 쓰지 않는다. 이 문장의 cites에는 calm_ids만, 신호 문장의 cites에는 signal_ids만 넣는다. 한 문장에 둘을 섞지 않는다.
 11. '버전'이라는 말을 쓰지 않는다. 루틴을 가리킬 때는 "N번째 루틴" 또는 "레티놀 세럼을 추가한 뒤"처럼 바꾼 내용으로 쓴다.
-12. 출력은 아래 JSON 하나뿐이다. 다른 글은 쓰지 않는다.
-{"sentences":[{"text":"...","cites":[1,2]}]}"""
+12. 출력은 sentences 배열 하나다. 각 항목은 문장(text)과 근거 기록 번호(cites)다."""
+
+# 응답 형식(구조화 출력). 형식은 API가 보장하고, 내용(숫자·근거·금지어)은 guard()가 확인한다.
+SCHEMA = {
+    "type": "object",
+    "properties": {"sentences": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"text": {"type": "string"}, "cites": {"type": "array", "items": {"type": "integer"}}},
+        "required": ["text", "cites"], "additionalProperties": False}}},
+    "required": ["sentences"], "additionalProperties": False,
+}
 
 
-def models() -> list[str]:
-    env = os.environ.get("OPENROUTER_MODELS")
-    return [m.strip() for m in env.split(",") if m.strip()] if env else DEFAULT_MODELS
+def model() -> str:
+    return os.environ.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
 
 
 def enabled() -> bool:
-    return bool(os.environ.get("OPENROUTER_API_KEY"))
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
-def _http() -> httpx.Client:
+def _api():
     global _client
     if _client is None:
-        _client = httpx.Client(timeout=25)
+        _client = anthropic.Anthropic(timeout=20.0, max_retries=0)   # Vercel 함수 제한(30초) 안에 끝나게. 실패하면 틀 문장
     return _client
-
-
-def _extract_json(text: str):
-    text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.M).strip()
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end < 0:
-        raise ValueError("JSON이 없어요")
-    return json.loads(text[start:end + 1])
 
 
 _ID_LIST = re.compile(r"\s*[\(\[]\s*(?:\d+\s*[,~\-]\s*)*\d+\s*[\)\]]")
@@ -120,35 +115,34 @@ def guard(sentences, facts) -> list[str]:
 
 def write_report(facts):
     """성공하면 {'sentences': [...], 'model': '...'}, 실패하면 {'error': '...'}."""
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        return {"error": "OPENROUTER_API_KEY 없음"}
+    if not enabled():
+        return {"error": "ANTHROPIC_API_KEY 없음"}
     payload_facts = [{k: f[k] for k in ("version", "phrase", "change", "reason", "signal_ids", "signal_days", "carried_over",
                                          "max_sting", "env_unusual", "calm_ids")} for f in facts]
-    digest = hashlib.sha256(json.dumps([payload_facts, models(), SYSTEM], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    digest = hashlib.sha256(json.dumps([payload_facts, model(), SYSTEM], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     if digest in _cache:
         return _cache[digest]
-    ms = models()
-    body = {
-        "model": ms[0], "models": ms[:3], "temperature": 0.2, "max_tokens": 2000,
-        "messages": [{"role": "system", "content": SYSTEM},
-                     {"role": "user", "content": "facts:\n" + json.dumps(payload_facts, ensure_ascii=False)}],
-    }
     try:
-        r = _http().post(URL, json=body, headers={"Authorization": f"Bearer {key}", "X-Title": "natssi"})
-        r.raise_for_status()
-        data = r.json()
-        choice = data["choices"][0]
-        content = choice["message"].get("content")
-        if not isinstance(content, str) or not content.strip():
-            # 추론형 모델이 토큰을 생각에 다 쓰면 본문이 비어 옵니다
-            why = choice.get("finish_reason") or "empty"
-            return {"error": f"LLM 응답 본문이 비어 있어요 ({data.get('model', ms[0])}, {why})"}
-        parsed = _extract_json(content)
-        sentences = parsed["sentences"] if isinstance(parsed, dict) else parsed
-    except Exception as e:                      # 한도 초과, 시간 초과, 형식 오류 등
-        code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
-        return {"error": f"LLM 호출 실패: {type(e).__name__}" + (f" (HTTP {code})" if code else f": {str(e)[:80]}")}
+        res = _api().beta.messages.create(
+            model=model(), max_tokens=4000,
+            system=SYSTEM,
+            messages=[{"role": "user", "content": "facts:\n" + json.dumps(payload_facts, ensure_ascii=False)}],
+            output_config={"effort": "low", "format": {"type": "json_schema", "schema": SCHEMA}},
+            betas=["server-side-fallback-2026-07-01"], fallbacks="default",   # 안전 판단으로 거절되면 서버가 다른 모델로 다시 시도
+        )
+    except anthropic.APIStatusError as e:              # 한도 초과(429), 서버 오류, 잘못된 요청 등
+        return {"error": f"LLM 호출 실패: HTTP {e.status_code}"}
+    except anthropic.APIError as e:                    # 시간 초과, 연결 끊김 등
+        return {"error": f"LLM 호출 실패: {type(e).__name__}"}
+    if res.stop_reason == "refusal":
+        return {"error": "LLM이 답하지 않았어요 (refusal)"}
+    if res.stop_reason == "max_tokens":
+        return {"error": "LLM 응답이 길이 제한에 걸렸어요"}
+    text = next((b.text for b in res.content if b.type == "text"), "")
+    try:
+        sentences = json.loads(text)["sentences"]
+    except (ValueError, KeyError, TypeError):
+        return {"error": "LLM 응답 형식이 맞지 않아요"}
     if isinstance(sentences, list):
         for sent in sentences:
             if isinstance(sent, dict) and isinstance(sent.get("text"), str):
@@ -157,6 +151,6 @@ def write_report(facts):
     if problems:
         return {"error": "LLM 문장이 검사를 통과하지 못했어요", "problems": problems}
     out = {"sentences": [{"text": s["text"].strip(), "cites": sorted(set(s["cites"]))} for s in sentences],
-           "model": data.get("model", ms[0])}
+           "model": res.model}
     _cache[digest] = out
     return out

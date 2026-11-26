@@ -132,7 +132,7 @@ PC에서 처음 열면 소개 페이지가 먼저 나오고, 'PC에서 예시 �
 - Vercel 함수
 - Supabase Auth
 - Postgres
-- OpenRouter
+- Claude API (Claude Sonnet 5.5)
 
 </td>
 <td valign="top">
@@ -264,7 +264,7 @@ Vercel 대시보드에서만 다루고, 채팅이나 저장소에 올리지 않�
 | 이름 | 내용 |
 |---|---|
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` | Supabase 주소와 키 |
-| `OPENROUTER_API_KEY`, `OPENROUTER_MODELS` | AI 문장 다듬기. 모델은 쉼표로 나누고 맨 앞에 `upstage/solar-pro4`. 키에 크레딧 상한을 걸고, 계정에서 학습과 공개 업체를 막아 두세요 |
+| `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`은 선택, 기본 `claude-sonnet-5-5`) | AI 문장 다듬기. Anthropic 콘솔에서 월 사용 한도를 걸어 두세요. 키가 없으면 정해진 틀 문장만 써요 |
 | `NATSSI_OCR=1` | 전성분 사진 읽기 켜기. Space 주소를 바꾸면 `vercel.json` CSP의 connect-src도 바꾸기 |
 | `NATSSI_RECOVERY=1` | 비밀번호 찾기 켜기. Supabase 커스텀 SMTP를 설정한 뒤에만 |
 
@@ -323,4 +323,4 @@ Natssi/
 - **한국환경공단 에어코리아**, **기상청** (환경 데이터)
 - **AI 허브** 화장품 성분표 데이터 (OCR 평가)
 - **MediaPipe**, **RapidOCR**, **PaddleOCR**, **UVDoc**
-- **Supabase**, **Vercel**, **Hugging Face Spaces**, **Upstage Solar**
+- **Supabase**, **Vercel**, **Hugging Face Spaces**, **Anthropic Claude**

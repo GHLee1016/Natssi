@@ -2,7 +2,7 @@
 
 서버리스는 인스턴스가 여러 개라 이 카운터는 인스턴스마다 따로입니다.
 즉 '반복 호출로 비용이 폭주하는 것'을 막는 1차 방어이고, 확실한 상한은
-OpenRouter 키의 크레딧 한도로 함께 걸어 두세요.
+Anthropic 콘솔의 월 사용 한도(spend limit)로 함께 걸어 두세요.
 """
 import time
 from collections import defaultdict, deque

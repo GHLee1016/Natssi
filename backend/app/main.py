@@ -104,7 +104,7 @@ def meta(v=Depends(viewer)):
             "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "env_district": config.DEMO_ENV_DISTRICT, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION, "photo_notice_version": config.PHOTO_NOTICE_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version"),
-                       **{k: bool((v.get("consent") or {}).get(k)) for k in ("cheeks", "ai_report")}} if v else None,
+                       "cheeks": bool((v.get("consent") or {}).get("cheeks")), "ai_report": _ai_on(v)} if v else None,
             "ai_available": llm.enabled()}
 
 
@@ -491,12 +491,18 @@ def my_compare(a: date, b: date, request: Request, v=Depends(need_user)):
     return {"a": ra, "b": rb, "diff": diff, "mdc95": config.MDC95_A_STAR, "beyond_error": abs(diff) > config.MDC95_A_STAR}
 
 
+def _ai_on(v) -> bool:
+    """AI 문장 다듬기 선택 동의. 받는 곳이 바뀐 날(config.AI_CONSENT_SINCE) 이후에 켠 동의만 인정한다."""
+    c = v.get("consent") or {}
+    return bool(c.get("ai_report")) and (c.get("ai_report_at") or "") >= config.AI_CONSENT_SINCE
+
+
 @app.get("/api/me/report")
 def my_report(request: Request, v=Depends(need_user)):
     """내 리포트: 기본은 틀 문장. 'AI로 문장 다듬기'에 따로 동의한 사람만, 제품 이름·날짜·이메일을 뺀 가명 요약을 AI 모델에 보낸다."""
     limit("report", request, v)
     rows, versions = _my_ctx(v["id"])
-    if (v.get("consent") or {}).get("ai_report"):
+    if _ai_on(v):
         rep = report.build_report_llm(rows, versions, llm_versions=report.pseudonymize(versions))
     else:
         rep = report.build_report(rows, versions)

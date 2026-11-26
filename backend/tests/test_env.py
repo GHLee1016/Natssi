@@ -22,7 +22,7 @@ def test_fixed_demo_with_real_env(monkeypatch):
 def test_report_uses_real_env_facts(monkeypatch):
     monkeypatch.setattr(config, "DEMO_SHIFT_DAYS", 10)
     monkeypatch.setattr(config, "DEMO_ENV_DISTRICT", "서대문구")
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     c = TestClient(app)
     texts = [s["text"] for s in c.get("/api/report").json()["sentences"]]
     assert "같은 기간 미세먼지, 습도, 기온은 평소와 비슷했어요." in texts

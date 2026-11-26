@@ -94,7 +94,7 @@ function AiToggle({ on, onLegal, onChanged }) {
         <b>AI로 문장 다듬기 (선택)</b>
       </label>
       <div id="ai-help" className="muted small">
-        <p>켜면 제품 이름, 날짜, 이메일을 뺀 요약만 미국의 AI 서비스(OpenRouter)로 보내 문장을 다듬어요.</p>
+        <p>켜면 제품 이름, 날짜, 이메일을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요.</p>
         <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수</p>
         <p>판정은 낯씨가 해요. 끄면 정해진 틀 문장을 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
       </div>

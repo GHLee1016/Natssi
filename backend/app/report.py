@@ -1,7 +1,7 @@
 """리포트 문장 만들기.
 
 build_report(): 판정 기록만으로 정해진 틀의 문장을 조립합니다.
-build_report_llm(): OpenRouter 무료 모델이 같은 사실을 자연스럽게 다듬습니다. 출력이 검사
+build_report_llm(): Claude API(Claude Sonnet 5.5)가 같은 사실을 자연스럽게 다듬습니다. 출력이 검사
 (llm.guard + verify)를 통과하지 못하거나 호출이 실패하면 틀 문장으로 돌아갑니다.
 """
 import re
