@@ -73,7 +73,7 @@ def recap(records, versions, month=None):
     if signal:
         after = [r for r in photo if r["date"] > signal[-1] and r["verdict"]["level"] == judge.NO_SIGNAL]
         back = after[0]["date"] if after else None
-    lines = [f"{int(month[5:])}월에 {len(rows)}일 기록했어요(사진 {len(photo)}일)."]
+    lines = [f"{int(month[5:])}월에 {len(rows)}일 기록했어요. 그중 사진을 찍은 날은 {len(photo)}일이에요."]
     if judged:
         n = len(judged)
         lines.append(f"평소와 비교한 {n}일 모두 볼 붉은기가 평소 범위 안이었어요." if inside == n else

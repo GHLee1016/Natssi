@@ -77,10 +77,10 @@ def _commit(data: dict, today: date, items: list, op: str, reason: str | None) -
         if reason and v["id"] >= 2:                            # 처음 등록한 날(버전 1)은 '바꾼' 것이 아니라 출발점이라 이유를 남기지 않는다
             v["reason"] = reason
         if v["id"] >= 2 and len(v["ops"]) >= 2:                 # 처음 등록한 날(버전 1)은 여러 개를 넣어도 되지만, 그 뒤에는 하루에 하나씩
-            warnings.append("오늘 이미 루틴을 바꿨어요. 하나씩 바꿔야 어느 제품과 시기가 겹쳤는지 구분돼요.")
+            warnings.append("오늘 이미 루틴을 바꿨어요. 하나씩 바꿔야 붉은기가 어느 제품을 바꾼 시기와 겹쳤는지 알 수 있어요.")
         return warnings
     if vs and vs[-1]["id"] >= 2 and (today - date.fromisoformat(vs[-1]["start"])).days < GAP_DAYS:
-        warnings.append("지난번에 바꾼 지 7일이 안 됐어요. 하나씩 바꿔야 어느 제품과 시기가 겹쳤는지 구분돼요.")
+        warnings.append("지난번에 바꾼 지 7일이 안 됐어요. 하나씩 바꿔야 붉은기가 어느 제품을 바꾼 시기와 겹쳤는지 알 수 있어요.")
     first = not vs                                            # 처음 등록한 루틴은 '변화'가 아니라 출발점이다
     vs.append({"id": len(vs) + 1, "start": iso, "ops": [op], "change": None if first else op, "reason": reason, "items": items})
     return warnings

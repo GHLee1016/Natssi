@@ -41,7 +41,7 @@ function Cite({ item, dateOf, open }) {
   return <button className="link ev-open" onClick={() => open(dates[0])}>{range} 기록 보기</button>
 }
 
-const EVIDENCE_Q = '이 내용의 근거가 뭔가요?'
+const EVIDENCE_Q = '무엇을 보고 썼나요?'
 
 // 근거를 짧게 풀어 보여 준다: 같은 근거는 한 번만, 날짜 범위와 그 기간 기록의 요약(날씨·붉은기·증상·공기).
 // 요약은 판정 기록 숫자에서 바로 만든다(AI 문장이 아님).
@@ -56,13 +56,13 @@ function summarize(recs) {
   const base = red.find((r) => r.verdict.baseline)?.verdict.baseline
   if (red.length && base) {
     const top = red.reduce((a, r) => (r.redness > a.redness ? r : a))
-    out.push(top.redness > base.high ? `붉은기 최고 ${sgn(top.redness.toFixed(1))} (평소 ${base.low.toFixed(1)}~${base.high.toFixed(1)})` : '붉은기 평소 범위 안')
+    out.push(top.redness > base.high ? `볼 붉은기가 가장 높은 날 ${sgn(top.redness.toFixed(1))} (평소 범위 ${base.low.toFixed(1)}~${base.high.toFixed(1)})` : '볼 붉은기는 평소 범위 안이었어요')
   }
   const sym = {}
   for (const r of recs) for (const [k, v] of Object.entries(r.symptoms || {})) sym[k] = Math.max(sym[k] || 0, v)
   const [sk, sv] = Object.entries(sym).sort((a, b) => b[1] - a[1])[0] || []
-  out.push(sv ? `${sk} 최고 ${sv}점` : '증상 없음')
-  if (recs.some((r) => r.env?.measured_on)) out.push(recs.some((r) => r.env?.unusual) ? '공기가 평소와 달랐던 날 있음' : '공기는 평소와 비슷')
+  out.push(sv ? `증상: ${sk} 최고 ${sv}점` : '증상은 없었어요')
+  if (recs.some((r) => r.env?.measured_on)) out.push(recs.some((r) => r.env?.unusual) ? '공기가 평소와 달랐던 날이 있어요' : '공기는 평소와 비슷했어요')
   return out.filter(Boolean)                  // 한 줄에 하나씩 보여 준다
 }
 function evidenceLinks(items, recById) {
@@ -77,7 +77,7 @@ function evidenceLinks(items, recById) {
     const ids = new Set(recs.map((r) => r.id))
     const held = Object.values(recById).filter((r) => r.date > first && r.date < last && !ids.has(r.id) && r.redness == null).length
     out.push({ key: e.cite_label, date: first, range: first === last ? md(first) : `${md(first)}~${md(last)}`,
-               days: recs.length > 1 ? `${recs.length}일치 기록${held ? `, 측정 보류 ${held}일 제외` : ''}` : '', summary: summarize(recs) })
+               days: recs.length > 1 ? `${recs.length}일 기록${held ? ` (사진 품질 탓에 붉은기를 재지 않은 ${held}일은 빼고)` : ''}` : '', summary: summarize(recs) })
   }
   return out
 }
@@ -94,9 +94,9 @@ function AiToggle({ on, onLegal, onChanged }) {
         <b>AI로 문장 다듬기 (선택)</b>
       </label>
       <div id="ai-help" className="muted small">
-        <p>켜면 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요. 제품 이름, 날짜, 이메일은 빼고 보내요.</p>
+        <p>켜면 기록 요약만 미국 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요. 제품 이름, 날짜, 이메일은 빼고 보내요.</p>
         <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수</p>
-        <p>판정은 낯씨가 해요. 끄면 정해진 틀의 문장이 나와요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
+        <p>얼굴 날씨는 AI가 아니라 낯씨가 정해진 규칙으로 계산해요. 끄면 미리 정해 둔 문장으로 보여요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
       </div>
       {err && <p className="err" role="alert">{err}</p>}
     </div>
@@ -152,7 +152,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
                       </li>
                     ))}
                   </ul>
-                  <p className="muted small">판정은 코드가 기록 숫자로 해요. AI는 문장만 다듬고, 문장 속 숫자와 근거 기록은 판정 기록과 하나씩 맞춰 봤어요.</p>
+                  <p className="muted small">얼굴 날씨는 기록한 숫자를 정해진 규칙으로 계산해서 정해요. AI는 정하지 않고 문장만 다듬어요. 문장 속 숫자와 날짜는 기록과 하나씩 맞춰 봤어요.</p>
                 </div>
               )
               : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && onOpenDay && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
@@ -169,13 +169,13 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
           {canStart && <StartCard onStart={onStart} />}
           <p className="disclaimer">ⓘ {r.disclaimer}</p>
           {r.source === 'llm'
-            ? <p className="muted small">{`문장은 판정 기록을 보고 AI가 썼어요(${r.model}). 판정은 AI가 하지 않아요.`}</p>
+            ? <p className="muted small">{`AI가 기록을 보고 쓴 문장이에요(${r.model}). 얼굴 날씨는 AI가 정하지 않아요.`}</p>
             : r.llm_error
               ? <>
-                  <p className="muted small">AI 문장을 만들지 못해 정해진 틀의 문장이 나와요. 판정 내용은 같아요.</p>
+                  <p className="muted small">AI 문장을 만들지 못해서 미리 정해 둔 문장으로 보여요. 얼굴 날씨와 숫자는 똑같아요.</p>
                   <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? '. ' + r.llm_problems.join(', ') : ''}`} />
                 </>
-              : <p className="muted small">판정 기록만으로 만든 문장이에요.</p>}
+              : <p className="muted small">기록한 숫자로 미리 정해 둔 문장을 채웠어요. AI는 쓰지 않았어요.</p>}
         </div>
       )}
     </section>

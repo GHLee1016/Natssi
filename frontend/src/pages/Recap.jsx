@@ -70,7 +70,7 @@ function MapLegend() {
 function Bars({ r }) {
   const max = Math.max(1, ...LEVELS.map((lv) => r.weather[lv]))
   return (
-    <ul className="rs-bars2" aria-label="날씨별 일수">
+    <ul className="rs-bars2" aria-label="얼굴 날씨별 날 수">
       {LEVELS.map((lv) => (
         <li key={lv}><span><WeatherIcon level={lv} size={18} />{WEATHER[lv].name}</span>
           <i>{r.weather[lv] > 0 && <b className={WEATHER[lv].cls} style={{ width: `${(r.weather[lv] / max) * 100}%` }} />}</i><em>{r.weather[lv]}일</em></li>
@@ -104,7 +104,7 @@ function slides(r, today, restart) {
           <p className="rs-big">{WEATHER[top].name}</p>
           <p className="rs-sub">{r.weather[top]}일로 가장 많았어요.</p>
         </>
-      ) : <><p className="rs-kicker">{m}월의 얼굴 날씨는</p><p className="rs-title">아직 몰라요</p><p className="rs-sub">사진 기록이 쌓이면 나와요.</p></>,
+      ) : <><p className="rs-kicker">{m}월의 얼굴 날씨는</p><p className="rs-title">아직 몰라요</p><p className="rs-sub">사진 기록이 쌓이면 알 수 있어요.</p></>,
       vis: top && <><span className="rs-icon"><WeatherIcon level={top} size={120} /></span><Bars r={r} /></>,
     },
     {

@@ -48,10 +48,10 @@ MESSAGES = {
     "invalid_credentials": "이메일 또는 비밀번호가 맞지 않아요.",
     "user_already_exists": "이미 가입된 이메일이에요. 로그인해 주세요.",
     "email_exists": "이미 가입된 이메일이에요. 로그인해 주세요.",
-    "weak_password": "비밀번호가 너무 약해요. 8자 이상, 글자와 숫자를 섞어 주세요.",
-    "email_not_confirmed": "메일 인증을 먼저 마쳐 주세요.",
-    "over_email_send_rate_limit": "메일을 너무 자주 보냈어요. 잠시 뒤 다시 시도해 주세요.",
-    "over_request_rate_limit": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요.",
+    "weak_password": "비밀번호가 너무 쉬워요. 8자 이상으로 글자와 숫자를 섞어 주세요.",
+    "email_not_confirmed": "가입 때 받은 메일의 링크를 먼저 눌러 주세요.",
+    "over_email_send_rate_limit": "메일을 너무 여러 번 요청했어요. 잠시 뒤 다시 시도해 주세요.",
+    "over_request_rate_limit": "짧은 시간에 너무 여러 번 시도했어요. 잠시 뒤 다시 해 주세요.",
     "validation_failed": "입력한 내용을 확인해 주세요.",
     "signup_disabled": "지금은 가입을 받지 않아요.",
     "same_password": "이전과 다른 비밀번호를 써 주세요.",
@@ -76,7 +76,7 @@ def _fail(r: httpx.Response) -> AuthError:
         ref = secrets.token_hex(3)
         log.warning("인증 오류 %s: status=%s code=%s msg=%s", ref, r.status_code, code or "-",
                     str(body.get("msg") or body.get("message") or body.get("error_description") or "")[:200])
-        msg = f"로그인 요청을 처리하지 못했어요. 잠시 뒤 다시 시도해 주세요. (오류 번호 {ref})"
+        msg = f"요청을 마치지 못했어요. 잠시 뒤 다시 시도해 주세요. (오류 번호 {ref})"
     return AuthError(400 if r.status_code < 500 else 503, msg)
 
 

@@ -28,7 +28,7 @@ export function QR({ text, label = '폰 카메라로 비추면 낯씨 기록 화
 }
 
 // 분석하는 동안 보여 줄 단계(실제로 하는 일 순서). 각 단계는 끝난 뒤에 ✓가 붙는다.
-const STAGES = ['얼굴 모델 준비', '얼굴과 고개 각도 찾기', '양 볼 색 재기', '사진 품질 판정']
+const STAGES = ['얼굴 인식 준비', '얼굴과 고개 각도 찾기', '양 볼 색 재기', '잘 찍혔는지 확인']
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms))
 // 주소에 ?camdebug=1 을 붙이면 촬영 화면 위에 가이드 판정 숫자를 보여 준다(실기기에서 원인 확인용)
 const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('camdebug')
@@ -234,9 +234,9 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     // 단계가 너무 빨리 지나가 안 보이지 않게, 단계마다 잠깐(0.2초) 머문다. 순서와 내용은 실제로 하는 일 그대로.
     const step = async (n) => { setStage(n); await wait(200) }
     try {
-      setBusy('얼굴 모델 불러오는 중…'); await step(0)
+      setBusy('얼굴 인식 준비 중…'); await step(0)
       await Promise.race([loadLandmarker(), new Promise((_, no) => setTimeout(() => no(userError(
-        '얼굴 모델을 받지 못했어요. 처음 한 번은 약 10MB를 받아요. 와이파이에서 다시 해 주세요.')), 90000))])
+        '얼굴 인식에 필요한 파일을 받지 못했어요. 처음 한 번은 약 10MB를 받아요. 와이파이에서 다시 해 주세요.')), 90000))])
       setBusy('검사하는 중…'); await step(1)
       const features = await measurePhoto(src)
       lastFeat.current = features
@@ -292,8 +292,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <h2 className="h3">{firstTime ? '촬영 전에 확인해 주세요' : '사진 처리 방식이 바뀌었어요'}</h2>
           <ul className="sentences">
             <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
-            <li>고개 각도, 표정, 선명도, 노출을 확인한 뒤 양 볼 색(볼 붉은기)을 재요.</li>
-            <li>서버에는 측정한 숫자만 보내 품질을 판정해요. 로그인했다면 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
+            <li>고개 각도, 표정, 선명도, 밝기를 확인한 뒤 양 볼 색(볼 붉은기)을 재요.</li>
+            <li>서버에는 잰 숫자만 보내고, 서버는 그 숫자로 사진이 잘 찍혔는지 확인해요. 로그인했다면 확인을 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
           <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})를 읽고 동의해요</label>
@@ -355,7 +355,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         <div ref={ovalEl} className={'oval' + (guide ? (guide.ok ? ' ok' : ' adjust') : '')} />
         {DEBUG && debug && <p className="cam-debug">{debug}</p>}
         <div className="cam-top">
-          <button className="cam-pill" onClick={close}>촬영 가이드</button>
+          <button className="cam-pill" onClick={close}>찍는 법</button>
           {guide && <label className="cam-pill"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />자동 촬영</label>}
         </div>
         {!count && <p className={'cam-hint' + (guide?.ok ? ' ok' : '')} role="status">{guide?.ok && <i aria-hidden="true">✓</i>}{guide ? guide.hint : '얼굴이 타원 안에 들어오게 정면을 봐 주세요'}</p>}
@@ -374,7 +374,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       {busy && (
         <div className="analyze" role="status" aria-live="polite">
           <div className="an-orb" aria-hidden="true" />
-          <h2>얼굴 날씨를 재고 있어요</h2>
+          <h2>볼 색을 재고 있어요</h2>
           <p className="muted small">사진은 이 기기 안에서만 분석해요.</p>
           <ul>
             {STAGES.map((t, n) => <li key={t} className={n < stage ? 'done' : n === stage ? 'now' : ''}><i aria-hidden="true" />{t}{n < stage && <span className="sr-only"> 완료</span>}</li>)}
@@ -385,24 +385,24 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         <div className="res">
           {result.passed && result.redness !== null && (
             <div className="res-hero">
-              <p>오늘 볼 붉은기{result.lighting_off ? ' (조명 다름, 참고)' : ''}</p>
+              <p>오늘 볼 붉은기{result.lighting_off ? ' (조명이 달라 참고만)' : ''}</p>
               <b>{result.redness.toFixed(1)}</b>
-              <p className="small">측정 오차 ±{mdc95}. 같은 폰으로 같은 자리에서 찍은 날끼리 비교해요.</p>
+              <p className="small">같은 얼굴을 다시 찍어도 ±{mdc95} 정도는 달라질 수 있어요. 같은 폰으로 같은 자리에서 찍은 날끼리 비교해요.</p>
               {relRedness(lastFeat.current) !== null && (           /* 이 기기에서만 계산한 참고값(서버로 보내지 않음) */
-                <p className="small">조명 영향을 덜 받는 값(볼 − 콧등) {relRedness(lastFeat.current).toFixed(1)}</p>
+                <p className="small">조명 영향을 덜 받는 값(볼에서 콧등을 뺀 값) {relRedness(lastFeat.current).toFixed(1)}</p>
               )}
             </div>
           )}
           <p className="res-msg">{result.passed || result.overridable ? result.message : '아쉬운 항목을 고쳐 다시 찍어 주세요.'}</p>
           {!result.passed && result.overridable && (
             <div className="next-box">
-              <p className="small">다시 찍기 어려우면 이 사진으로 기록해도 돼요. 조명 탓에 붉은기 값이 틀어졌을 수 있어서, 이날 판정은 안개로 두고 평소 범위 계산에서도 빼요.</p>
+              <p className="small">다시 찍기 어려우면 이 사진으로 기록해도 돼요. 조명 탓에 붉은기 값이 틀어졌을 수 있어서, 이날 얼굴 날씨는 안개로 두고 평소 범위를 만들 때도 이날은 빼요.</p>
               <button className="btn ghost" onClick={keepAnyway} disabled={keeping}>{keeping ? '기록하는 중…' : '그래도 이 사진으로 기록하기'}</button>
             </div>
           )}
           {bad.length > 0 && <><h2 className="res-sec">고칠 항목</h2><div className="res-grid">{bad.map(item)}</div></>}
           <details className="res-more">
-            <summary>{bad.length ? `통과한 항목 ${rest.length}개` : `검사 항목 ${rest.length}개 모두 좋아요`}</summary>
+            <summary>{bad.length ? `통과한 항목 ${rest.length}개` : `확인한 항목 ${rest.length}개 모두 좋아요`}</summary>
             <div className="res-grid">{rest.map(item)}</div>
             <div className="tech">{result.checks.map((c) => <p key={c.name}>{c.name}: {c.tech}</p>)}</div>
           </details>

@@ -74,7 +74,7 @@ def build_report(judged, versions):
                               f"{f['phrase']} 뒤에는 붉은기가 평소 범위로 돌아왔어요.",
                               "cites": f["calm_ids"]})
     if not sentences:
-        sentences.append({"text": "아직 평소와 달라진 날이 없어요. 붉은기가 평소 범위 안이에요.", "cites": [judged[-1]["id"]] if judged else []})
+        sentences.append({"text": "아직 평소와 달라진 날이 없어요. 볼 붉은기가 평소 범위 안에 있어요.", "cites": [judged[-1]["id"]] if judged else []})
     for s in sentences:
         s["cite_label"] = f"근거: 기록 {_span(s['cites'])}" if s["cites"] else ""
     return {"sentences": sentences, "disclaimer": DISCLAIMER, "source": "template"}
@@ -116,7 +116,7 @@ def build_report_llm(judged, versions, llm_versions=None):
 QUESTIONS = [
     {"id": "cause", "q": "바꾼 제품 때문인 거예요?"},
     {"id": "other", "q": "다른 이유는 없었어요?"},
-    {"id": "next", "q": "빈도를 줄이면 어떻게 봐요?"},
+    {"id": "next", "q": "빈도를 줄이면 어떻게 비교해요?"},
 ]
 
 
@@ -125,16 +125,16 @@ def answer(qid, judged, versions):
     sig = next((f for f in facts if f["signal_ids"]), None)
     cites = sig["signal_ids"] if sig else []
     if qid in ("cause", "other") and not sig:                   # 평소 범위를 넘은(흐림) 날이 없음
-        text = "아직 붉은기가 평소 범위를 넘은 날이 없어요. 그래서 원인을 따로 살펴볼 변화도 없어요."
+        text = "아직 붉은기가 평소 범위를 넘은 날이 없어요. 그래서 따로 짚어 볼 변화도 없어요."
     elif qid == "cause" and not sig["change"]:                   # 루틴을 바꾸지 않은 기간에 넘음
-        text = ("이 기간에는 루틴을 바꾸지 않았어요. 그래서 제품과의 관계는 말할 수 없어요. "
-                "수면, 생리 주기, 조명처럼 기록하지 않은 요인도 있을 수 있어요.")
+        text = ("이 기간에는 루틴을 바꾸지 않았어요. 그래서 제품과 관련이 있는지는 말할 수 없어요. "
+                "수면, 생리 주기, 조명처럼 기록에 없는 일이 있었을 수도 있어요.")
     elif qid == "cause":
-        text = ("원인을 단정할 수는 없어요. 다만 바꾼 시기와 붉은기가 오른 시기가 겹쳤어요. "
-                "수면이나 생리 주기처럼 기록하지 않은 요인도 있을 수 있어요.")
+        text = ("기록만으로는 바꾼 제품과 관련이 있는지 알 수 없어요. 바꾼 시기와 붉은기가 오른 시기가 겹쳤어요. "
+                "수면이나 생리 주기처럼 기록에 없는 일이 있었을 수도 있어요.")
     elif qid == "other":
-        text = (" ".join(env.summarize(sig["envs"])) + " 기록하지 않은 요인은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
-               "같은 기간 환경도 평소와 달랐어요. 그래서 어느 쪽 때문인지 가릴 수 없어요."
+        text = (" ".join(env.summarize(sig["envs"])) + " 기록에 없는 일은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
+               "같은 기간에 동네 환경도 평소와 달랐어요. 그래서 루틴과 환경 중 어느 쪽과 겹친 건지 가릴 수 없어요."
     elif qid == "next":
         text = "빈도를 바꾸면 루틴을 바꾼 날로 기록돼요. 그 뒤 붉은기가 평소 범위로 돌아오는지 2주 동안 비교해요."
         cites = []

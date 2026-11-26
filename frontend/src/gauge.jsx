@@ -13,10 +13,10 @@ export default function Gauge({ value, low, high, base }) {
         <i className="gauge-band" style={{ left: pct(low) + '%', width: pct(high) - pct(low) + '%' }} />
         <b className="gauge-dot" style={{ left: pct(value) + '%' }} />
       </div>
-      <p className="gauge-text"><b>볼 붉은기 {state}</b></p>
+      <p className="gauge-text"><b>볼 붉은기가 {state}</b></p>
       <details className="gauge-more">
         <summary>숫자로 보기</summary>
-        <KV items={[['오늘', sign(value)], ['평소 범위', `${sign(low)} ~ ${sign(high)}`]]} />
+        <KV items={[['볼 붉은기', sign(value)], ['평소 범위', `${sign(low)} ~ ${sign(high)}`]]} />
         {base && <p>평소 범위는 {base === 1 ? '처음 쓰던 루틴' : `${base}번째 루틴`} 기간의 기록으로 만들었어요.</p>}
       </details>
     </div>

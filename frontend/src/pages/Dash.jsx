@@ -46,11 +46,11 @@ function MonthKpis({ records, date }) {
       <Kpi label={`${m}월 사진 기록`} value={`${photos.length}일`} empty={!photos.length}
         sub={photos.length ? '볼 색을 잰 날' : '이달 사진 기록이 아직 없어요'} />
       <Kpi label="평소보다 볼이 더 붉었던 날" value={judged.length ? `${judged.filter(over).length}일` : '아직 없어요'} empty={!judged.length}
-        sub={judged.length ? `평소 범위와 비교한 ${judged.length}일 중` : '사진이 7일 모이면 비교를 시작해요'} />
+        sub={judged.length ? `평소 범위와 비교한 ${judged.length}일 중` : '사진이 7일 모이면 평소와 비교해요'} />
       <Kpi label="가장 붉었던 날" value={top ? fmt.md(top.date) : '아직 없어요'} empty={!top}
-        sub={top ? `볼 붉은기 ${sgn(top.redness)}` : '사진을 찍으면 나와요'} />
+        sub={top ? `볼 붉은기 ${sgn(top.redness)}` : '사진을 찍으면 보여요'} />
       <Kpi label={`${m}월 맑은 날`} value={judged.length ? `${sunny}일` : '아직 없어요'} empty={!judged.length}
-        sub={judged.length ? `날씨를 판정한 ${judged.length}일 중` : '평소 범위가 생기면 날씨가 나와요'} />
+        sub={judged.length ? `얼굴 날씨가 정해진 ${judged.length}일 중` : '평소 범위가 생기면 맑은 날을 세요'} />
     </div>
   )
 }
@@ -124,7 +124,7 @@ function Trend({ records, versions, date, onPick }) {
         <text x={W - R} y={H - 8} className="dt-tick" textAnchor="end" aria-hidden="true">{fmt.md(pts[pts.length - 1].date)}</text>
       </svg>
       <p className="db-cap">
-        {marks.length ? '주황 점선이 루틴을 바꾼 날이에요. 누르면 그날 기록이 열려요. 점선 뒤 점이 띠보다 위에 있으면 시기가 겹친 것이고, 제품이 원인이라고 단정할 수는 없어요.'
+        {marks.length ? '주황 점선은 루틴을 바꾼 날이에요. 누르면 그날 기록이 열려요. 점선 뒤로 점이 띠보다 높으면 루틴을 바꾼 시기와 볼이 붉어진 시기가 겹친 거예요. 제품이 원인인지는 이것만으로 알 수 없어요.'
           : changes.length ? '최근 4주에는 루틴을 바꾼 날이 없어요.'
             : '아직 루틴을 바꾼 적이 없어요. 바꾸면 그날이 점선으로 표시돼요.'}
       </p>

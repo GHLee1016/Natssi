@@ -6,7 +6,7 @@ from . import config
 
 PERSONA = {
     "name": "김서연", "age": 28, "type": "홈더마 사용자 (중관여)",
-    "note": "가상 인물, 가상 데이터",
+    "note": "가상 인물, 가상 기록",
 }
 
 PRODUCTS = {

@@ -151,7 +151,7 @@ def _check_password(pw: str):
 
 def _auth_on():
     if not auth.enabled():
-        raise HTTPException(503, "지금은 로그인을 쓸 수 없어요.")
+        raise HTTPException(503, "지금은 로그인할 수 없어요.")
 
 
 @app.post("/api/auth/signup")
@@ -185,7 +185,7 @@ def recover(body: RecoverBody, request: Request):
     """비밀번호 재설정 메일 요청. 가입 여부와 상관없이 같은 답을 준다(가입된 이메일을 알아내지 못하게)."""
     _auth_on()
     if not config.RECOVERY_ENABLED:
-        raise HTTPException(503, "지금은 비밀번호 찾기를 쓸 수 없어요.")
+        raise HTTPException(503, "지금은 비밀번호 찾기가 안 돼요.")
     limit("auth", request)
     try:
         auth.recover(body.email.strip().lower())
@@ -333,7 +333,7 @@ def get_report(request: Request, v=Depends(viewer)):
 def get_answer(qid: str, v=Depends(viewer)):
     ans = report.answer(qid, judged(v), demo_data.VERSIONS)
     if ans is None:
-        raise HTTPException(404, "준비되지 않은 질문이에요")
+        raise HTTPException(404, "목록에 없는 질문이에요")
     return ans
 
 
@@ -519,7 +519,7 @@ def my_answer(qid: str, request: Request, v=Depends(need_user)):
     rows, versions = _my_ctx(v["id"])
     ans = report.answer(qid, rows, versions)
     if ans is None:
-        raise HTTPException(404, "준비되지 않은 질문이에요")
+        raise HTTPException(404, "목록에 없는 질문이에요")
     return ans
 
 
@@ -567,9 +567,9 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
             res["saved"] = True
             res["already"] = _split(entry)[1] is not None and not fix   # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
             res["replaced"] = fix
-            res["note"] = ("오늘은 이미 기록했어요. 하루에 처음 통과한 사진 하나만 써요." if res["already"] else
+            res["note"] = ("오늘은 이미 기록했어요. 하루에 한 번, 처음 잘 찍힌 사진 값만 남겨요." if res["already"] else
                            "조명 색이 달랐던 아까 기록을 이 사진 값으로 바꿨어요." if fix else
-                           "볼 색 숫자를 오늘 기록에 남겼어요. 사진은 남기지 않고, 하루에 처음 통과한 사진 값만 써요.")
+                           "사진은 남기지 않고 볼 색 숫자만 오늘 기록에 남겼어요. 하루에 한 번, 처음 잘 찍힌 사진 값만 남겨요.")
         except Exception as e:
             raise _store_fail("볼 붉은기를 저장하지 못했어요.", e)
     return res
@@ -782,14 +782,14 @@ def _check_jpeg(data_url: str, max_side: int = 128, what: str = "볼 사진") ->
     from PIL import Image
     head, _, b64 = data_url.partition(",")
     if head != "data:image/jpeg;base64":
-        raise HTTPException(400, f"{what} 형식이 맞지 않아요.")
+        raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 찍어 주세요.")
     try:
         im = Image.open(io.BytesIO(base64.b64decode(b64, validate=True)))
         ok = im.format == "JPEG" and max(im.size) <= max_side
     except Exception:
         ok = False
     if not ok:
-        raise HTTPException(400, f"{what} 형식이 맞지 않아요.")
+        raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 찍어 주세요.")
     return b64
 
 
@@ -834,7 +834,7 @@ def update_consent(body: ConsentUpdate, request: Request, authorization: Optiona
     """바뀐 사진 처리 안내에 다시 동의한 기록을 남깁니다(서버가 시각을 찍음)."""
     limit("account", request, v)
     if not body.photo:
-        raise HTTPException(400, "촬영하려면 바뀐 사진 처리 안내에 동의해 주세요.")
+        raise HTTPException(400, "사진을 찍으려면 바뀐 사진 처리 안내에 동의해 주세요.")
     if config.OPEN_MODE:                                     # 로컬 개발: 메모리에만 기록
         LOCAL_USER["consent"] = {"version": config.CONSENT_VERSION, "photo": True}
         return {"consent_version": config.CONSENT_VERSION}
