@@ -5,7 +5,9 @@
 - 부위: 얼굴 윤곽 안을 이마, 코, 왼쪽 볼, 오른쪽 볼, 입 주변, 턱으로 나눈다(사진 기준 왼쪽/오른쪽).
 - 빼는 곳: 눈 주변(눈썹~광대 위, 안경 자리. 안경 유무와 상관없이 늘 뺀다), 입술, 콧구멍, 얼굴 가장자리,
   어두운 픽셀(L*<30: 머리카락, 안경테, 그림자), 번들거림(L*가 중앙값+3×MAD 넘음), 날아간/아주 어두운 픽셀(앱과 같음).
+- 얼굴 전체 값은 입 주변을 뺀 피부로 낸다(입 주변은 따로).
 - 붉은 점: 주변(얼굴 폭 6% 창의 중앙값)보다 a*가 6 넘게 높고 L*는 8 넘게 낮지 않은(갈색 점, 주근깨 제외) 작은 덩어리.
+  얼굴 폭 2.5% 안의 조각은 한 점으로 센다.
   안경테 가장자리 근처는 뺀다. 진단이 아니라 '붉은 점'이라는 관찰값이다.
 
     python analysis/fullface_redness.py pair <사진A> <사진B> <그림.png>   # 두 사진 비교 그림과 부위별 숫자
@@ -44,6 +46,7 @@ MIDLINE = [1, 4, 6, 168]
 
 SPOT_DA, SPOT_DL = 6.0, 8.0          # 붉은 점: 주변보다 a* +6 넘게, L* -8 넘게 어둡지 않게
 SPOT_STEP = 4                       # 점 찾기는 4px 간격으로(속도)
+SPOT_MERGE = 0.025                  # 이 거리(얼굴 폭 비율) 안의 조각은 한 점
 
 
 def _poly(shape, pts, hull=False):
@@ -110,7 +113,8 @@ def find_spots(L: np.ndarray, A: np.ndarray, skin: np.ndarray, width: int):
     dark = ndimage.binary_dilation((L < 30)[::s, ::s], iterations=max(1, int(0.015 * width / s)))
     inner = ndimage.binary_erosion(sk, iterations=max(1, int(0.02 * width / s)))   # 뺀 영역 바로 옆은 창 중앙값이 치우쳐 점 후보에서 뺀다
     hot = inner & ~dark & ((a - local_a) > SPOT_DA) & ((local_l - l) < SPOT_DL)
-    grown = ndimage.binary_dilation(hot, iterations=max(1, int(0.012 * width / s))) & sk   # 붙은 조각은 한 점으로
+    # 가까운 조각은 한 점으로(얼굴 폭의 2.5% 안). 한 뾰루지와 둘레의 붉어진 곳이 두 점으로 세어지지 않게
+    grown = ndimage.binary_dilation(hot, iterations=max(1, int(SPOT_MERGE * width / s))) & sk
     lab_, n = ndimage.label(grown)
     if not n:
         return 0, 0.0, []
@@ -128,8 +132,11 @@ def measure_full(img: np.ndarray, lm: np.ndarray, spots=True) -> dict:
     if skin is None:
         return {"ff_ok": False}
     A, L, B = lab[..., 1], lab[..., 0], lab[..., 2]
-    out = {"ff_ok": True, "a_whole": float(np.median(A[skin])), "b_whole": float(np.median(B[skin])),
-           "px_whole": int(skin.sum())}
+    # 얼굴 전체는 입 주변을 뺀다: 입 모양, 입술 경계에 따라 흔들려서 같은 날 반복 오차가 가장 컸다(팀원 1명 41장, MDC95 1.52).
+    # 입 주변은 따로(a_mouth) 남긴다.
+    whole = skin & ~reg["입 주변"]
+    out = {"ff_ok": True, "a_whole": float(np.median(A[whole])), "b_whole": float(np.median(B[whole])),
+           "px_whole": int(whole.sum())}
     for name, m in reg.items():
         c = COLS[name]
         out[f"a_{c}"] = float(np.median(A[m])) if m.sum() >= 400 else np.nan

@@ -58,3 +58,18 @@ def test_lab_image_matches_color_robustness():
     lab = ff.lab_image(img)
     ref = ff.cr.srgb_to_lab(img.reshape(-1, 3)).reshape(1, 2, 3)
     assert np.allclose(lab, ref)
+
+
+def test_close_pieces_count_as_one_spot():
+    """한 뾰루지와 바로 옆의 붉어진 곳(얼굴 폭 2.5% 안)은 한 점으로 센다."""
+    L, A, skin = _skin()
+    _dot(A, 200, 190, 5, 22.0)
+    _dot(A, 200, 212, 5, 22.0)
+    assert ff.find_spots(L, A, skin, 400)[0] == 1
+
+
+def test_far_spots_count_separately():
+    L, A, skin = _skin()
+    _dot(A, 120, 120, 6, 22.0)
+    _dot(A, 280, 280, 6, 22.0)
+    assert ff.find_spots(L, A, skin, 400)[0] == 2
