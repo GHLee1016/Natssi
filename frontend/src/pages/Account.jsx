@@ -92,7 +92,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       <div className="card">
         <h2 className="h3">선택 동의</h2>
         <p className="muted small">동의하지 않아도 기본 기능을 이용할 수 있어요. 언제든 변경할 수 있어요.</p>
-        {[['ai_report', 'AI로 피부 리포트 문장 다듬기', '동의하면 이름, 이메일, 날짜, 제품명을 제외한 가명 처리된 기록 요약을 미국의 AI 서비스(Anthropic Claude)에 보내 문장을 다듬어요. 동의하지 않으면 기본 문구로 피부 리포트를 제공해요.', 'AI 문장 다듬기 동의를 취소했어요.', 'AI 문장 다듬기에 동의했어요.', 'ai'],
+        {[['ai_report', 'AI로 피부 리포트 문장 다듬기', '동의하면 이름, 이메일, 날짜, 제품명을 제외한 가명 처리된 기록 요약을 미국의 AI 서비스(Anthropic Claude)에 보내 문장을 다듬어요. 동의하면 직접 물어보기도 쓸 수 있고, 그때는 적은 질문 문장도 함께 보내요. 동의하지 않으면 기본 문구로 피부 리포트를 제공해요.', 'AI 문장 다듬기 동의를 취소했어요.', 'AI 문장 다듬기에 동의했어요.', 'ai'],
           ['improve', '서비스 개선을 위한 얼굴 사진 제공', '켜면 낯씨가 얼굴 찾기, 사진 검사, 볼 붉은기 재는 방법을 더 정확하게 고칠 때 내 얼굴 사진을 쓸 수 있어요. 지금은 동의만 받고, 사진을 실제로 받기 시작하면 먼저 알려 드릴게요. 받은 사진은 3개월 뒤 지우고, 끄면 바로 지워요.', '서비스 개선용 사진 제공을 껐어요.', '서비스 개선용 사진 제공에 동의했어요.', 'improve']].map(([k, label, help, offMsg, onMsg, doc]) => (
           <div className="row" key={k}>
             <div><b>{label}</b><p className="muted small">{help} <button className="link" onClick={() => onLegal(doc)}>자세히</button></p></div>
