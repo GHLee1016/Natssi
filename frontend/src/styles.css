@@ -678,6 +678,7 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .rs-head h2{display:flex;align-items:center;gap:2px}
 .rs-arrow{font-size:24px;line-height:1;color:var(--ink);width:36px;min-width:36px}.rs-arrow:disabled{opacity:.25}
 .rs-head h2 .rs-arrow:first-child{margin-left:-8px}
+.rs-name{display:flex;flex-direction:column;line-height:1.15}.rs-name small{font-size:14px;font-weight:700;color:var(--sub);letter-spacing:0}
 /* 촬영 통과 뒤: 카메라 화면 없이 결과 한 열 */
 .grid2.done{grid-template-columns:1fr}
 /* 루틴 목록 글자 키우기 */

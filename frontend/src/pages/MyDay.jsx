@@ -255,7 +255,7 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
   )
   const checkinCard = d && (
     <div className="card" id="today-checkin">
-  <h2 className="h3">{d.today_checkin && !draft ? '오늘의 피부 기록' : '오늘의 피부 기록하기'}</h2>
+  <h2 className="h3">{d.today_checkin && !draft ? '오늘의 피부 기록' : '오늘의 피부 상태 기록'}</h2>
   {draft ? (
     <CheckinSteps initial={draft} saving={saving} error={error}
       onSave={(vals) => save(vals)} onCancel={() => { setDraft(null); setError(null) }} />

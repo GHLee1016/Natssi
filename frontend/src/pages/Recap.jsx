@@ -210,7 +210,7 @@ export default function Recap({ mine, today, desc, onClose }) {
       <div>
         <h2>
           {r && <button className="icon-btn rs-arrow" disabled={k <= 0} onClick={() => setMonth(r.months[k - 1])} aria-label="이전 달">‹</button>}
-          <span>{ym.slice(0, 4) !== today.slice(0, 4) && `${+ym.slice(0, 4)}년 `}{+ym.slice(5)}월 Monthly Skin Recap</span>
+          <span className="rs-name">{ym.slice(0, 4) !== today.slice(0, 4) && `${+ym.slice(0, 4)}년 `}{+ym.slice(5)}월<small>Monthly Skin Recap</small></span>
           {r && <button className="icon-btn rs-arrow" disabled={k >= r.months.length - 1} onClick={() => setMonth(r.months[k + 1])} aria-label="다음 달">›</button>}
         </h2>
         {desc && <p className="muted small">{desc}</p>}

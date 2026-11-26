@@ -116,7 +116,7 @@ const VersionList = ({ versions }) => (
 // 루틴 탭의 보기 탭: 지금 루틴, 14일 챌린지, 루틴 점검, 변경 기록
 export function RoutineTabs({ value, onChange }) {
   return <ViewTabs label="루틴 보기" value={value} onChange={onChange} items={[
-    { id: null, label: '내 루틴' }, { id: 'challenge', label: '하나씩 바꾸기' }, { id: 'versions', label: '변경 기록' }]} />
+    { id: null, label: '현재 루틴' }, { id: 'challenge', label: '하나씩 바꾸기' }, { id: 'versions', label: '변경 기록' }]} />
 }
 
 // 세부 보기 내용

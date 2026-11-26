@@ -91,7 +91,7 @@ function AiToggle({ on, onLegal, onChanged }) {
     <div className="card ai-toggle">
       <label className="row-check">
         <input type="checkbox" checked={!!on} disabled={busy} onChange={(e) => flip(e.target.checked)} aria-describedby="ai-help" />
-        <b>AI로 리포트 문장 다듬기(선택)</b>
+        <b>AI로 피부 리포트 문장 다듬기(선택)</b>
       </label>
       <div id="ai-help" className="muted small">
         <p>동의하면 제품명, 날짜, 이메일 등을 제외한 요약을 미국의 AI 서비스(Anthropic Claude)로 보내 리포트 문장을 다듬어요.</p>
