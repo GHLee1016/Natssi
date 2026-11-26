@@ -51,9 +51,12 @@ const linkParams = () => new URLSearchParams(window.location.hash.replace(/^#/, 
 const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴', report: '리포트' }
 const GUIDE_KEY = 'natssi_guide'
 // PC 소개 페이지를 한 번 지나갔는지(예시 둘러보기를 누르거나 메뉴로 들어감). 저장이 막혀도 동작은 한다(매번 소개부터).
+// 소개 페이지(PC, 로그인 전): 이 탭에서 '예시 둘러보기'를 누르기 전까지 뜬다. 탭을 닫고 다시 들어오면 다시 뜬다(sessionStorage).
+// 예전에는 브라우저에 계속 기억(localStorage)해서 한 번 보면 다시 안 떴다. 그 값은 지운다.
 const LANDING_KEY = 'natssi.landingSeen'
-const landingSeen = () => { try { return localStorage.getItem(LANDING_KEY) === '1' } catch { return false } }
-const rememberLanding = () => { try { localStorage.setItem(LANDING_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } }
+try { localStorage.removeItem(LANDING_KEY) } catch { /* 저장소가 막혀도 계속 */ }
+const landingSeen = () => { try { return sessionStorage.getItem(LANDING_KEY) === '1' } catch { return false } }
+const rememberLanding = () => { try { sessionStorage.setItem(LANDING_KEY, '1') } catch { /* 저장이 막혀도 계속 */ } }
 const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return true } }
 // 로그인한 계정별로 한 번: 이메일을 그대로 두지 않으려고 짧은 해시로 키를 만든다
 const userGuideKey = (email) => { let h = 5381; for (const c of email || '') h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return `${GUIDE_KEY}_u${h.toString(36)}` }
