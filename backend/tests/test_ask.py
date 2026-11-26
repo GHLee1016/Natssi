@@ -90,8 +90,8 @@ def test_verifier_rejects_menu_style_answer_then_fallback():
     ({"text": "평소 범위를 넘었어요.", "cites": [], "sources": []}, "근거"),
     ({"text": "레티놀은 비타민 A 계열이에요.", "cites": [], "sources": ["family-없는계열"]}, "없는 자료"),
     ({"text": "이 크림은 써도 돼요.", "cites": [18], "sources": []}, "쓰지 않는"),
-    ({"text": "낯씨는 원인은 말하지 않아요.", "cites": [], "sources": ["faq-cause"]}, None),          # 부정문 안의 금지어는 허용
-    ({"text": "낯씨는 제품을 추천하거나 판매하지 않아요.", "cites": [], "sources": ["faq-free"]}, None),
+    ({"text": "낯씨는 원인은 말하지 않아요.", "cites": [], "sources": ["faq-diagnosis"]}, None),          # 부정문 안의 금지어는 허용
+    ({"text": "낯씨는 제품을 추천하거나 판매하지 않아요.", "cites": [], "sources": ["faq-diagnosis"]}, None),
     ({"text": "이 세럼을 추천해요.", "cites": [18], "sources": []}, "쓰지 않는"),
     ({"text": "원인은 레티놀이에요.", "cites": [18], "sources": []}, "쓰지 않는"),
 ])
