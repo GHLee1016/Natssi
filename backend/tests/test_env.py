@@ -26,7 +26,7 @@ def test_report_uses_real_env_facts(monkeypatch):
     c = TestClient(app)
     texts = [s["text"] for s in c.get("/api/report").json()["sentences"]]
     assert "같은 기간 미세먼지, 습도, 기온은 평소와 비슷했어요." in texts
-    assert "기록하지 않은 요인" in c.get("/api/report/answer/other").json()["text"]
+    assert "기록에 없는 일" in c.get("/api/report/answer/other").json()["text"]
 
 
 def test_missing_table_falls_back_to_csv(monkeypatch):

@@ -782,14 +782,14 @@ def _check_jpeg(data_url: str, max_side: int = 128, what: str = "볼 사진") ->
     from PIL import Image
     head, _, b64 = data_url.partition(",")
     if head != "data:image/jpeg;base64":
-        raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 찍어 주세요.")
+        raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 시도해 주세요.")
     try:
         im = Image.open(io.BytesIO(base64.b64decode(b64, validate=True)))
         ok = im.format == "JPEG" and max(im.size) <= max_side
     except Exception:
         ok = False
     if not ok:
-        raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 찍어 주세요.")
+        raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 시도해 주세요.")
     return b64
 
 
