@@ -70,7 +70,7 @@ def build_records(end: date | None = None, offset: int = 0):
         recs.append({
             "id": i, "date": d.isoformat(), "version": vid, "day_in_version": day_in_v + 1,
             "quality_ok": quality_ok,
-            "quality_note": None if quality_ok else "조명이 평소와 달라 측정을 보류했어요",
+            "quality_note": None if quality_ok else "조명이 평소와 달랐어요",
             "redness": round(shift + noise * (0.5 if shift > 1 else 1), 2) if quality_ok else None,
             "symptoms": {"따가움": sting, "화끈": 1 if sting >= 2 and day_in_v == 5 else 0, "가려움": 0, "당김": 1 if vid == 2 and day_in_v >= 2 else 0},
             "routine_done": True,

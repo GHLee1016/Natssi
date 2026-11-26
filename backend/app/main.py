@@ -296,7 +296,7 @@ def compare(a: date, b: date, v=Depends(viewer)):
         diff = round(rb["redness"] - ra["redness"], 2)
     return {"a": ra, "b": rb, "diff": diff, "mdc95": config.MDC95_A_STAR,
             "beyond_error": diff is not None and abs(diff) > config.MDC95_A_STAR,
-            "photo_note": "AI로 생성된 이미지"}
+            "photo_note": "AI로 만든 이미지"}
 
 
 @app.get("/api/insights")
