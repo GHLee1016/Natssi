@@ -83,7 +83,10 @@ def enabled() -> bool:
 def _api():
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(timeout=20.0, max_retries=0)   # Vercel 함수 제한(30초) 안에 끝나게. 실패하면 틀 문장
+        # Vercel 함수 제한(30초) 안에 끝나게. 실패하면 틀 문장.
+        # Accept-Encoding에서 br을 뺀다: 옛 brotlicffi(1.1 이하)가 깔린 곳에서는 httpx2가 brotli 응답을 풀다
+        # 'output_buffer_limit' 인자 오류로 모든 호출이 APIConnectionError가 된다(2026-11-26 팀원 맥에서 확인). gzip이면 충분하다.
+        _client = anthropic.Anthropic(timeout=20.0, max_retries=0, default_headers={"Accept-Encoding": "gzip, deflate"})
     return _client
 
 
