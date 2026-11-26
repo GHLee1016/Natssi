@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { WeatherIcon, WEATHER } from '../weather.jsx'
 const WEATHER_NAME = Object.fromEntries(Object.entries(WEATHER).map(([k, v]) => [k, v.name]))
@@ -54,42 +54,62 @@ export default function Welcome({ onClose, onStart, onExplore, onRecord, mine = 
       opener.current?.focus?.()
     }
   }, [])
+  // 한 화면에 단계 하나. 다음/이전 버튼, 좌우로 밀기, 키보드 화살표로 넘긴다. 마지막 장에 요령과 시작 버튼을 둔다.
+  const steps = mine ? MINE : DEMO
+  const [i, setI] = useState(0)
+  const last = i === steps.length - 1
+  const go = (n) => setI((x) => Math.max(0, Math.min(steps.length - 1, x + n)))
+  const touch = useRef(null)
+  const nextRef = useRef(null)
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1) }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [])
+  useEffect(() => { nextRef.current?.focus({ preventScroll: true }) }, [i])
+  const [title, body, where, kind] = steps[i]
   return (
     <div className="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title" onClick={onClose}>
-      <div className="welcome-sheet" onClick={(e) => e.stopPropagation()}>
-        <p className="eyebrow">낯씨 사용법</p>
-        <h2 id="welcome-title">{mine ? '이렇게 쓰면 돼요' : '4주 예시를 둘러보세요'}</h2>
-        {!mine && <p className="muted small welcome-note">지금 보이는 화면은 김서연(가상 인물)의 예시 기록이에요. 가입하면 내 기록으로 바뀌어요.</p>}
-        <ol>
-          {(mine ? MINE : DEMO).map(([title, body, where, kind], i) => (
-            <li key={title}><i aria-hidden="true">{i + 1}</i><div>
-              <b>{title}</b>
-              {kind === 'weather' ? (
-                <ul className="welcome-legend">
-                  {LEGEND.map(([lv, t]) => <li key={lv}><WeatherIcon level={lv} size={20} /><span><b>{WEATHER_NAME[lv]}</b> {t}</span></li>)}
-                </ul>
-              ) : <p className="muted small">{body}</p>}
-              {where && <span className="welcome-where">{where}</span>}
-            </div></li>
-          ))}
-        </ol>
-        <div className="welcome-tips muted small">
-          {mine && <p>같은 폰으로, 같은 장소와 시간대에 찍어야 날마다 비교가 정확해요. 사는 구를 고르면 미세먼지, 습도, 기온도 함께 보여요(내 계정).</p>}
-          <p>얼굴 날씨는 내 평소와 비교한 결과예요. 진단이 아니에요. 따가움이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
-          <p>이 안내는 위쪽 사용법(?) 버튼으로 언제든 다시 볼 수 있어요.</p>
+      <div className="welcome-sheet paged" onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => { touch.current = e.touches[0].clientX }}
+        onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? e.changedTouches[0].clientX); if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); touch.current = null }}>
+        <div className="welcome-top">
+          <p className="eyebrow">{mine ? '낯씨 사용법' : '4주 예시 둘러보기'}</p>
+          <span className="welcome-count" aria-hidden="true">{i + 1} / {steps.length}</span>
+        </div>
+        <div className="welcome-dots" role="img" aria-label={`${steps.length}단계 중 ${i + 1}단계`}>
+          {steps.map((_, n) => <i key={n} className={n === i ? 'on' : n < i ? 'done' : ''} />)}
+        </div>
+        <div className="welcome-page" key={i} aria-live="polite">
+          <span className="welcome-num" aria-hidden="true">{i + 1}</span>
+          <h2 id="welcome-title">{title}</h2>
+          {i === 0 && !mine && <p className="muted small welcome-note">지금 보이는 화면은 김서연(가상 인물)의 예시 기록이에요. 가입하면 내 기록으로 바뀌어요.</p>}
+          {kind === 'weather' ? (
+            <ul className="welcome-legend">
+              {LEGEND.map(([lv, t]) => <li key={lv}><WeatherIcon level={lv} size={22} /><span><b>{WEATHER_NAME[lv]}</b> {t}</span></li>)}
+            </ul>
+          ) : <p className="welcome-body">{body}</p>}
+          {where && <span className="welcome-where">{where}</span>}
+          {last && (
+            <div className="welcome-tips muted small">
+              {mine && <p>같은 폰으로, 같은 장소와 시간대에 찍어야 날마다 비교가 정확해요. 사는 구를 고르면 미세먼지, 습도, 기온도 함께 보여요(내 계정).</p>}
+              <p>얼굴 날씨는 내 평소와 비교한 결과예요. 진단이 아니에요. 따가움이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
+              <p>이 안내는 위쪽 사용법(?) 버튼으로 언제든 다시 볼 수 있어요.</p>
+            </div>
+          )}
         </div>
         <div className="actions">
-          {mine ? (
-            <>
-              <button className="btn ghost" onClick={onClose}>닫기</button>
-              <button className="btn" onClick={onRecord} autoFocus>오늘 기록하기</button>
-            </>
-          ) : (
-            <>
-              {onStart && <button className="btn ghost" onClick={onStart}>내 기록 시작하기</button>}
-              <button className="btn" onClick={onExplore} autoFocus>예시 둘러보기</button>
-            </>
-          )}
+          {i > 0
+            ? <button className="btn ghost" onClick={() => go(-1)}>이전</button>
+            : <button className="btn ghost" onClick={mine ? onClose : onExplore}>건너뛰기</button>}
+          {!last ? <button className="btn" ref={nextRef} onClick={() => go(1)}>다음</button>
+            : mine ? <><button className="btn ghost" onClick={onClose}>닫기</button><button className="btn" ref={nextRef} onClick={onRecord}>오늘 기록하기</button></>
+              : (
+                <>
+                  {onStart && <button className="btn ghost" onClick={onStart}>내 기록 시작하기</button>}
+                  <button className="btn" ref={nextRef} onClick={onExplore}>예시 둘러보기</button>
+                </>
+              )}
         </div>
       </div>
     </div>
