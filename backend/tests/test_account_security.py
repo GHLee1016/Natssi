@@ -268,7 +268,7 @@ def test_my_verdict_after_seven_days(env, monkeypatch):
         if i == 6:
             assert me["today_verdict"]["level"] == "구분 불가" and me["redness_days"] == 7   # 평소 범위를 만드는 중
     assert me["today_verdict"]["level"] == "신호 있음" and me["recent"][0]["level"] == "신호 있음"
-    assert "바꾸지 않았는데" in me["today_verdict"]["message"]                    # 루틴을 바꾼 적 없으면 '바꾼 시기' 문장을 쓰지 않음
+    assert "루틴은 그대로였지만" in me["today_verdict"]["message"]                    # 루틴을 바꾼 적 없으면 '바꾼 시기' 문장을 쓰지 않음
 
 
 def test_photo_consent_is_renewed(env):
@@ -424,35 +424,25 @@ def _jpeg(size=96):
 
 def test_signup_optional_consents_are_recorded_separately(env):
     _, c = env
-    r = c.post("/api/auth/signup", json={"email": "o@test.kr", "password": "abcd1234", **SIGNUP, "consent_cheeks": True})
+    r = c.post("/api/auth/signup", json={"email": "o@test.kr", "password": "abcd1234", **SIGNUP, "consent_improve": True})
     h = {"Authorization": "Bearer " + r.json()["access_token"]}
     viewer = c.get("/api/meta", headers=h).json()["viewer"]
-    assert viewer["cheeks"] is True and viewer["ai_report"] is False                  # 하나만 골라도 됨
-    assert c.get("/api/account/export", headers=h).json()["consent"]["cheeks_at"]
+    assert viewer["improve"] is True and viewer["ai_report"] is False                  # 하나만 골라도 됨
+    assert c.get("/api/account/export", headers=h).json()["consent"]["improve_at"]
     assert c.post("/api/account/optional", json={"key": "nope", "on": True}, headers=h).status_code == 400
 
 
-def test_cheek_photos_only_with_consent_and_deleted_on_withdraw(env):
-    fake, c = env
-    h = join(c, "p@test.kr")                                                          # 선택 동의 안 함
+def test_cheek_photo_consent_is_removed(env):
+    """'볼 부분 사진 보관' 선택 동의는 없앴다(11-26): 켤 수 없고, 볼 조각을 받거나 돌려주는 곳도 없다."""
+    _, c = env
+    h = join(c, "p@test.kr")
     up(c, headers=h)
-    body = {"L": _jpeg(), "R": _jpeg()}
-    assert c.post("/api/me/cheeks", json=body, headers=h).status_code == 403
-    c.post("/api/account/optional", json={"key": "cheeks", "on": True}, headers=h)
-    auth._cache.clear()
-    assert c.post("/api/me/cheeks", json={"L": "data:image/png;base64,AAAA", "R": _jpeg()}, headers=h).status_code == 400
-    assert c.post("/api/me/cheeks", json={"L": _jpeg(400), "R": _jpeg()}, headers=h).status_code == 400   # 큰 사진(얼굴 전체 등) 거절
-    assert c.post("/api/me/cheeks", json=body, headers=h).json()["saved"]
-    c.post("/api/me/checkin", json={"따가움": 1}, headers=h)                            # 체크인이 조각을 지우지 않음
+    assert c.post("/api/account/optional", json={"key": "cheeks", "on": True}, headers=h).status_code == 400
+    assert c.post("/api/me/cheeks", json={"L": _jpeg(), "R": _jpeg()}, headers=h).status_code in (404, 405)
+    g = c.get("/api/me/cheeks", params={"dates": "2026-11-20"}, headers=h)
+    assert g.status_code in (404, 405) or "text/html" in g.headers.get("content-type", "")   # 없는 주소는 앱 첫 화면으로
     me = c.get("/api/me", headers=h).json()
-    assert me["today_cheeks"]["L"].startswith("data:image/jpeg") and me["today_checkin"]["따가움"] == 1
-    day = me["today"]
-    assert set(c.get("/api/me/cheeks", params={"dates": day}, headers=h).json()) == {day}
-    assert c.get("/api/account/export", headers=h).json()["checkins"][0]["cheeks"]["L"]
-    c.post("/api/account/optional", json={"key": "cheeks", "on": False}, headers=h)    # 철회하면 바로 삭제
-    auth._cache.clear()
-    assert c.get("/api/me/cheeks", params={"dates": day}, headers=h).json() == {}
-    assert c.get("/api/me", headers=h).json()["today_redness"] == 11.0                  # 숫자 기록은 남음
+    assert "today_cheeks" not in me and "cheeks" not in c.get("/api/meta", headers=h).json()["viewer"]
 
 
 def test_open_mode_is_ignored_on_vercel():
@@ -518,3 +508,18 @@ def test_kept_lighting_photo_is_fogged_without_new_field_and_can_be_replaced(env
     me = c.get("/api/me", headers=h).json()
     assert me["today_redness"] == GOOD["a_star"] and me["redness_days"] == 1
     assert not up(c, GOOD, headers=h).json()["replaced"]                     # 정상 값은 다시 바꾸지 않음(하루 1개)
+
+
+def test_improve_photo_consent_is_optional_and_recorded(env):
+    """서비스 개선용 얼굴 사진 제공: 기본 꺼짐, 가입 때나 계정에서 켜고 끌 수 있고 시각이 남는다. 지금은 사진을 받지 않는다."""
+    _, c = env
+    r = c.post("/api/auth/signup", json={"email": "imp@test.kr", "password": "abcd1234", **SIGNUP, "consent_improve": True})
+    h = {"Authorization": "Bearer " + r.json()["access_token"]}
+    viewer = c.get("/api/meta", headers=h).json()["viewer"]
+    assert viewer["improve"] is True
+    assert c.get("/api/account/export", headers=h).json()["consent"]["improve_at"]
+    assert c.post("/api/account/optional", json={"key": "improve", "on": False}, headers=h).json() == {"improve": False}
+    assert c.get("/api/meta", headers=h).json()["viewer"]["improve"] is False
+    r2 = c.post("/api/auth/signup", json={"email": "imp2@test.kr", "password": "abcd1234", **SIGNUP})
+    h2 = {"Authorization": "Bearer " + r2.json()["access_token"]}
+    assert c.get("/api/meta", headers=h2).json()["viewer"]["improve"] is False         # 기본은 꺼짐

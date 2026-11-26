@@ -17,18 +17,18 @@ export default function ThumbPicker({ photo, icon, autoIcon = 'cream', onPhoto, 
   const pick = async (e) => {
     const f = e.target.files?.[0]; e.target.value = ''
     if (!f) return
-    try { setOpen(false); await onPhoto(await productThumbnail(f)) } catch { onError?.('사진을 열 수 없어요. JPG나 PNG로 골라 주세요.') }
+    try { setOpen(false); await onPhoto(await productThumbnail(f)) } catch { onError?.('사진이 열리지 않아요. JPG나 PNG로 골라 주세요.') }
   }
   const choose = async (k) => { setOpen(false); await onIcon(k) }
   const name = icon && ICON_CHOICES.find(([k]) => k === icon)?.[1]
   return (
     <div className="thumb-picker">
       <div className="prod-photo-row">
-        {photo ? <img className="prod-photo" src={photo} alt="고른 제품 사진" /> : <ProductIcon name={icon || autoIcon} tone="#e8f2f8" />}
+        {photo ? <img className="prod-photo" src={photo} alt="선택한 제품 사진" /> : <ProductIcon name={icon || autoIcon} tone="#e8f2f8" />}
         <div className="thumb-links">
-          <span className="small">{photo ? '고른 사진' : name ? `${name} 아이콘` : '자동 아이콘(성분 보고 골라요)'}</span>
+          <span className="small">{photo ? '선택한 사진' : name ? `${name} 아이콘` : '성분에 맞춘 기본 아이콘'}</span>
           <span className="thumb-acts">
-            <label className={'link file' + (busy ? ' off' : '')}>사진 등록
+            <label className={'link file' + (busy ? ' off' : '')}>사진 추가
               <input type="file" accept="image/*" disabled={busy} onChange={pick} />
             </label>
             <button type="button" className="link" onClick={() => setOpen((o) => !o)} aria-expanded={open} disabled={busy}>아이콘 고르기</button>
@@ -43,7 +43,7 @@ export default function ThumbPicker({ photo, icon, autoIcon = 'cream', onPhoto, 
           </div>
           <div className="icon-grid" role="radiogroup" aria-labelledby="icon-panel-t">
             <button type="button" role="radio" aria-checked={!photo && !icon} className={!photo && !icon ? 'on' : ''} onClick={() => choose(null)}>
-              <i className="icon-auto" aria-hidden="true">자동</i><span>성분 보고</span></button>
+              <i className="icon-auto" aria-hidden="true">자동</i><span>성분 기준 자동 선택</span></button>
             {ICON_CHOICES.map(([k, label]) => (
               <button key={k} type="button" role="radio" aria-checked={!photo && icon === k} className={!photo && icon === k ? 'on' : ''} onClick={() => choose(k)}>
                 <ProductIcon name={k} tone="#f4f1ee" /><span>{label}</span></button>

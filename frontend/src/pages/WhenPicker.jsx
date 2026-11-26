@@ -16,7 +16,7 @@ export default function WhenPicker({ label, value, onChange, min, max, id }) {
         <input type="date" id={id} value={v} min={min} max={max} aria-label={label}
           onChange={(e) => e.target.value && onChange(e.target.value)} />
       </div>
-      {v !== max && <small className="muted">{md(v)}에 바꾼 것으로 기록해요. 그날 이후 기록이 이 루틴과 비교돼요.</small>}
+      {v !== max && <small className="muted">{md(v)}부터 바꾼 루틴으로 기록해요.</small>}
     </div>
   )
 }

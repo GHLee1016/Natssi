@@ -22,8 +22,8 @@ const TABS = [
   { id: 'diary', label: '다이어리', icon: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4zm3 5h7M8 13h7' },
   { id: 'change', label: '변화', icon: 'M4 19h16M6 15l4-5 4 3 5-7' },
   { id: 'capture', label: '기록', icon: 'M4 8h3l2-3h6l2 3h3v11H4V8zm8 2.500a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7z' },
-  { id: 'routine', label: '루틴 관리', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
-  { id: 'report', label: '리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
+  { id: 'routine', label: '내 루틴', icon: 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z' },
+  { id: 'report', label: '피부 리포트', icon: 'M5 5h14v10H10l-5 4V5z' },
 ]
 
 // 로그인한 사용자의 변화·리포트: 사진 기록이 평소 범위를 만들 만큼(7일) 쌓이면 내 기록으로 열고, 그 전에는 진행 상황을 보여 준다.
@@ -32,9 +32,9 @@ function Locked({ title, go, have, need }) {
     <section>
       <header className="page-head"><div><h1>{title}</h1></div></header>
       <div className="card">
-        <p>사진 기록이 {need}일 쌓이면 내 기록으로 보는 {title} 화면이 열려요. 지금 <b>{have} / {need}일</b>이에요.</p>
-        <p className="muted small">어떤 화면인지는 로그아웃하면 김서연 가상 예시로 미리 볼 수 있어요.</p>
-        <div className="actions left"><button className="btn" onClick={() => go('capture')}>오늘 기록하러 가기</button></div>
+        <p>사진 기록이 {need}일 쌓이면 내 {title} 화면이 열려요. 지금 <b>{have} / {need}일</b>이에요.</p>
+        <p className="muted small">로그아웃하면 예시 기록으로 화면을 미리 볼 수 있어요.</p>
+        <div className="actions left"><button className="btn" onClick={() => go('capture')}>오늘의 피부 기록하기</button></div>
       </div>
     </section>
   )
@@ -48,7 +48,7 @@ function MineGate({ title, go, children }) {
 
 // 비밀번호 재설정 메일의 링크는 #access_token=…&type=recovery 로 돌아온다(만료되면 #error_code=…).
 const linkParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ''))
-const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '루틴 관리', report: '리포트' }
+const TAB_TITLES = { diary: '다이어리', change: '변화', capture: '기록', routine: '내 루틴', report: '피부 리포트' }
 const GUIDE_KEY = 'natssi_guide'
 // PC 소개 페이지를 한 번 지나갔는지(예시 둘러보기를 누르거나 메뉴로 들어감). 저장이 막혀도 동작은 한다(매번 소개부터).
 // 소개 페이지(PC, 로그인 전): 이 탭에서 '예시 둘러보기'를 누르기 전까지 뜬다. 탭을 닫고 다시 들어오면 다시 뜬다(sessionStorage).
@@ -94,7 +94,7 @@ export default function App() {
   useEffect(() => { if (window.location.hash && (resetToken || linkExpired)) window.history.replaceState(null, '', window.location.pathname + window.location.search) }, [])   // 토큰이 주소창에 남지 않게
   const firstNav = useRef(true)
   useEffect(() => {                                   // 화면이 바뀌면 제목을 갱신하고, 스크린리더·키보드 사용자를 새 제목으로 옮긴다
-    const name = page === 'auth' ? '로그인 또는 가입' : page === 'legal' ? '약관과 개인정보 처리방침' : page === 'account' ? '내 계정' : showLanding ? '소개' : TAB_TITLES[tab]
+    const name = page === 'auth' ? '로그인 또는 가입' : page === 'legal' ? '이용약관 및 개인정보 처리방침' : page === 'account' ? '내 계정' : showLanding ? '소개' : TAB_TITLES[tab]
     document.title = `${name} - 낯씨`
     if (firstNav.current) { if (meta.data) firstNav.current = false; return }   // 앱 정보를 받아 첫 화면이 그려질 때까지는 포커스를 옮기지 않는다
     const h = document.querySelector('.main h1')
@@ -206,15 +206,15 @@ export default function App() {
         {meta.data && !page && !showLanding && (
           <div key={epoch}>
             {tab === 'diary' && (viewer ? <MyDay key={homeN} mdc95={meta.data.mdc95} date={date} setDate={setDate} go={setTab} onAccount={() => setPage('account')} viewer={viewer} policyVersion={meta.data.consent_version} onLegal={goLegal} onConsented={refreshAll} /> : <Diary key={homeN} date={day} setDate={setDate} meta={meta.data} go={setTab} askLogin={() => setPage('auth')} />)}
-            {tab === 'change' && (viewer ? <MineGate title="변화" go={setTab}><Change mine /></MineGate> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
+            {tab === 'change' && (viewer ? <MineGate title="변화" go={setTab}><Change mine email={viewer.email} /></MineGate> : <Change onOpenDay={(iso) => { setDate(iso); setTab('diary') }} />)}
             {tab === 'capture' && <Capture onLegal={goLegal} viewer={viewer} photoVersion={meta.data.photo_notice_version} mdc95={meta.data.mdc95} onConsented={refreshAll} go={setTab} />}
             {tab === 'routine' && (viewer ? <MyRoutine ocr={!!meta.data.ocr} /> : <Routine />)}
-            {tab === 'report' && (viewer ? <MineGate title="리포트" go={setTab}><Report mine viewer={viewer} aiAvailable={meta.data.ai_available} askAvailable={meta.data.ask_available} onLegal={goLegal} onChanged={refreshAll} cacheKey={'mine|' + viewer.email + '|' + meta.data.today + '|' + (viewer.ai_report ? 'ai' : 'tpl')} /></MineGate> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} askAvailable={meta.data.ask_available} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
+            {tab === 'report' && (viewer ? <MineGate title="피부 리포트" go={setTab}><Report mine viewer={viewer} aiAvailable={meta.data.ai_available} askAvailable={meta.data.ask_available} onLegal={goLegal} onChanged={refreshAll} cacheKey={'mine|' + viewer.email + '|' + meta.data.today + '|' + (viewer.ai_report ? 'ai' : 'tpl')} /></MineGate> : <Report onOpenDay={(iso) => { setDate(iso); setTab('diary') }} canStart={canStart} onStart={() => setPage('auth')} cacheKey={(viewer?.email || 'demo') + '|' + meta.data.today} />)}
           </div>
         )}
         {meta.data && !showLanding && (
           <footer className="app-foot">{/* PC: 위쪽 메뉴로 바꾸면서 메뉴 아래에 있던 링크를 페이지 맨 아래로 */}
-            <span>매일의 얼굴 날씨를 기록하는 AI 피부 일지</span>
+            <span>매일 얼굴 날씨를 기록하는 AI 피부 일지</span>
             {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}
             <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
           </footer>

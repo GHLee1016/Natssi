@@ -34,7 +34,7 @@ def change_day(data: dict, today: date, on: date | None) -> date:
     if on is None:
         return today
     if on > today:
-        raise RoutineError("오늘보다 뒤 날짜는 고를 수 없어요.")
+        raise RoutineError("오늘 이후 날짜는 고를 수 없어요.")
     vs = data.get("versions") or []
     if vs and on < date.fromisoformat(vs[-1]["start"]):
         last = date.fromisoformat(vs[-1]["start"])
@@ -51,12 +51,12 @@ def set_first_start(data: dict, today: date, on: date) -> None:
     if not vs:
         raise RoutineError("먼저 제품을 등록해 주세요.")
     if on > today:
-        raise RoutineError("오늘보다 뒤 날짜는 고를 수 없어요.")
+        raise RoutineError("오늘 이후 날짜는 고를 수 없어요.")
     if on < today - timedelta(days=BACKDATE_DAYS):
         raise RoutineError(f"{BACKDATE_DAYS}일 전까지만 고를 수 있어요.")
     if len(vs) > 1 and on >= date.fromisoformat(vs[1]["start"]):
         nxt = date.fromisoformat(vs[1]["start"])
-        raise RoutineError(f"2번째 루틴을 시작한 날({nxt.month}/{nxt.day})보다 앞이어야 해요.")
+        raise RoutineError(f"2번째 루틴을 시작한 날({nxt.month}/{nxt.day})보다 앞 날짜로 골라 주세요.")
     vs[0]["start"] = on.isoformat()
 
 
@@ -77,10 +77,10 @@ def _commit(data: dict, today: date, items: list, op: str, reason: str | None) -
         if reason and v["id"] >= 2:                            # 처음 등록한 날(버전 1)은 '바꾼' 것이 아니라 출발점이라 이유를 남기지 않는다
             v["reason"] = reason
         if v["id"] >= 2 and len(v["ops"]) >= 2:                 # 처음 등록한 날(버전 1)은 여러 개를 넣어도 되지만, 그 뒤에는 하루에 하나씩
-            warnings.append("오늘 루틴을 이미 한 번 바꿨어요. 한 번에 하나씩 바꿔야 무엇이 원인인지 알 수 있어요.")
+            warnings.append("오늘 이미 루틴을 바꿨어요. 제품을 한 번에 하나씩 바꾸면 피부 변화를 비교하기 쉬워요.")
         return warnings
     if vs and vs[-1]["id"] >= 2 and (today - date.fromisoformat(vs[-1]["start"])).days < GAP_DAYS:
-        warnings.append("최근 7일 안에 루틴을 이미 한 번 바꿨어요. 한 번에 하나씩 바꿔야 무엇이 원인인지 알 수 있어요.")
+        warnings.append("마지막 루틴 변경 후 7일이 지나지 않았어요. 지금 다시 바꾸면 변경 전후를 비교하기 어려울 수 있어요.")
     first = not vs                                            # 처음 등록한 루틴은 '변화'가 아니라 출발점이다
     vs.append({"id": len(vs) + 1, "start": iso, "ops": [op], "change": None if first else op, "reason": reason, "items": items})
     return warnings
@@ -93,12 +93,12 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
     판정의 기준(평소) 안에 들어가므로, 화면에서 '지금은 판단할 수 없어요'라고 알린다. 나중에 추가하는 제품은 그 자체가 변화라 무시."""
     name = name.strip()
     if not name:
-        raise RoutineError("제품 이름을 입력해 주세요.")
+        raise RoutineError("제품명을 입력해 주세요.")
     if usage not in USAGES:
-        raise RoutineError("사용 빈도를 골라 주세요.")
+        raise RoutineError("사용 횟수를 선택해 주세요.")
     items = _items(data)
     if len(items) >= MAX_ITEMS:
-        raise RoutineError(f"제품은 {MAX_ITEMS}개까지 등록할 수 있어요.")
+        raise RoutineError(f"제품은 {MAX_ITEMS}개까지 등록돼요.")
     if any(i["name"] == name for i in items):
         raise RoutineError("같은 이름의 제품이 이미 있어요.")
     clean, seen = [], set()
@@ -109,7 +109,7 @@ def add_item(data: dict, today: date, name: str, usage: str, names: list[str], r
             seen.add(k)
             clean.append(c)
     if len(clean) > ingredients.MAX_ITEMS:
-        raise RoutineError("성분이 너무 많아요. 전성분 부분만 넣어 주세요.")
+        raise RoutineError("성분이 너무 많아요. 성분표에 있는 성분 목록만 넣어 주세요.")
     if icon is not None and icon not in ICONS:
         raise RoutineError("알 수 없는 아이콘이에요.")
     bad = [f for f in extra_families if f not in ingredients.FAMILY_NAMES]
@@ -132,13 +132,13 @@ REASONS = ["자극이 있어서", "더 자주 쓰려고", "그냥 바꿔 봤어�
 def change_usage(data: dict, today: date, key: str, usage: str, reason: str | None = None) -> list[str]:
     """이미 등록한 제품의 사용 빈도를 바꾼다(예: 매일 저녁 → 주 2~3회). 새 버전이 생긴다."""
     if usage not in USAGES:
-        raise RoutineError("사용 빈도를 골라 주세요.")
+        raise RoutineError("사용 횟수를 선택해 주세요.")
     items = _items(data)
     old = next((i for i in items if i["key"] == key), None)
     if not old:
         raise RoutineError("그 제품을 찾지 못했어요.")
     if old["usage"] == usage:
-        raise RoutineError("지금과 같은 사용 빈도예요.")
+        raise RoutineError("현재와 같은 사용 횟수예요.")
     return _commit(data, today, [{**i, "usage": usage} if i["key"] == key else i for i in items],
                    f"{old['name']} {old['usage']} → {usage}", reason)
 

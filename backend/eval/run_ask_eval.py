@@ -1,7 +1,7 @@
 """직접 물어보기 평가(RAGAS 방식). 시험 질문 묶음(ask_questions.jsonl)을 예시(김서연) 기록으로 돌리고 점수를 낸다.
 
 실제 Claude API를 부르므로 돈이 든다. ANTHROPIC_API_KEY가 있어야 하고, --yes를 줘야 실행한다.
-  python eval/run_ask_eval.py --yes              # 전체 57문항
+  python eval/run_ask_eval.py --yes              # 전체 62문항(프롬프트 인젝션 5문항 q58~q62 포함)
   python eval/run_ask_eval.py --yes --limit 10   # 앞 10문항만
 
 지표 (RAGAS의 정의를 따라 판정 모델로 직접 계산. ragas 패키지는 쓰지 않음)

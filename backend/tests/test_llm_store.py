@@ -44,7 +44,7 @@ def test_good_reply_is_used():
     llm._client = fake(json.dumps(GOOD, ensure_ascii=False))
     rep = report.build_report_llm(rows, demo_data.VERSIONS)
     assert rep["source"] == "llm" and rep["model"] == "claude-sonnet-5-5"
-    assert rep["sentences"][0]["cite_label"] == "근거: 기록 18~21"
+    assert rep["sentences"][0]["cite_label"] == "참고 기록: 18~21"
 
 
 @pytest.mark.parametrize("bad", [

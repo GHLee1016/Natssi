@@ -11,8 +11,8 @@ function Writing() {
   return (
     <div className="chat">
       <div className="bubble ai" role="status" aria-live="polite">
-        기록을 바탕으로 리포트를 쓰는 중이에요<span className="typing" aria-hidden="true"><i /><i /><i /></span>
-        {long && <p className="muted small">AI가 문장을 쓰는 중이라 조금 더 걸려요.</p>}
+        피부 리포트를 준비하고 있어요<span className="typing" aria-hidden="true"><i /><i /><i /></span>
+        {long && <p className="muted small">리포트 문장을 다듬고 있어요. 조금 더 걸릴 수 있어요.</p>}
       </div>
     </div>
   )
@@ -41,7 +41,7 @@ function Cite({ item, dateOf, open }) {
   return <button className="link ev-open" onClick={() => open(dates[0])}>{range} 기록 보기</button>
 }
 
-const EVIDENCE_Q = '이 내용의 근거가 뭔가요?'
+const EVIDENCE_Q = '어떤 기록을 참고했나요?'
 
 // 근거를 짧게 풀어 보여 준다: 같은 근거는 한 번만, 날짜 범위와 그 기간 기록의 요약(날씨·붉은기·증상·공기).
 // 요약은 판정 기록 숫자에서 바로 만든다(AI 문장이 아님).
@@ -56,13 +56,13 @@ function summarize(recs) {
   const base = red.find((r) => r.verdict.baseline)?.verdict.baseline
   if (red.length && base) {
     const top = red.reduce((a, r) => (r.redness > a.redness ? r : a))
-    out.push(top.redness > base.high ? `붉은기 최고 ${sgn(top.redness.toFixed(1))} (평소 ${base.low.toFixed(1)}~${base.high.toFixed(1)})` : '붉은기 평소 범위 안')
+    out.push(top.redness > base.high ? `가장 높은 붉은기 수치: ${sgn(top.redness.toFixed(1))}(붉은기 범위: ${base.low.toFixed(1)}~${base.high.toFixed(1)})` : '붉은기가 평소 범위 안에 있었어요.')
   }
   const sym = {}
   for (const r of recs) for (const [k, v] of Object.entries(r.symptoms || {})) sym[k] = Math.max(sym[k] || 0, v)
   const [sk, sv] = Object.entries(sym).sort((a, b) => b[1] - a[1])[0] || []
-  out.push(sv ? `${sk} 최고 ${sv}점` : '증상 없음')
-  if (recs.some((r) => r.env?.measured_on)) out.push(recs.some((r) => r.env?.unusual) ? '공기가 평소와 달랐던 날 있음' : '공기는 평소와 비슷')
+  out.push(sv ? `증상: ${sk === '화끈' ? '화끈거림' : sk} 최고 ${sv}점` : '증상은 없었어요')
+  if (recs.some((r) => r.env?.measured_on)) out.push(recs.some((r) => r.env?.unusual) ? '환경 정보가 평소와 달랐던 날이 있었어요.' : '확인한 환경 정보는 평소와 비슷했어요.')
   return out.filter(Boolean)                  // 한 줄에 하나씩 보여 준다
 }
 function evidenceLinks(items, recById) {
@@ -77,7 +77,7 @@ function evidenceLinks(items, recById) {
     const ids = new Set(recs.map((r) => r.id))
     const held = Object.values(recById).filter((r) => r.date > first && r.date < last && !ids.has(r.id) && r.redness == null).length
     out.push({ key: e.cite_label, date: first, range: first === last ? md(first) : `${md(first)}~${md(last)}`,
-               days: recs.length > 1 ? `${recs.length}일치 기록${held ? `, 측정 보류 ${held}일 제외` : ''}` : '', summary: summarize(recs) })
+               days: recs.length > 1 ? `${recs.length}일간의 기록${held ? `(비교하지 못한 ${held}일 제외)` : ''}` : '', summary: summarize(recs) })
   }
   return out
 }
@@ -91,12 +91,12 @@ function AiToggle({ on, onLegal, onChanged }) {
     <div className="card ai-toggle">
       <label className="row-check">
         <input type="checkbox" checked={!!on} disabled={busy} onChange={(e) => flip(e.target.checked)} aria-describedby="ai-help" />
-        <b>AI로 문장 다듬기 (선택)</b>
+        <b>AI로 피부 리포트 문장 다듬기(선택)</b>
       </label>
       <div id="ai-help" className="muted small">
-        <p>켜면 제품 이름, 날짜, 이메일을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 문장을 다듬어요.</p>
-        <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수. 켜면 직접 물어보기도 쓸 수 있고, 그때는 적은 질문 문장도 함께 보내요.</p>
-        <p>판정은 낯씨가 해요. 끄면 정해진 틀 문장을 써요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
+        <p>동의하면 제품명, 날짜, 이메일 등을 제외한 요약을 미국의 AI 서비스(Anthropic Claude)로 보내 리포트 문장을 다듬어요.</p>
+        <p>보내는 요약: 바꾼 뒤 며칠째인지, 평소보다 붉었던 날, 따가움 점수. 동의하면 직접 물어보기도 쓸 수 있고, 그때는 적은 질문 문장도 함께 보내요.</p>
+        <p>얼굴 날씨는 기록에 따라 정해져요. 동의하지 않으면 기본 문구로 리포트를 보여 줘요. <button className="link" onClick={() => onLegal?.('ai')}>자세히</button></p>
       </div>
       {err && <p className="err" role="alert">{err}</p>}
     </div>
@@ -179,8 +179,8 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
   return (
     <section className="report">
       <header className="page-head">
-        <div><h1>리포트</h1></div>
-        {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `기록과 맞지 않는 문장 ${r.problems.length}개` : '기록에서 확인한 내용만 썼어요'}</span>}
+        <div><h1>피부 리포트</h1></div>
+        {r && <span className={'pill ' + (r.problems.length ? 'warn' : 'ok')}>{r.problems.length ? `기록과 일치하지 않는 문장 ${r.problems.length}개` : '기록을 바탕으로 정리했어요.'}</span>}
       </header>
       {mine && aiAvailable && <AiToggle on={viewer?.ai_report} onLegal={onLegal} onChanged={onChanged} />}
       {!q.loading && <Status {...q} />}
@@ -195,7 +195,7 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
             : m.evidence
               ? (
                 <div className="bubble ai evidence" key={i}>
-                  <p>이 리포트는 아래 기간의 기록을 보고 썼어요.</p>
+                  <p>이 리포트에 참고한 피부 기록이에요.</p>
                   <ul className="ev-links">
                     {evidenceLinks(m.evidence, recById).map((e) => (
                       <li key={e.key}>
@@ -205,18 +205,18 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
                       </li>
                     ))}
                   </ul>
-                  <p className="muted small">판정은 코드가 기록 숫자로 하고, AI는 문장만 다듬어요. 문장 속 숫자와 근거 기록은 판정 기록과 하나하나 대조했어요.</p>
+                  <p className="muted small">얼굴 날씨는 측정값과 기록을 바탕으로 정해요. AI는 문장만 다듬으며, 리포트의 수치와 참고 기록은 실제 기록과 대조해요.</p>
                 </div>
               )
               : m.ask
                 ? <AskAnswer key={i} a={m.ask} dateOf={dateOf} open={onOpenDay} />
                 : <div className="bubble ai" key={i}><p>{m.text}</p>{m.cite_label && onOpenDay && <p className="ans-link"><Cite item={m} dateOf={dateOf} open={onOpenDay} /></p>}</div>)}
-          <p className="muted small">이어서 물어보기</p>
+          <p className="muted small">더 궁금한 점</p>
           <div className="chips">
             {!askedEvidence && <button onClick={showEvidence} disabled={busy !== null}>{EVIDENCE_Q}</button>}
             {r.questions.map((item) => (
               <button key={item.id} onClick={() => ask(item)} disabled={busy !== null}>
-                {busy === item.id ? '답을 찾는 중…' : item.q}
+                {busy === item.id ? '답변 준비 중…' : item.q}
               </button>
             ))}
           </div>
@@ -226,13 +226,13 @@ export default function Report({ onOpenDay, canStart, onStart, cacheKey, mine = 
           {canStart && <StartCard onStart={onStart} />}
           <p className="disclaimer">ⓘ {r.disclaimer}</p>
           {r.source === 'llm'
-            ? <p className="muted small">{`판정 기록을 바탕으로 AI가 문장을 썼어요 (${r.model}). 판정 자체는 AI가 하지 않아요.`}</p>
+            ? <p className="muted small">{`AI(${r.model})는 리포트 문장만 다듬었어요. 얼굴 날씨는 기록을 바탕으로 계산한 결과예요.`}</p>
             : r.llm_error
               ? <>
-                  <p className="muted small">AI 문장을 쓰지 못해, 정해진 틀의 문장으로 보여 드려요. 판정 내용은 같아요.</p>
+                  <p className="muted small">기본 문구로 리포트를 보여 줘요. 분석 결과는 동일해요.</p>
                   <TechDetails text={`${r.llm_error}${r.llm_problems?.length ? '. ' + r.llm_problems.join(', ') : ''}`} />
                 </>
-              : <p className="muted small">판정 기록만으로 만든 문장이에요.</p>}
+              : <p className="muted small">기록을 바탕으로 정리했어요(AI 미사용).</p>}
         </div>
       )}
     </section>

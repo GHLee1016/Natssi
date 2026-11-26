@@ -13,7 +13,7 @@ const REGIONS = {                        // [x, y, w, h] (0~1)
 const PAD = 0.35                         // 측정 영역이 작아 눈에 잘 띄게 네모를 조금 넓힌다
 const IMG_W = 1086, IMG_H = 1448         // 데모 사진 크기(px)
 const CTX = 2.6                          // 확대 화면에 보일 범위: 네모 크기의 몇 배(주변 피부와 비교되게)
-const SIDES = ['사진 왼쪽 볼', '사진 오른쪽 볼']
+const SIDES = ['사진 속 왼쪽 볼', '사진 속 오른쪽 볼']
 
 // 네모 하나 → 확대 화면에 쓸 잘라 낼 범위(0~1)와, 그 안에서 네모가 놓일 자리
 function zoomOf([x, y, w, h]) {
@@ -33,11 +33,14 @@ const sgn = (v) => (v > 0 ? '+' : '') + v.toFixed(1)
 
 function state(record) {
   const v = record.verdict, r = record.redness, b = v.baseline
-  if (r == null) return { key: 'hold', tag: '측정 보류', text: record.quality_note ? `${record.quality_note}. 그래서 이날은 붉은기를 재지 않았어요.` : '이날은 사진 품질 때문에 붉은기를 재지 않았어요.' }
-  if (!b) return { key: 'wait', tag: `붉은기 ${sgn(r)}`, text: '아직 평소 범위를 만드는 중이에요. 기록이 7일 넘게 쌓이면 평소와 비교해 알려 드려요.' }
-  if (r > b.high) return { key: 'high', tag: `붉은기 ${sgn(r)}, 평소보다 높음`, text: `이날 양 볼 붉은기가 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 높았어요. 네모 안 볼이 평소보다 붉게 보인 날이에요.` }
-  if (r < b.low) return { key: 'low', tag: `붉은기 ${sgn(r)}, 평소보다 낮음`, text: `이날 양 볼 붉은기가 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 낮았어요.` }
-  return { key: 'ok', tag: `붉은기 ${sgn(r)}, 평소 범위`, text: `이날 양 볼 붉은기는 ${sgn(r)}로, 평소 범위(${sgn(b.low)} ~ ${sgn(b.high)}) 안이었어요.` }
+  // 사진 조건(조명 등) 때문에 뺀 날과, 측정 자체를 하지 못한 날을 나눠 말한다
+  if (r == null) return record.quality_note
+    ? { key: 'hold', tag: '비교하지 않은 날', text: `${record.quality_note}. 사진 조건이 달라 비교하지 않았어요.` }
+    : { key: 'hold', tag: '측정하지 못한 날', text: '이날은 붉은기를 측정하지 못했어요.' }
+  if (!b) return { key: 'wait', tag: `붉은기 ${sgn(r)}`, text: '아직 붉은기 범위를 만드는 중이에요. 사진 기록이 7일 쌓이면 다음 사진부터 비교할 수 있어요.' }
+  if (r > b.high) return { key: 'high', tag: `붉은기 ${sgn(r)}, 평소보다 높음`, text: `이날 양쪽 볼의 붉은기는 ${sgn(r)}로 붉은기 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 높았어요. 표시된 영역의 볼이 평소보다 붉었어요.` }
+  if (r < b.low) return { key: 'low', tag: `붉은기 ${sgn(r)}, 평소보다 낮음`, text: `이날 양쪽 볼의 붉은기는 ${sgn(r)}로 붉은기 범위(${sgn(b.low)} ~ ${sgn(b.high)})보다 낮았어요.` }
+  return { key: 'ok', tag: `붉은기 ${sgn(r)}, 붉은기 범위 안`, text: `이날 양쪽 볼의 붉은기는 ${sgn(r)}로 붉은기 범위(${sgn(b.low)} ~ ${sgn(b.high)}) 안에 있었어요.` }
 }
 
 export default function FaceMap({ record }) {
@@ -49,7 +52,7 @@ export default function FaceMap({ record }) {
     <div className={'facemap ' + s.key}>
       <div className="facemap-left">
       <div className="facemap-photo">
-        <img src={`/faces/${record.photo}.jpg`} alt={`이날 셀카(AI로 만든 예시). 양 볼에 붉은기 측정 영역 표시: ${s.tag}`} />
+        <img src={`/faces/${record.photo}.jpg`} alt={`이날 얼굴 사진(AI로 생성한 예시). 붉은기를 측정하는 양쪽 볼에 영역이 표시돼 있어요. ${s.tag}`} />
         {boxes.map(([x, y, w, h], i) => (
           <button key={i} type="button" className={'fm-box' + (zoom === i ? ' on' : '')} aria-expanded={zoom === i} aria-controls="fm-zoom"
             aria-label={`${SIDES[i]} 확대해서 보기`} onClick={() => setZoom(zoom === i ? null : i)}
@@ -62,7 +65,7 @@ export default function FaceMap({ record }) {
         return (
           <div className="fm-zoom" id="fm-zoom" role="region" aria-label={`${SIDES[zoom]} 확대`}
             onKeyDown={(e) => { if (e.key === 'Escape') setZoom(null) }}>
-            <div className="fm-zoom-img" role="img" aria-label={`${SIDES[zoom]}을 약 ${z.times}배 확대한 모습(AI로 만든 예시)`}
+            <div className="fm-zoom-img" role="img" aria-label={`${SIDES[zoom]}을 약 ${z.times}배 확대한 모습(AI로 생성한 예시)`}
               style={{ backgroundImage: `url(/faces/${record.photo}.jpg)`, ...z.bg }}>
               <i className="fm-box" aria-hidden="true" style={z.box} />
             </div>
@@ -75,11 +78,11 @@ export default function FaceMap({ record }) {
       })()}
       </div>
       <div className="facemap-text">
-        <h3>얼굴에서 보기</h3>
+        <h3>볼의 붉은기 확인</h3>
         <p>{s.text}</p>
-        <p className="muted small">네모를 누르면 그 부분을 크게 볼 수 있어요.</p>
-        <p className="muted small">네모는 낯씨가 붉은기를 재는 곳(양 볼)이에요. 여드름 같은 트러블은 찾지 않고, 진단하지 않아요. 사진은 AI로 만든 예시예요.</p>
-        <p className="muted small">실제 기록에서는 얼굴 사진을 저장하지 않고, 이 부위의 색만 칩으로 보여 줘요. 선택 동의하면 작은 볼 조각 사진도 함께 보관해요.</p>
+        <p className="muted small">표시된 영역을 누르면 확대해 볼 수 있어요.</p>
+        <p className="muted small">표시된 영역은 붉은기를 측정하는 양쪽 볼이에요. 여드름 등의 피부 트러블은 분석하거나 진단하지 않아요. 사진은 AI로 생성한 예시예요.</p>
+        <p className="muted small">실제 기록에서는 얼굴 전체 사진을 서버에 저장하지 않아요. 내 계정에서 ‘이 기기에 얼굴 사진 보관’을 켜면 그 기기에만 남겨요.</p>
       </div>
     </div>
   )

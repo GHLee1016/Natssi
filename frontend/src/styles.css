@@ -67,9 +67,10 @@ section>*+*{margin-top:12px}
 .hint{margin-top:8px}
 .ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}.ev:last-child{border:0}.ev>b{width:52px;color:var(--accent-ink);flex:none}
 
+.cmp-presets{margin-bottom:10px}.cmp-presets p{margin:0 0 6px}
 .pickers{display:flex;gap:8px;margin-bottom:10px}.pickers label{flex:1;font-size:12px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
 .pickers select{min-height:44px;border-radius:12px;border:1px solid #e9e2dc;background:#fff;padding:0 10px;font-size:14px;color:var(--ink)}
-.cmp{position:relative;aspect-ratio:3/4;max-height:520px;width:100%;border-radius:18px;overflow:hidden;background:#e7e2dc}
+.cmp{position:relative;aspect-ratio:3/4;width:100%;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;background:#e7e2dc}
 .cmp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%}
 .cmp .bar{position:absolute;top:0;bottom:0;width:3px;background:#fff;transform:translateX(-50%);pointer-events:none}
 .cmp .bar span{position:absolute;top:50%;left:50%;width:36px;height:36px;margin:-18px;border-radius:50%;background:#fff;color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2)}
@@ -677,6 +678,7 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .rs-head h2{display:flex;align-items:center;gap:2px}
 .rs-arrow{font-size:24px;line-height:1;color:var(--ink);width:36px;min-width:36px}.rs-arrow:disabled{opacity:.25}
 .rs-head h2 .rs-arrow:first-child{margin-left:-8px}
+.rs-name{display:flex;flex-direction:column;line-height:1.15}.rs-name small{font-size:14px;font-weight:700;color:var(--sub);letter-spacing:0}
 /* 촬영 통과 뒤: 카메라 화면 없이 결과 한 열 */
 .grid2.done{grid-template-columns:1fr}
 /* 루틴 목록 글자 키우기 */

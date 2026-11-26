@@ -1,6 +1,6 @@
 // 브라우저에서 사진을 측정합니다. 사진은 이 기기 밖으로 나가지 않고, 숫자(측정값)만 서버로 보냅니다.
 // 순서는 검증 파이프라인과 같아요: 사진 방향 반영 → 얼굴 점 검출(긴 변 1600px로 줄여서) → 원본 해상도에서 볼 색 측정.
-import { extractFeatures, eulerFromMatrix, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT, FEATURE_VERSION } from './core.js'
+import { extractFeatures, eulerFromMatrix, distinctFaces, FEATURE_VERSION } from './core.js'
 
 const WASM = '/mediapipe/wasm'                          // 빌드할 때 node_modules 에서 복사(scripts/copy-mediapipe.mjs)
 const MODELS = ['/mediapipe/face_landmarker.task',        // 빌드할 때 받아 둔 모델
@@ -80,7 +80,7 @@ function canvasOf(w, h) {
 const HEIF = /image\/hei[cf]|\.hei[cf]$/i
 async function decodePhoto(file) {
   if (HEIF.test(file.type || '') || HEIF.test(file.name || '')) {
-    throw userError("이 사진 형식(HEIF)은 브라우저에서 열 수 없어요. 카메라 설정에서 '고효율 사진'을 끄고 찍거나, 이 화면의 [사진 찍기]로 찍어 주세요.")
+    throw userError('HEIF 형식의 사진을 열 수 없어요. 카메라 설정에서 ‘고효율 사진’을 끄거나 낯씨에서 직접 찍어 주세요.')
   }
   const opt = { imageOrientation: 'from-image', colorSpaceConversion: 'none' }
   try {
@@ -93,7 +93,7 @@ async function decodePhoto(file) {
     const w = ratio >= 1 ? MEASURE_MAX_SIDE : Math.round(MEASURE_MAX_SIDE * ratio)
     return await createImageBitmap(file, { ...opt, resizeWidth: w, resizeQuality: 'high' })
   } catch {
-    throw userError('사진을 열 수 없어요. JPG나 PNG 사진으로 골라 주세요.')
+    throw userError('사진을 열 수 없어요. JPG나 PNG 사진을 선택해 주세요.')
   }
 }
 
@@ -117,20 +117,25 @@ async function toCanvas(src) {
   return c
 }
 
-// 볼 조각(선택 기능): 마지막으로 잰 사진의 양 볼 네모를 96px로 잘라 둔다. 서버로 보내는 숫자에는 넣지 않는다.
-let lastCheeks = null
-export const takeCheeks = () => { const p = lastCheeks; lastCheeks = null; return p }
-function cropCheeks(canvas, lm) {
-  const out = {}
-  for (const [side, idx] of [['L', CHEEK_IMG_LEFT], ['R', CHEEK_IMG_RIGHT]]) {
-    const xs = idx.map((i) => lm[i][0]), ys = idx.map((i) => lm[i][1])
-    const x0 = Math.min(...xs), y0 = Math.min(...ys)
-    const size = Math.max(Math.max(...xs) - x0, Math.max(...ys) - y0)
-    const c = canvasOf(96, 96)
-    c.getContext('2d').drawImage(canvas, x0, y0, size, size, 0, 0, 96, 96)
-    out[side] = c.toDataURL('image/jpeg', 0.82)
-  }
-  return out
+// 얼굴 사진(이 기기 보관용): 두 눈이 수평이고 같은 자리, 같은 크기에 오게 잘라 둔다. 두 날을 겹쳐 볼 때 얼굴이 맞도록.
+let lastFace = null
+export const takeFace = () => { const p = lastFace; lastFace = null; return p }
+const FACE_W = 720, FACE_H = 960                        // 두 날 비교 화면(3:4)과 같은 비율. PC와 고해상도 화면에서도 깨지지 않게 720px
+function alignFace(canvas, lm) {
+  const mid = (ids) => ids.reduce((a, i) => [a[0] + lm[i][0] / ids.length, a[1] + lm[i][1] / ids.length], [0, 0])
+  const [r, l] = [mid([33, 133]), mid([362, 263])]                   // 사진 왼쪽 눈, 오른쪽 눈 가운데
+  const dx = l[0] - r[0], dy = l[1] - r[1]
+  const dist = Math.hypot(dx, dy)
+  if (!(dist > 10)) return null
+  const c = canvasOf(FACE_W, FACE_H), g = c.getContext('2d')
+  g.fillStyle = '#ece7e1'; g.fillRect(0, 0, FACE_W, FACE_H)
+  g.imageSmoothingQuality = 'high'
+  g.translate(FACE_W / 2, FACE_H * 0.42)                            // 두 눈 가운데를 같은 자리에
+  g.rotate(-Math.atan2(dy, dx))                                      // 눈을 수평으로
+  g.scale((FACE_W * 0.2) / dist, (FACE_W * 0.2) / dist)              // 눈 사이를 같은 길이로(폭의 20%: 머리와 턱까지 얼굴 전체가 들어오게)
+  g.translate(-(r[0] + l[0]) / 2, -(r[1] + l[1]) / 2)
+  g.drawImage(canvas, 0, 0)
+  return c.toDataURL('image/jpeg', 0.88)
 }
 
 export async function measurePhoto(src) {
@@ -162,7 +167,7 @@ export async function measurePhoto(src) {
   }
   const img = full.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h)
   const feat = extractFeatures(img, face)
-  lastCheeks = face ? cropCheeks(full, face.lm) : null
+  lastFace = face ? alignFace(full, face.lm) : null
   // 숫자가 아닌 값(NaN)은 null 로 보냄
   return { ...Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v])),
     feature_version: FEATURE_VERSION }

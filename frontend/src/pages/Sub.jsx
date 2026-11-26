@@ -40,7 +40,7 @@ export function SubPage({ head, tabs, children }) {
 
 // 버튼 줄: 첫 화면 위에 두고, 누르면 그 이름을 제목으로 한 세부 화면이 열린다.
 // 열린 버튼을 다시 누르거나 ✕를 누르면 첫 화면으로 돌아온다. items: [{ id, icon(svg 경로), label }]
-export function AskButtons({ items, value, onChange, label = '더 알아보기' }) {
+export function AskButtons({ items, value, onChange, label = '자세히 보기' }) {
   const list = items.filter(Boolean)
   return (
     <div className="ask-row" role="group" aria-label={label}>

@@ -27,7 +27,7 @@ async function clean(file) {
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
   bmp.close?.()
   const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.9))
-  if (!blob) throw new Error('사진을 열 수 없어요. JPG나 PNG로 골라 주세요.')
+  if (!blob) throw new Error('사진이 열리지 않아요. JPG나 PNG로 골라 주세요.')
   return new File([blob], 'ingredients.jpg', { type: 'image/jpeg' })
 }
 
@@ -67,7 +67,7 @@ export async function readIngredientPhotos(files, onStage = () => {}) {
   try {
     out = await app.predict('/ocr', { images: photos.map((f) => handle_file(f)) })
   } catch {
-    throw new Error('성분 읽기 서버에 닿지 못했어요. 잠시 뒤 다시 시도하거나 전성분 글자를 붙여 넣어 주세요.')
+    throw new Error('지금은 사진을 읽지 못해요. 잠시 후 다시 올리거나 성분 목록을 붙여 넣어 주세요.')
   }
   const r = out?.data?.[0] || {}
   return { ingredients: r.ingredients || [], ask_families: r.ask_families || [], message: r.message, seconds: r.seconds }
