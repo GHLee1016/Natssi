@@ -152,6 +152,31 @@ function Val({ r, label, tag, mine, side, diff }) {
   )
 }
 
+// 이 기기에 보관한 얼굴 사진은 눈 위치에 맞춰 자르면서 원래 사진 밖은 배경색(#ece7e1)으로 채워 둔다.
+// 두 사진에서 실제로 찍힌 영역을 찾아, 둘 다 사진이 있는 부분(겹치는 영역)만 보여 준다. 눈, 코, 입 정렬은 그대로.
+const FILL = [236, 231, 225]
+function photoBox(src) {
+  return new Promise((ok) => {
+    const im = new Image()
+    im.onload = () => {
+      const W = 90, H = 120, c = document.createElement('canvas'); c.width = W; c.height = H
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, W, H)
+      const d = g.getImageData(0, 0, W, H).data
+      const fill = (x, y) => { const i = (y * W + x) * 4; return Math.abs(d[i] - FILL[0]) < 10 && Math.abs(d[i + 1] - FILL[1]) < 10 && Math.abs(d[i + 2] - FILL[2]) < 10 }
+      const rowFull = (y) => { let n = 0; for (let x = 0; x < W; x++) n += fill(x, y); return n < W * 0.97 }
+      const colFull = (x) => { let n = 0; for (let y = 0; y < H; y++) n += fill(x, y); return n < H * 0.97 }
+      let t = 0, b = H - 1, l = 0, r = W - 1
+      while (t < b && !rowFull(t)) t++
+      while (b > t && !rowFull(b)) b--
+      while (l < r && !colFull(l)) l++
+      while (r > l && !colFull(r)) r--
+      ok({ t: t / H, b: (b + 1) / H, l: l / W, r: (r + 1) / W })
+    }
+    im.onerror = () => ok({ t: 0, b: 1, l: 0, r: 1 })
+    im.src = src
+  })
+}
+
 function Compare({ records, versions, mine, email }) {
   const dated = records.filter((r) => r.redness !== null)
   // 기본: 처음 루틴의 마지막 측정일 ↔ 붉은기가 가장 높았던 날. 측정 보류한 날은 고르지 않는다(선택 목록에 없음).
@@ -171,6 +196,19 @@ function Compare({ records, versions, mine, email }) {
   const tagOf = (r) => `${fmt.md(r.date)} (${label(byDate[r.date] || r)})`
   const photo = (r) => (mine ? faces[r.date] : `/faces/${r.photo}.jpg`)
   const showFaces = !mine || (faces[a] && faces[b])
+  const [box, setBox] = useState(null)        // 두 사진이 겹치는 영역(0~1). 내 기록 사진에만
+  useEffect(() => {
+    let on = true; setBox(null)
+    if (mine && faces[a] && faces[b]) Promise.all([photoBox(faces[a]), photoBox(faces[b])]).then(([p, q]) => {
+      const m = 0.02                                                     // 기울어진 사진 가장자리의 배경색 띠가 남지 않게 조금 더 안쪽으로
+      const k = { t: Math.max(p.t, q.t) + m, b: Math.min(p.b, q.b) - m, l: Math.max(p.l, q.l) + m, r: Math.min(p.r, q.r) - m }
+      if (on && k.b - k.t > 0.4 && k.r - k.l > 0.4) setBox(k)          // 너무 작게 겹치면 자르지 않음
+    })
+    return () => { on = false }
+  }, [mine, a, b, faces])
+  const crop = box && { position: 'absolute', right: 'auto', bottom: 'auto', objectFit: 'fill',
+    width: `${100 / (box.r - box.l)}%`, height: `${100 / (box.b - box.t)}%`,
+    left: `${-box.l / (box.r - box.l) * 100}%`, top: `${-box.t / (box.b - box.t) * 100}%` }
   const keepOn = mine && email && facesOn(email)
   const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)}{mine && faces[r.date] ? ' (사진)' : ''}</option>
   const options = groups.map((g) => <optgroup key={g.k} label={g.label}>{g.days.map(opt)}</optgroup>)
@@ -195,9 +233,9 @@ function Compare({ records, versions, mine, email }) {
         <>
           <div className={'cmp-row' + (showFaces ? ' has-photo' : '')}>
           <Val r={c.a} label="기준 날짜" tag={tagOf(c.a)} mine={mine} side="l" />
-          {showFaces && <div className="cmp">
-            <img src={photo(c.a)} alt={`${fmt.md(c.a.date)} 사진`} />
-            <img src={photo(c.b)} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
+          {showFaces && <div className="cmp" style={box ? { aspectRatio: `${3 * (box.r - box.l)} / ${4 * (box.b - box.t)}` } : undefined}>
+            <div className="layer"><img src={photo(c.a)} alt={`${fmt.md(c.a.date)} 사진`} style={crop || undefined} /></div>
+            <div className="layer" style={{ clipPath: `inset(0 0 0 ${pos}%)` }}><img src={photo(c.b)} alt={`${fmt.md(c.b.date)} 사진`} style={crop || undefined} /></div>
             <div className="bar" style={{ left: pos + '%' }}><span>⇆</span></div>
             <span className="tag l">{tagOf(c.a)}</span>
             <span className="tag r">{tagOf(c.b)}</span>
