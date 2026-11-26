@@ -219,3 +219,19 @@ def test_all_keys_used_up_falls_back_to_template():
     finally:
         llm._client = None
     assert rep["source"] == "template" and "429" in rep["llm_error"] and seen == ["k1", "k2"]
+
+
+@pytest.mark.parametrize("keys_env,key_env", [
+    ('"k1","k2","k3"', None),                 # 따옴표로 감쌈
+    ("k1\nk2\nk3", None),                    # 줄바꿈으로 나눔
+    ("k1 k2; k3", None),                       # 공백, 세미콜론
+    (None, "k1, k2, k3"),                      # ANTHROPIC_API_KEY에 여러 개
+    (None, "'k1',k2,k3"),
+])
+def test_keys_are_parsed_from_common_vercel_inputs(monkeypatch, keys_env, key_env):
+    for n, v in (("ANTHROPIC_API_KEYS", keys_env), ("ANTHROPIC_API_KEY", key_env)):
+        if v is None:
+            monkeypatch.delenv(n, raising=False)
+        else:
+            monkeypatch.setenv(n, v)
+    assert llm.api_keys() == ["k1", "k2", "k3"]
