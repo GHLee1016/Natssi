@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from . import auth, config, demo_data, env, ingredients, insights, judge, llm, quality, ratelimit, report, store
 from . import routine as myroutine
@@ -578,9 +578,19 @@ class AnalyzeBody(BaseModel):
     text: str = Field(..., min_length=1, max_length=ingredients.MAX_TEXT)
 
 
+def _reason(v):
+    """바꾼 이유는 화면의 버튼 3개(routine.REASONS) 중 하나만 받는다. 자유 글이 저장·표시되지 않게."""
+    if v in (None, ""):
+        return None
+    if v not in myroutine.REASONS:
+        raise ValueError("바꾼 이유를 목록에서 골라 주세요.")
+    return v
+
+
 class UsageChange(BaseModel):
     usage: str = Field(..., max_length=20)
     reason: Optional[str] = Field(None, max_length=60)
+    _check_reason = field_validator("reason")(classmethod(lambda cls, v: _reason(v)))
     on: Optional[date] = None                                            # 바꾼 날(없으면 오늘). routine.change_day가 범위를 확인
 
 
@@ -590,6 +600,7 @@ class RoutineAdd(BaseModel):
     ingredients: list[str] = Field(default_factory=list, max_length=ingredients.MAX_ITEMS + 1)
     families: list[str] = Field(default_factory=list, max_length=20)     # 사용자가 '들어 있어요'라고 체크한 계열
     reason: Optional[str] = Field(None, max_length=60)
+    _check_reason = field_validator("reason")(classmethod(lambda cls, v: _reason(v)))
     recent: bool = False                                                 # 처음 등록 때: 최근 2주 안에 쓰기 시작한 제품
     photo: Optional[str] = Field(None, max_length=60_000)               # 제품 사진(선택): 긴 변 240px 이하 JPEG data URL
     icon: Optional[str] = Field(None, max_length=16)                    # 사진 대신 고른 모양 아이콘(선택, routine.ICONS)
