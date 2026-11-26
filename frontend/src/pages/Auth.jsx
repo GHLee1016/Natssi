@@ -7,7 +7,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const checkEmail = (v) => (!v.trim() ? '이메일 주소를 입력해 주세요.' : EMAIL_RE.test(v.trim()) ? '' : 'name@example.com처럼 입력해 주세요.')
 const checkPassword = (v, strict) => {
   if (!v) return '비밀번호를 입력해 주세요.'
-  if (strict && (v.length < 8 || /^[0-9]+$/.test(v) || /^\p{L}+$/u.test(v))) return '8자 이상, 글자와 숫자를 함께 써 주세요.'
+  if (strict && (v.length < 8 || /^[0-9]+$/.test(v) || /^\p{L}+$/u.test(v))) return '8자 이상, 글자와 숫자를 섞어 써 주세요.'
   return ''
 }
 // 서버가 돌려준 문구가 특정 칸에 대한 것이면 그 칸 아래에 보여준다.
