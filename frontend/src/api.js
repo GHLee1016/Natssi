@@ -22,13 +22,13 @@ async function raw(path, opts = {}, token) {
   try {
     res = await fetch(BASE + path, { ...opts, headers })
   } catch {
-    throw new Error('서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.')
+    throw new Error('연결이 안 됐어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')
   }
   return res
 }
 
 async function fail(res) {
-  let msg = '요청을 처리하지 못했어요. 잠시 뒤 다시 시도해 주세요.'
+  let msg = '처리하지 못했어요. 다시 시도해 주세요.'
   try {
     const j = await res.json()
     if (typeof j.detail === 'string') msg = j.detail

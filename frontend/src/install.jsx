@@ -27,11 +27,11 @@ export function InstallHint() {
       <img src="/icon-192.png" alt="" width="44" height="44" />
       <div>
         <b>홈 화면에 낯씨를 추가해 두세요</b>
-        <p className="muted small">{deferred ? '앱처럼 아이콘을 눌러 매일 바로 기록할 수 있어요.'
+        <p className="muted small">{deferred ? '아이콘을 눌러 매일 바로 기록해요.'
           : ios() ? '사파리 아래쪽 공유 버튼(□↑)을 누르고 ‘홈 화면에 추가’를 고르면 앱처럼 열려요.'
             : samsung() ? '아래쪽 메뉴(≡)를 누르고 ‘현재 페이지 추가’ → ‘홈 화면’을 고르면 앱처럼 열려요.'
               : android() ? '오른쪽 위 메뉴(⋮)를 누르고 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 앱처럼 열려요.'
-                : '브라우저 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 매일 바로 열 수 있어요.'}</p>
+                : '브라우저 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 다음부터 바로 열려요.'}</p>
         <div className="actions left">
           {deferred && <button className="btn" onClick={install}>홈 화면에 추가</button>}
           <button className="btn ghost" onClick={close}>{deferred ? '나중에' : '닫기'}</button>

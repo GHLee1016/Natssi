@@ -10,8 +10,8 @@ export default function Splash() {
     <div className="splash" role="status" aria-live="polite">
       <img src="/logo.svg" alt="" />
       <b>낯씨</b>
-      <p>얼굴 날씨를 불러오는 중이에요</p>
-      {long && <p className="muted small">처음 접속하면 조금 더 걸릴 수 있어요</p>}
+      <p>얼굴 날씨를 불러오고 있어요</p>
+      {long && <p className="muted small">첫 접속은 몇 초 더 걸려요</p>}
     </div>
   )
 }

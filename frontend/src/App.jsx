@@ -32,8 +32,8 @@ function Locked({ title, go, have, need }) {
     <section>
       <header className="page-head"><div><h1>{title}</h1></div></header>
       <div className="card">
-        <p>사진 기록이 {need}일 쌓이면 내 기록으로 보는 {title} 화면이 열려요. 지금 <b>{have} / {need}일</b>이에요.</p>
-        <p className="muted small">어떤 화면인지는 로그아웃하면 김서연 가상 예시로 미리 볼 수 있어요.</p>
+        <p>사진 기록이 {need}일 쌓이면 내 {title} 화면이 열려요. 지금 <b>{have} / {need}일</b>이에요.</p>
+        <p className="muted small">어떤 화면인지 궁금하면 로그아웃하고 김서연(가상 인물) 예시를 보세요.</p>
         <div className="actions left"><button className="btn" onClick={() => go('capture')}>오늘 기록하러 가기</button></div>
       </div>
     </section>

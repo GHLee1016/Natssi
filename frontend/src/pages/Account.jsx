@@ -47,8 +47,8 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="card">
         <h2 className="h3">선택 동의</h2>
-        <p className="muted small">동의하지 않아도 기본 기능은 모두 쓸 수 있어요. 언제든 바꿀 수 있어요.</p>
-        {[['cheeks', '볼 부분 사진 보관', meta.viewer?.cheeks ? '양 볼 네모 조각(작은 사진)을 보관해 두 날을 눈으로 비교해요. 끄면 보관한 조각을 바로 모두 지워요.' : '켜면 그날 처음 저장된 사진의 양 볼 네모 조각만 보관해 두 날을 눈으로 비교할 수 있어요.', '끄면 보관한 볼 사진을 모두 지웠어요.', '볼 부분 사진 보관을 켰어요.', 'photo'],
+        <p className="muted small">동의하지 않아도 기본 기능은 모두 쓸 수 있어요. 아래 스위치로 바로 켜고 꺼요.</p>
+        {[['cheeks', '볼 부분 사진 보관', meta.viewer?.cheeks ? '양 볼 네모 조각(작은 사진)을 보관해 두 날을 눈으로 비교해요. 끄면 보관한 조각을 바로 모두 지워요.' : '켜면 그날 처음 저장된 사진에서 양 볼 네모 조각만 보관해요. 두 날을 눈으로 비교할 때 써요.', '볼 부분 사진 보관을 껐어요. 보관한 볼 사진은 모두 지웠어요.', '볼 부분 사진 보관을 켰어요.', 'photo'],
           ['ai_report', 'AI로 리포트 문장 다듬기', '제품 이름, 날짜, 이메일을 뺀 가명 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 리포트 문장을 다듬어요. 끄면 정해진 틀 문장을 써요.', 'AI 문장 다듬기를 껐어요.', 'AI 문장 다듬기를 켰어요.', 'ai']].map(([k, label, help, offMsg, onMsg, doc]) => (
           <div className="row" key={k}>
             <div><b>{label}</b><p className="muted small">{help} <button className="link" onClick={() => onLegal(doc)}>자세히</button></p></div>
@@ -60,7 +60,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="card">
         <h2 className="h3">사는 구 <span className="muted small">(선택)</span></h2>
-        <p className="muted small">고르면 그 구의 미세먼지, 습도, 기온(에어코리아와 기상청 실측)을 기록과 함께 보여 드려요.</p>
+        <p className="muted small">고르면 그 구의 미세먼지, 습도, 기온(에어코리아, 기상청 실측)이 기록 옆에 같이 나와요.</p>
         <p className="muted small">구 단위만 저장하고 정확한 위치는 받지 않아요. 지금은 서울만 돼요.</p>
         <div className="district-row">
           <label className="sr-only" htmlFor="district">사는 구</label>
@@ -79,7 +79,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>
         ) : (
           <div>
-            <label className="field"><span>확인을 위해 ‘탈퇴’를 입력해 주세요</span>
+            <label className="field"><span>확인하려면 ‘탈퇴’를 입력해 주세요</span>
               <input value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" /></label>
             <div className="actions left">
               <button className="btn ghost" onClick={() => { setConfirmDelete(false); setWord('') }}>취소</button>
