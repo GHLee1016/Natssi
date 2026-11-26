@@ -9,6 +9,7 @@ import { RoutineTabs, RoutineView } from './Insights.jsx'
 import { useSub } from './Sub.jsx'
 import { routineCopy } from '../copy/routine.js'
 import { useBackLayer } from '../nav.js'
+import WhenPicker from './WhenPicker.jsx'
 
 const TONE = { 레티노이드: '#ffe6da', '자외선 차단': '#fff3d9' }
 const ICON = { 레티노이드: 'retinol', '자외선 차단': 'sun' }
@@ -21,6 +22,8 @@ export default function MyRoutine({ ocr }) {
   useBackLayer(adding, () => setAdding(false))            // 폰의 뒤로: 제품 추가를 닫고 루틴으로
   const [asking, setAsking] = useState(null)            // 사용 중단 확인 중인 제품 key
   const [editing, setEditing] = useState(null)          // 사용 빈도를 바꾸는 중인 제품 key
+  const [on, setOn] = useState(null)                    // 바꾼 날(빈도 바꾸기, 사용 중단). null = 오늘
+  const [startEdit, setStartEdit] = useState(null)      // 처음 루틴 시작일 고치는 중이면 날짜
   const [newUsage, setNewUsage] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
@@ -33,10 +36,10 @@ export default function MyRoutine({ ocr }) {
   const [sub, openSub, closeSub] = useSub()
 
   const saved = (data) => { q.setData(data); setAdding(false); setWarn(data.warnings || []); setNote('루틴에 등록했어요.') }
-  const openEdit = (it) => { setEditing(it.key); setNewUsage(''); setReason(''); setAsking(null); setError(null) }
+  const openEdit = (it) => { setEditing(it.key); setNewUsage(''); setReason(''); setAsking(null); setError(null); setOn(null) }
   const change = async (key) => {
     setError(null); setSaving(true)
-    try { const data = await api.changeRoutineUsage(key, newUsage, r.setup_day ? '' : reason); q.setData(data); setEditing(null); setWarn(data.warnings || []); setNote('사용 빈도를 바꿨어요.') }
+    try { const data = await api.changeRoutineUsage(key, newUsage, r.setup_day ? '' : reason, on && on !== r.today ? on : null); q.setData(data); setEditing(null); setWarn(data.warnings || []); setNote('사용 빈도를 바꿨어요.') }
     catch (e) { setError(e.message) } finally { setSaving(false) }
   }
   // 섬네일만 바꾼다(새 버전을 만들지 않음). photo가 있으면 사진, 없으면 아이콘(null = 자동)
@@ -47,8 +50,14 @@ export default function MyRoutine({ ocr }) {
   }
   const stop = async (key) => {
     setError(null)
-    try { const data = await api.removeRoutineItem(key); q.setData(data); setAsking(null); setWarn(data.warnings || []); setNote('사용 중단으로 기록했어요.') }
+    try { const data = await api.removeRoutineItem(key, on && on !== r.today ? on : null); q.setData(data); setAsking(null); setWarn(data.warnings || []); setNote('사용 중단으로 기록했어요.') }
     catch (e) { setError(e.message) }
+  }
+
+  const saveStart = async () => {
+    setError(null); setSaving(true)
+    try { q.setData(await api.setRoutineStart(startEdit)); setStartEdit(null); setNote('처음 루틴 시작일을 고쳤어요.') }
+    catch (e) { setError(e.message) } finally { setSaving(false) }
   }
 
   return (
@@ -65,7 +74,7 @@ export default function MyRoutine({ ocr }) {
         <div className="routine-now">
           <div>
             {warn.map((w) => <p className="notice warn-note" role="alert" key={w}>{w}</p>)}
-            {adding && <AddProduct usages={r.usages} askFamilies={r.ask_families} ocr={ocr} first={!r.current || r.setup_day} onSaved={saved} onCancel={() => setAdding(false)} />}
+            {adding && <AddProduct usages={r.usages} askFamilies={r.ask_families} ocr={ocr} first={!r.current || r.setup_day} onSaved={saved} onCancel={() => setAdding(false)} today={r.today} changeFrom={r.change_from} />}
             {!adding && r.current?.id === 1 && r.current.items.some((it) => it.recent) && (
               <div className="card recent-note" role="note">
                 <h2 className="h3">{t.recent.title}</h2>
@@ -75,7 +84,19 @@ export default function MyRoutine({ ocr }) {
             )}
             {!adding && (r.current ? (
               <div className="card">
-                <h2 className="h3">{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
+                <h2 className="h3">{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span>
+                  {r.current.id === 1 && startEdit === null && <button type="button" className="link start-fix" onClick={() => { setStartEdit(r.current.start); setError(null) }}>시작일 고치기</button>}</h2>
+                {startEdit !== null && (
+                  <div className="edit-usage">
+                    <p className="small">처음 루틴을 등록하기 전부터 이 제품들을 썼다면, 실제로 쓰기 시작한 날로 고쳐요. 그날부터의 기록이 처음 루틴으로 묶여요.</p>
+                    <input type="date" value={startEdit} max={r.today}
+                      aria-label="처음 루틴 시작일" onChange={(e) => e.target.value && setStartEdit(e.target.value)} />
+                    <div className="step-actions">
+                      <button className="btn ghost" onClick={() => setStartEdit(null)}>취소</button>
+                      <button className="btn" onClick={saveStart} disabled={saving}>{saving ? '저장하는 중…' : '고치기'}</button>
+                    </div>
+                  </div>
+                )}
                 <div className="prod-list">
                 {r.current.items.map((it) => (
                   <div key={it.key}>
@@ -92,7 +113,7 @@ export default function MyRoutine({ ocr }) {
                         <span className="ask">
                           <button className="link" onClick={() => { setLook(look === it.key ? null : it.key); setEditing(null); setAsking(null) }} aria-expanded={look === it.key} aria-label={`${it.name} 섬네일 바꾸기`}>섬네일</button>
                           <button className="link" onClick={() => { openEdit(it); setLook(null) }} aria-label={`${it.name} 사용 빈도 바꾸기`}>빈도 바꾸기</button>
-                          <button className="link" onClick={() => { setAsking(it.key); setEditing(null) }} aria-label={`${it.name} 사용 중단`}>사용 중단</button>
+                          <button className="link" onClick={() => { setAsking(it.key); setEditing(null); setOn(null) }} aria-label={`${it.name} 사용 중단`}>사용 중단</button>
                         </span>
                       )}
                     </div>
@@ -101,6 +122,11 @@ export default function MyRoutine({ ocr }) {
                         <ThumbPicker photo={it.photo} icon={it.icon} autoIcon={ICON[it.family] || 'cream'} busy={lookBusy} onError={setError}
                           onPhoto={(p) => setLookOf(it.key, p, null)} onIcon={(k) => setLookOf(it.key, null, k)} />
                         <button type="button" className="link" onClick={() => setLook(null)}>다 바꿨어요</button>
+                      </div>
+                    )}
+                    {asking === it.key && (
+                      <div className="edit-usage">
+                        <WhenPicker id={'w-stop-' + it.key} label="언제부터 안 썼나요?" value={on} onChange={setOn} min={r.change_from} max={r.today} />
                       </div>
                     )}
                     {editing === it.key && (
@@ -122,6 +148,7 @@ export default function MyRoutine({ ocr }) {
                             </div>
                           </>
                         )}
+                        <WhenPicker id={'w-usage-' + it.key} label="언제 바꿨나요?" value={on} onChange={setOn} min={r.change_from} max={r.today} />
                         <div className="step-actions">
                           <button className="btn ghost" onClick={() => setEditing(null)}>취소</button>
                           <button className="btn" onClick={() => change(it.key)} disabled={!newUsage || saving}>{saving ? '저장하는 중…' : '바꾸기'}</button>

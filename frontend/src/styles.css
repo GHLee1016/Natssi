@@ -1091,3 +1091,12 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .welcome-sheet.paged .welcome-legend li{font-size:15px}
 .welcome-sheet.paged .welcome-legend li b{font-size:15px}
 .welcome-sheet.paged .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
+
+/* 루틴을 바꾼 날 고르기 */
+.when{margin-top:12px;display:grid;gap:6px}
+.when p{margin:0}
+.when-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.when-row button{min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:14px}
+.when-row button.on{background:var(--tint);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.when-row input[type=date]{min-height:40px;border-radius:12px;border:1px solid var(--line);padding:0 10px;font-size:15px;background:#fff}
+.start-fix{margin-left:10px;font-size:13px;font-weight:600}

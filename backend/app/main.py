@@ -581,6 +581,7 @@ class AnalyzeBody(BaseModel):
 class UsageChange(BaseModel):
     usage: str = Field(..., max_length=20)
     reason: Optional[str] = Field(None, max_length=60)
+    on: Optional[date] = None                                            # 바꾼 날(없으면 오늘). routine.change_day가 범위를 확인
 
 
 class RoutineAdd(BaseModel):
@@ -592,11 +593,14 @@ class RoutineAdd(BaseModel):
     recent: bool = False                                                 # 처음 등록 때: 최근 2주 안에 쓰기 시작한 제품
     photo: Optional[str] = Field(None, max_length=60_000)               # 제품 사진(선택): 긴 변 240px 이하 JPEG data URL
     icon: Optional[str] = Field(None, max_length=16)                    # 사진 대신 고른 모양 아이콘(선택, routine.ICONS)
+    on: Optional[date] = None                                            # 추가한 날(없으면 오늘)
 
 
 def _routine_response(data, warnings=()):
+    today = config.today_kst()
     return {**myroutine.payload(data), "warnings": list(warnings),
-            "setup_day": myroutine.is_setup_day(data, config.today_kst()), "ask_families": ingredients.ASK_FAMILIES}
+            "setup_day": myroutine.is_setup_day(data, today), "ask_families": ingredients.ASK_FAMILIES,
+            "today": today.isoformat(), "change_from": myroutine.earliest_day(data, today).isoformat()}
 
 
 @app.get("/api/me/routine")
@@ -633,7 +637,8 @@ def add_routine_item(body: RoutineAdd, request: Request, v=Depends(need_user)):
     photo = _check_jpeg(body.photo, 240, "제품 사진") if body.photo else None   # 저장 오류 처리 밖에서 먼저 검사(400)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.add_item(data, config.today_kst(), body.name, body.usage, body.ingredients, body.reason,
+        day = myroutine.change_day(data, config.today_kst(), body.on)
+        warnings = myroutine.add_item(data, day, body.name, body.usage, body.ingredients, body.reason,
                                       body.families, body.recent, photo, body.icon)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
@@ -649,13 +654,32 @@ def change_routine_usage(key: str, body: UsageChange, request: Request, v=Depend
     limit("write", request, v)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.change_usage(data, config.today_kst(), key, body.usage, body.reason)
+        warnings = myroutine.change_usage(data, myroutine.change_day(data, config.today_kst(), body.on), key, body.usage, body.reason)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
         raise _store_fail("루틴을 저장하지 못했어요.", e)
     return _routine_response(data, warnings)
+
+
+class FirstStart(BaseModel):
+    on: date
+
+
+@app.put("/api/me/routine/start")
+def set_routine_start(body: FirstStart, request: Request, v=Depends(need_user)):
+    """처음 루틴을 언제부터 썼는지 고친다(등록을 늦게 한 경우). 판정의 '처음 루틴' 구간이 그날부터가 된다."""
+    limit("write", request, v)
+    try:
+        data = store.load_routine(v["id"])
+        myroutine.set_first_start(data, config.today_kst(), body.on)
+        store.save_routine(v["id"], data)
+    except myroutine.RoutineError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _store_fail("루틴을 저장하지 못했어요.", e)
+    return _routine_response(data)
 
 
 class LookChange(BaseModel):
@@ -680,12 +704,12 @@ def change_routine_look(key: str, body: LookChange, request: Request, v=Depends(
 
 
 @app.delete("/api/me/routine/items/{key}")
-def remove_routine_item(key: str, request: Request, v=Depends(need_user)):
-    """제품 사용을 멈춘다(기록은 지난 버전에 남아요)."""
+def remove_routine_item(key: str, request: Request, v=Depends(need_user), on: Optional[date] = None):
+    """제품 사용을 멈춘다(기록은 지난 버전에 남아요). on: 멈춘 날(없으면 오늘)."""
     limit("write", request, v)
     try:
         data = store.load_routine(v["id"])
-        warnings = myroutine.remove_item(data, config.today_kst(), key)
+        warnings = myroutine.remove_item(data, myroutine.change_day(data, config.today_kst(), on), key)
         store.save_routine(v["id"], data)
     except myroutine.RoutineError as e:
         raise HTTPException(400, str(e))
