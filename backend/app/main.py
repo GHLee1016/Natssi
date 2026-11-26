@@ -65,7 +65,9 @@ def need_user(v=Depends(viewer)):
 
 
 def limit(bucket: str, request: Request, v=None):
-    ratelimit.hit(bucket, v["id"] if v else ratelimit.client_ip(request))
+    who = v["id"] if v else ratelimit.client_ip(request)
+    ratelimit.hit(bucket, who)
+    llm.CALLER.set(("u:" if v else "ip:") + llm.caller_id(who))      # AI 호출 기록에 남길 가명(원래 id, IP는 남기지 않음)
 
 
 def records(v=None):
