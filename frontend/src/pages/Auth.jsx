@@ -92,7 +92,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
   if (done) {
     const text = {
       signup: ['메일을 확인해 주세요', `${email} 주소로 인증 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.`],
-      forgot: ['메일을 확인해 주세요', `${email} 주소로 비밀번호 재설정 링크를 보냈어요. 가입된 이메일이면 곧 도착해요. 안 보이면 스팸함도 확인해 주세요.`],
+      forgot: ['메일을 확인해 주세요', `${email} 주소로 비밀번호를 새로 정하는 링크를 보냈어요. 가입된 이메일이면 곧 도착해요. 안 보이면 스팸함도 확인해 주세요.`],
       reset: ['비밀번호를 바꿨어요', '새 비밀번호로 로그인해 주세요.'],
     }[done]
     return (
@@ -113,7 +113,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
   return (
     <section className="auth">
       <header className="page-head"><div><h1>{title}</h1></div>
-        <button className="btn ghost" onClick={back}>김서연 데모로 돌아가기</button></header>
+        <button className="btn ghost" onClick={back}>예시로 돌아가기</button></header>
       <div className="auth-wrap">
       <form className="card" onSubmit={submit} noValidate>
         {(mode === 'login' || mode === 'signup') && (
@@ -136,7 +136,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
         )}
         {mode !== 'forgot' && (
           <Field id="auth-pw" label={mode === 'reset' ? '새 비밀번호' : '비밀번호'} error={errs.password}
-            helper={strictPw ? '8자 이상, 글자와 숫자를 함께 써 주세요.' : null}>
+            helper={strictPw ? '8자 이상, 글자와 숫자를 섞어 써 주세요.' : null}>
             <div className="pw-wrap">
               <input id="auth-pw" ref={pwRef} type={showPw ? 'text' : 'password'} autoComplete={strictPw ? 'new-password' : 'current-password'}
                 value={password} onChange={(e) => { setPassword(e.target.value); if (errs.password) setErr('password', '') }} {...touch('password')}
@@ -147,7 +147,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           </Field>
         )}
         {mode === 'login' && recovery && (
-          <button type="button" className="link forgot" onClick={() => switchMode('forgot')}>비밀번호를 잊으셨나요?</button>
+          <button type="button" className="link forgot" onClick={() => switchMode('forgot')}>비밀번호 찾기</button>
         )}
 
         {signup && (
@@ -167,7 +167,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
               )
             })}
             {consentTried && !all && <p id="consent-err" className="field-err" role="alert">필수 항목에 모두 동의해 주세요.</p>}
-            <p className="muted small opt-head">선택 항목은 동의하지 않아도 가입과 기본 기능 사용에 영향이 없어요. 동의 여부는 나중에 내 계정에서 바꿀 수 있어요.</p>
+            <p className="muted small opt-head">선택 항목은 동의하지 않아도 가입하고 기본 기능을 모두 쓸 수 있어요. 나중에 내 계정에서 바꿀 수 있어요.</p>
             {OPTIONALS.map(([k, label, doc]) => (
               <div className="check-row" key={k}>
                 <label className="check"><input id={'consent-' + k} type="checkbox" checked={opt[k]} onChange={(e) => setOpt({ ...opt, [k]: e.target.checked })} />{label}</label>
@@ -185,10 +185,10 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
         <h2>루틴은 한 번에 하나만 바꾸고,<br />그 뒤 얼굴이 어땠는지 봐요</h2>
         <ul>
           <li><b>기록</b><span>매일 셀카 한 장과 증상을 남겨요.</span></li>
-          <li><b>변화</b><span>루틴을 바꾼 날을 기준으로 평소 범위와 비교해요.</span></li>
-          <li><b>리포트</b><span>기록에 있는 사실만 문장으로 써요. 진단은 하지 않아요.</span></li>
+          <li><b>변화</b><span>루틴을 바꾼 날 전후로 볼 붉은기가 평소 범위를 넘었는지 봐요.</span></li>
+          <li><b>리포트</b><span>기록에 있는 사실만 글로 정리해요. 진단은 하지 않아요.</span></li>
         </ul>
-        <p className="small muted">김서연 데모는 로그인 없이 읽기 전용으로 열려요. 가입하면 사진 기록 7일 뒤부터 내 기록으로 판정해요. 얼굴 사진은 기기 안에서 검사하고 서버에 보내지 않아요. 볼 부분 사진 보관에 선택 동의했을 때만 양 볼 조각을 보관해요.</p>
+        <p className="small muted">김서연(가상 인물)의 예시는 로그인하지 않아도 볼 수 있어요. 가입하면 사진 기록이 7일 쌓인 다음 날부터 내 기록으로 얼굴 날씨를 알려요. 얼굴 사진은 내 기기 안에서 검사하고 서버로 보내지 않아요. 양 볼 조각 사진은 ‘볼 부분 사진 보관’에 동의했을 때만 보관해요.</p>
       </aside>
       </div>
     </section>

@@ -214,7 +214,7 @@ export default function App() {
         )}
         {meta.data && !showLanding && (
           <footer className="app-foot">{/* PC: 위쪽 메뉴로 바꾸면서 메뉴 아래에 있던 링크를 페이지 맨 아래로 */}
-            <span>매일의 얼굴 날씨를 기록하는 AI 피부 일지</span>
+            <span>매일 얼굴 날씨를 기록하는 AI 피부 일지</span>
             {intro && <button className="link" onClick={goIntro}>낯씨 소개</button>}
             <button className="link" onClick={() => goLegal('privacy')}>개인정보 처리방침</button>
           </footer>

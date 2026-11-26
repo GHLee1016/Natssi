@@ -50,7 +50,7 @@ function MonthKpis({ records, date }) {
       <Kpi label="가장 붉었던 날" value={top ? fmt.md(top.date) : '아직 없어요'} empty={!top}
         sub={top ? `볼 붉은기 ${sgn(top.redness)}` : '사진을 찍으면 보여요'} />
       <Kpi label={`${m}월 맑은 날`} value={judged.length ? `${sunny}일` : '아직 없어요'} empty={!judged.length}
-        sub={judged.length ? `얼굴 날씨가 정해진 ${judged.length}일 중` : '평소 범위가 생기면 맑은 날을 세요'} />
+        sub={judged.length ? `얼굴 날씨가 정해진 ${judged.length}일 중` : '평소 범위가 생기면 맑은 날 수가 보여요'} />
     </div>
   )
 }

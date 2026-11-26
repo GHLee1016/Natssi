@@ -4,7 +4,7 @@ export default function StartCard({ onStart }) {
     <div className="card start">
       <div>
         <b>내 기록 시작하기</b>
-        <p className="muted small">가입하면 오늘부터 내 증상을 기록해요. 기록이 7일 쌓이면 내 평소 범위가 생겨요.</p>
+        <p className="muted small">가입하면 오늘부터 내 얼굴과 증상을 기록해요. 사진 기록이 7일 쌓이면 내 평소 볼 색 범위가 생겨요.</p>
       </div>
       <button className="btn" onClick={onStart}>가입하고 시작</button>
     </div>

@@ -11,7 +11,7 @@ export default function Splash() {
       <img src="/logo.svg" alt="" />
       <b>낯씨</b>
       <p>얼굴 날씨를 불러오고 있어요</p>
-      {long && <p className="muted small">첫 접속은 몇 초 더 걸려요</p>}
+      {long && <p className="muted small">처음 열 때는 몇 초 더 걸려요</p>}
     </div>
   )
 }
