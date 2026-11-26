@@ -6,7 +6,7 @@
 - 사용자 데이터는 {"versions": [...]} 한 덩어리로 저장하고, 화면에는 김서연 데모의 /api/routine 과 같은 모양으로 돌려줍니다.
 """
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from . import ingredients
 
@@ -15,10 +15,49 @@ MAX_ITEMS = 30
 # 제품 사진 대신 고를 수 있는 모양 아이콘(frontend/src/icons.jsx의 PRODUCT 키). 고르지 않으면 화면이 성분 계열로 정한다
 ICONS = ("cleanser", "retinol", "cream", "tube", "mist", "sun")
 GAP_DAYS = 7
+BACKDATE_DAYS = 60        # 바꾼 날을 며칠 전까지 고를 수 있나(제품을 바꾼 날 바로 기록하지 못하는 경우)
 
 
 class RoutineError(ValueError):
     """사용자에게 그대로 보여줘도 되는 오류."""
+
+
+def earliest_day(data: dict, today: date) -> date:
+    """고를 수 있는 가장 이른 날: BACKDATE_DAYS일 전, 그리고 마지막으로 바꾼 날보다 앞서지 않게(순서가 섞이지 않게)."""
+    lo = today - timedelta(days=BACKDATE_DAYS)
+    vs = data.get("versions") or []
+    return max(lo, date.fromisoformat(vs[-1]["start"])) if vs else lo
+
+
+def change_day(data: dict, today: date, on: date | None) -> date:
+    """사용자가 고른 '바꾼 날'을 확인한다. 고르지 않으면 오늘."""
+    if on is None:
+        return today
+    if on > today:
+        raise RoutineError("오늘보다 뒤 날짜는 고를 수 없어요.")
+    vs = data.get("versions") or []
+    if vs and on < date.fromisoformat(vs[-1]["start"]):
+        last = date.fromisoformat(vs[-1]["start"])
+        raise RoutineError(f"마지막으로 바꾼 날({last.month}/{last.day})보다 앞 날짜는 고를 수 없어요.")
+    if on < today - timedelta(days=BACKDATE_DAYS):
+        raise RoutineError(f"{BACKDATE_DAYS}일 전까지만 고를 수 있어요.")
+    return on
+
+
+def set_first_start(data: dict, today: date, on: date) -> None:
+    """처음 루틴(1번째)을 언제부터 썼는지 고친다. 등록을 늦게 해서, 그 전 기록도 처음 루틴에 넣고 싶을 때.
+    다음 버전의 시작일보다 앞이어야 하고, BACKDATE_DAYS일 전까지만."""
+    vs = data.get("versions") or []
+    if not vs:
+        raise RoutineError("먼저 제품을 등록해 주세요.")
+    if on > today:
+        raise RoutineError("오늘보다 뒤 날짜는 고를 수 없어요.")
+    if on < today - timedelta(days=BACKDATE_DAYS):
+        raise RoutineError(f"{BACKDATE_DAYS}일 전까지만 고를 수 있어요.")
+    if len(vs) > 1 and on >= date.fromisoformat(vs[1]["start"]):
+        nxt = date.fromisoformat(vs[1]["start"])
+        raise RoutineError(f"2번째 루틴을 시작한 날({nxt.month}/{nxt.day})보다 앞이어야 해요.")
+    vs[0]["start"] = on.isoformat()
 
 
 def _items(data: dict) -> list:

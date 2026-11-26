@@ -296,3 +296,29 @@ def test_change_look_later_without_new_version(env):
     it = r["current"]["items"][0]
     assert it["photo"] is None and it["icon"] is None                              # 자동 아이콘으로
     assert c.put(url, json={"icon": "tube"}).status_code == 401                     # 로그인 필요
+
+
+def test_backdated_changes_and_first_start():
+    """바꾼 날 고르기: 오늘 기본, 미래와 마지막 변경 이전과 60일 전은 막고, 처음 루틴 시작일은 다음 버전 전까지 당길 수 있다."""
+    from datetime import date, timedelta
+    import pytest
+    today = date(2026, 11, 26)
+    data = {}
+    routine.add_item(data, routine.change_day(data, today, date(2026, 11, 22)), "수분 크림", "매일 아침", [])
+    assert data["versions"][0]["start"] == "2026-11-22"
+    routine.set_first_start(data, today, date(2026, 11, 2))                      # 등록을 늦게 함: 처음 루틴을 11/2부터로
+    assert data["versions"][0]["start"] == "2026-11-02"
+    day = routine.change_day(data, today, date(2026, 11, 12))
+    routine.add_item(data, day, "레티놀 세럼", "매일 저녁", ["레티놀"])
+    assert [v["start"] for v in data["versions"]] == ["2026-11-02", "2026-11-12"] and data["versions"][1]["change"]
+    key = next(i["key"] for i in data["versions"][-1]["items"] if i["name"] == "레티놀 세럼")
+    routine.change_usage(data, routine.change_day(data, today, date(2026, 11, 19)), key, "주 2~3회")
+    assert data["versions"][-1]["start"] == "2026-11-19"
+    assert routine.change_day(data, today, None) == today
+    for bad in (today + timedelta(days=1), date(2026, 11, 18), today - timedelta(days=61)):
+        with pytest.raises(routine.RoutineError):
+            routine.change_day(data, today, bad)
+    with pytest.raises(routine.RoutineError):
+        routine.set_first_start(data, today, date(2026, 11, 12))                # 2번째 루틴 시작일과 같거나 뒤면 안 됨
+    assert routine.earliest_day(data, today) == date(2026, 11, 19)
+

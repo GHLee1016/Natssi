@@ -91,9 +91,10 @@ export const api = {
   suggestIngredients: (q) => req(`/api/me/routine/suggest?q=${encodeURIComponent(q)}`),
   analyzeIngredients: (text) => req('/api/me/routine/analyze', json('POST', { text })),
   addRoutineItem: (body) => req('/api/me/routine/items', json('POST', body)),
-  changeRoutineUsage: (key, usage, reason) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, json('PATCH', { usage, reason: reason || null })),
+  setRoutineStart: (on) => req('/api/me/routine/start', json('PUT', { on })),
+  changeRoutineUsage: (key, usage, reason, on) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, json('PATCH', { usage, reason: reason || null, on: on || null })),
   changeRoutineLook: (key, photo, icon) => req(`/api/me/routine/items/${encodeURIComponent(key)}/look`, json('PUT', { photo: photo || null, icon: icon || null })),
-  removeRoutineItem: (key) => req(`/api/me/routine/items/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+  removeRoutineItem: (key, on) => req(`/api/me/routine/items/${encodeURIComponent(key)}${on ? `?on=${on}` : ''}`, { method: 'DELETE' }),
   checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
   capture: (features) => req('/api/capture', json('POST', features)),   // 사진이 아니라 브라우저가 잰 숫자만 보냄
   consent: () => req('/api/account/consent', json('POST', { photo: true })),
