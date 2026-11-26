@@ -133,6 +133,27 @@ function cropCheeks(canvas, lm) {
   return out
 }
 
+// 얼굴 사진(이 기기 보관용): 두 눈이 수평이고 같은 자리, 같은 크기에 오게 잘라 둔다. 두 날을 겹쳐 볼 때 얼굴이 맞도록.
+let lastFace = null
+export const takeFace = () => { const p = lastFace; lastFace = null; return p }
+const FACE_W = 360, FACE_H = 450
+function alignFace(canvas, lm) {
+  const mid = (ids) => ids.reduce((a, i) => [a[0] + lm[i][0] / ids.length, a[1] + lm[i][1] / ids.length], [0, 0])
+  const [r, l] = [mid([33, 133]), mid([362, 263])]                   // 사진 왼쪽 눈, 오른쪽 눈 가운데
+  const dx = l[0] - r[0], dy = l[1] - r[1]
+  const dist = Math.hypot(dx, dy)
+  if (!(dist > 10)) return null
+  const c = canvasOf(FACE_W, FACE_H), g = c.getContext('2d')
+  g.fillStyle = '#ece7e1'; g.fillRect(0, 0, FACE_W, FACE_H)
+  g.imageSmoothingQuality = 'high'
+  g.translate(FACE_W / 2, FACE_H * 0.4)                             // 두 눈 가운데를 같은 자리에
+  g.rotate(-Math.atan2(dy, dx))                                      // 눈을 수평으로
+  g.scale((FACE_W * 0.36) / dist, (FACE_W * 0.36) / dist)            // 눈 사이를 같은 길이로
+  g.translate(-(r[0] + l[0]) / 2, -(r[1] + l[1]) / 2)
+  g.drawImage(canvas, 0, 0)
+  return c.toDataURL('image/jpeg', 0.85)
+}
+
 export async function measurePhoto(src) {
   const lmk = await loadLandmarker()
   const full = await toCanvas(src)
@@ -163,6 +184,7 @@ export async function measurePhoto(src) {
   const img = full.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h)
   const feat = extractFeatures(img, face)
   lastCheeks = face ? cropCheeks(full, face.lm) : null
+  lastFace = face ? alignFace(full, face.lm) : null
   // 숫자가 아닌 값(NaN)은 null 로 보냄
   return { ...Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v])),
     feature_version: FEATURE_VERSION }

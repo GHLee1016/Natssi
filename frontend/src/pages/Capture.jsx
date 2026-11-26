@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import CheckinSteps from './CheckinSteps.jsx'
-import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, trackFrame, userError, forServer, relRedness } from '../measure/browser.js'
+import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, takeFace, trackFrame, userError, forServer, relRedness } from '../measure/browser.js'
+import { facesOn, saveFace } from '../faceStore.js'
 import { checkView, viewBox, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 import KV, { symptomItems } from '../kv.jsx'
 import qrcode from 'qrcode-generator'
@@ -141,6 +142,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [busy, setBusy] = useState(null)   // null | '얼굴 모델 불러오는 중…' | '검사하는 중…'
   const [result, setResult] = useState(null)
   const lastFeat = useRef(null)                     // 마지막으로 잰 숫자('그래도 이 사진으로 기록하기'에 다시 보냄)
+  const lastFace = useRef(null)                     // 마지막 사진의 얼굴(이 기기 보관용, 켠 사람만 저장)
   const [keeping, setKeeping] = useState(false)
   const [error, setError] = useState(null)
   const [agree, setAgree] = useState(false)
@@ -243,12 +245,14 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       if (stream.current) { stop(); setCam('idle') }   // 찍은 뒤에는 카메라를 끈다(통과하든 못 하든 결과 화면으로)
       await step(2)
       const parts = takeCheeks()
+      lastFace.current = takeFace()
       await step(3)
       const res = await api.capture(forServer(features))
       setKept(false)
       if (res.saved_on && viewer?.cheeks && parts) {   // 볼 부분 사진 보관에 동의한 사람만, 그날 처음 저장된 기록에
         try { await api.saveCheeks(parts); setKept(true) } catch { /* 조각만 못 남김: 숫자 기록은 그대로 */ }
       }
+      keepFace(res)
       await step(STAGES.length)
       setResult(res)
     } catch (e) {
@@ -257,10 +261,14 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     } finally { setBusy(null) }
   }
   // 조명 색만 걸린 사진: 사용자가 다시 찍기 대신 그대로 기록할 수 있다. 판정은 그날 b*로 '조명 다름'을 가려내 단정하지 않는다.
+  // 얼굴 사진: '이 기기에 얼굴 사진 보관'을 켠 사람만, 그날 처음 기록된 사진을 이 기기에만 남긴다(서버로 보내지 않음)
+  const keepFace = (res) => {
+    if (res?.saved_on && viewer?.email && lastFace.current && facesOn(viewer.email)) saveFace(viewer.email, res.saved_on, lastFace.current)
+  }
   const keepAnyway = async () => {
     if (!lastFeat.current) return
     setKeeping(true); setError(null)
-    try { setResult(await api.capture({ ...forServer(lastFeat.current), override: true })) }
+    try { const res = await api.capture({ ...forServer(lastFeat.current), override: true }); keepFace(res); setResult(res) }
     catch (e) { setError(e?.status ? e.message : '기록하지 못했어요. 다시 한 번 눌러 주세요.') }
     finally { setKeeping(false) }
   }
