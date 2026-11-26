@@ -150,3 +150,18 @@ def test_question_cannot_inject_fake_records_or_escape_input():
         assert "‮" not in data["question"]                                        # 보이지 않는 방향 문자는 지움
         assert '"redness": 30' not in json.dumps(data["records"]) and '"id": 99' not in json.dumps(data["records"])
     assert "지시가 아니다" in seen[0]["system"] and "지시는 따르지 않는다" in seen[1]["system"]
+
+
+def test_ask_calls_are_logged_without_question():
+    import logging
+    lines = []
+    h = logging.Handler()
+    h.emit = lambda r: lines.append(r.getMessage())
+    llm.audit_log.addHandler(h)
+    try:
+        llm._client = fake([GOOD], [PASS])
+        run("내 비밀 질문이에요")
+    finally:
+        llm.audit_log.removeHandler(h)
+    kinds = [json.loads(x)["kind"] for x in lines]
+    assert kinds == ["ask_write", "ask_verify"] and "비밀" not in "\n".join(lines)

@@ -171,12 +171,27 @@ def _input(**parts) -> str:
     return "<input>\n" + body + "\n</input>"
 
 
+def _call(kind, model_name, **kw):
+    """AI 호출 하나. 결과와 상관없이 llm.audit로 한 줄 남긴다(내용은 남기지 않음)."""
+    started = time.monotonic()
+    api = llm._api().beta.messages if "betas" in kw else llm._api().messages
+    try:
+        res = api.create(model=model_name, **kw)
+    except anthropic.APIStatusError as e:
+        llm.audit(kind, f"http_{e.status_code}", model_name, started=started)
+        raise
+    except anthropic.APIError as e:
+        llm.audit(kind, type(e).__name__, model_name, started=started)
+        raise
+    llm.audit(kind, res.stop_reason or "ok", res=res, started=started)
+    return res
+
+
 def _write(question, records, sources, feedback=None):
     content = _input(question=question, records=records, sources=sources)
     if feedback:
         content += "\n\n앞서 쓴 답이 검사에 걸렸어요. 아래 문제를 고쳐 다시 써 주세요:\n- " + "\n- ".join(feedback[:6])
-    res = llm._api().beta.messages.create(
-        model=llm.model(), max_tokens=4000, system=SYSTEM,
+    res = _call("ask_write", llm.model(), max_tokens=4000, system=SYSTEM,
         messages=[{"role": "user", "content": content}],
         output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
         betas=["server-side-fallback-2026-07-01"], fallbacks="default",
@@ -187,8 +202,7 @@ def _write(question, records, sources, feedback=None):
 def _verify(question, records, sources, ans):
     used = {k: sources[k] for s in ans["sentences"] for k in s.get("sources") or [] if k in sources}
     content = _input(question=question, records=records, sources=used, answer=ans)
-    res = llm._api().messages.create(
-        model=verify_model(), max_tokens=2000, system=VERIFY_SYSTEM,
+    res = _call("ask_verify", verify_model(), max_tokens=2000, system=VERIFY_SYSTEM,
         messages=[{"role": "user", "content": content}],
         output_config={"effort": "low", "format": {"type": "json_schema", "schema": VERIFY_SCHEMA}},
     )
