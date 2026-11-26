@@ -111,6 +111,26 @@ PC에서 처음 열면 소개 페이지가 먼저 나오고, 'PC에서 예시 �
 | 문장 다듬기 | LLM(선택 동의) | 판정에는 관여하지 않고 문장만 |
 | 전성분 읽기 | 허깅페이스 Space | OCR 모델을 Vercel 함수에 올릴 수 없어서 |
 
+### 코드 둘러보기
+
+궁금한 것부터 바로 열어 보세요. 파일 이름을 누르면 열려요.
+
+| 궁금한 것 | 보면 되는 코드 | 테스트 |
+|---|---|---|
+| 볼 붉은기는 어떻게 재나요? | [`core.js`](frontend/src/measure/core.js) | [`core.test.mjs`](frontend/src/measure/core.test.mjs) |
+| 자동 촬영은 언제 찍나요? | [`guide.js`](frontend/src/measure/guide.js) | [`guide.test.mjs`](frontend/src/measure/guide.test.mjs) |
+| 사진 품질은 어떻게 판정하나요? | [`quality.py`](backend/app/quality.py) | [`test_quality.py`](backend/tests/test_quality.py) |
+| 얼굴 날씨(평소 범위)는 어떻게 정하나요? | [`judge.py`](backend/app/judge.py) | [`test_engine.py`](backend/tests/test_engine.py) |
+| 조명이 다르면 어떻게 하나요? | [`judge.py`](backend/app/judge.py), [`quality.py`](backend/app/quality.py) | [`test_color_check.py`](backend/tests/test_color_check.py) |
+| 리포트 문장과 AI 검사는요? | [`report.py`](backend/app/report.py), [`llm.py`](backend/app/llm.py) | [`test_llm_store.py`](backend/tests/test_llm_store.py) |
+| 루틴과 성분 계열은요? | [`routine.py`](backend/app/routine.py), [`ingr/`](backend/app/ingr/) | [`test_routine.py`](backend/tests/test_routine.py) |
+| 전성분 사진은 어떻게 읽나요? | [`pipeline.py`](data_pipeline/ingredients/pipeline.py), [`space_app.py`](data_pipeline/ocr_server/space_app.py) | [`tests/`](data_pipeline/tests/) |
+| 환경 데이터는 어디서 오나요? | [`envdata/`](data_pipeline/envdata/), [`env.py`](backend/app/env.py) | [`test_env.py`](backend/tests/test_env.py) |
+| 내 기록은 남에게 안 보이나요? | [`main.py`](backend/app/main.py), [`auth.py`](backend/app/auth.py) | [`test_account_security.py`](backend/tests/test_account_security.py) |
+| 화면은 어디서 시작하나요? | [`App.jsx`](frontend/src/App.jsx), [`pages/`](frontend/src/pages/) | 화면 캡처로 확인 |
+
+규모(테스트 파일 빼고): 화면 약 5,100줄, 서버 약 3,200줄, 데이터 파이프라인 약 2,900줄. 테스트: 서버 100개, 화면 측정 18개, 데이터 파이프라인 21개.
+
 ## 기술
 
 <table>
