@@ -437,7 +437,7 @@ def _me_payload(uid):
     district, today_env = _my_env(uid, today)
     judged = _my_judged(uid, saved, district)
     recent = [{"date": r["date"], "symptoms": r["symptoms"] or None, "redness": r["redness"],
-               "level": r["verdict"]["level"]} for r in reversed(judged[-7:])]
+               "level": r["verdict"]["level"], "light": bool(r.get("light_flag"))} for r in reversed(judged[-7:])]
     last = judged[-1] if judged and judged[-1]["date"] == today else None
     return {"today": today, "today_checkin": _split(saved.get(today))[0],
             "today_verdict": last["verdict"] if last and last["redness"] is not None else None,

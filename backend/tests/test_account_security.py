@@ -165,6 +165,7 @@ def test_users_cannot_see_each_others_checkins(env):
     r = c.post("/api/me/checkin", json={"따가움": 3}, headers=a)
     assert r.status_code == 200 and r.json()["today_checkin"]["따가움"] == 3 and r.json()["days_recorded"] == 1
     assert c.get("/api/me", headers=a).json()["today_checkin"]["따가움"] == 3
+    assert all("light" in r for r in c.get("/api/me", headers=a).json()["recent"])   # 첫 7일 카드: 조명 다른 날은 비교에서 뺀다
     assert c.get("/api/me", headers=b).json()["today_checkin"] is None                    # B는 A의 기록이 안 보임
     assert c.get("/api/day/2026-11-16").json()["record"]["symptoms"]["따가움"] != 3     # 김서연 데모에도 안 섞임
     assert c.get("/api/me").status_code == 401

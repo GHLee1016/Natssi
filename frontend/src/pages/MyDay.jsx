@@ -69,6 +69,67 @@ function PolicyNotice({ mine, current, onLegal, onConsented }) {
 
 const sgn = (x) => (x > 0 ? '+' : '') + x
 
+// 첫 7일(평소 범위가 생기기 전): 빈 날씨 카드 자리에 '오늘 남긴 것'을 한 장으로 보여 준다.
+// 판정(맑음, 흐림)은 하지 않는다. 직전 사진 기록과의 차이는 측정 오차(MDC95)와만 견주어 참고로 보여 준다.
+// MDC95는 같은 사람의 두 측정이 '진짜로 달라졌다'고 볼 최소 차이라서, 평소 범위 없이도 두 날 비교에 쓸 수 있다.
+export function compareLine(d, mdc95) {
+  if (d.today_redness == null || !mdc95) return null
+  const today = d.recent?.find((r) => r.date === d.today)
+  if (today?.light) return '오늘 사진은 조명 색이 평소와 달라서 다른 날과 비교하지 않았어요.'
+  const prev = d.recent?.find((r) => r.date < d.today && r.redness != null && !r.light)
+  if (!prev) return '첫 사진 기록이에요. 내일부터 전날 기록과 비교해 보여 드려요.'
+  const gap = Math.round((Date.parse(d.today) - Date.parse(prev.date)) / 86400000)
+  const when = gap === 1 ? '어제' : `${gap}일 전(${fmt.md(prev.date)})`
+  const diff = Math.round((d.today_redness - prev.redness) * 10) / 10
+  const head = `${when}보다 ${diff === 0 ? '변화 없음' : (diff > 0 ? '+' : '') + diff.toFixed(1)}.`
+  const wa = gap === 1 ? '어제와' : `${gap}일 전과`
+  return Math.abs(diff) <= mdc95
+    ? `${head} 측정 오차(±${mdc95}) 안이라 ${wa} 비슷한 편이에요.`
+    : `${head} 측정 오차(±${mdc95})보다 커서 ${wa} 달라 보여요. 아직 평소 범위가 없어 좋고 나쁨은 판단하지 않아요.`
+}
+
+function FirstWeekCard({ d, mdc95, go, onSymptoms, draft }) {
+  const left = Math.max(0, d.needed - d.redness_days)
+  const todayRec = d.recent?.find((r) => r.date === d.today)
+  const cmp = compareLine(d, mdc95)
+  return (
+    <div className="card first-week" aria-labelledby="fw-title">
+      <div className="fw-head">
+        <h2 className="h3" id="fw-title">오늘의 기록</h2>
+        <span className="fw-step">평소 범위까지 {Math.min(d.redness_days, d.needed)}/{d.needed}일</span>
+      </div>
+      {d.today_redness == null ? (
+        <>
+          <p className="fw-empty">오늘은 아직 사진이 없어요</p>
+          <p className="muted small">사진 한 장과 증상 네 가지로 오늘 기록을 남겨요. 1분이면 돼요.</p>
+          <div className="actions left"><button className="btn" onClick={() => go('capture')}>오늘 기록하기</button></div>
+        </>
+      ) : (
+        <>
+          <div className="fw-main">
+            <div>
+              <p className="fw-k">오늘 볼 붉은기</p>
+              <p className="fw-big">{sgn(d.today_redness)}</p>
+            </div>
+            {d.today_cheeks && (
+              <span className="cheek-pair small">{['L', 'R'].map((k) => <img key={k} src={d.today_cheeks[k]} alt={k === 'L' ? '오늘 왼쪽 볼' : '오늘 오른쪽 볼'} />)}</span>
+            )}
+          </div>
+          {cmp && <p className="fw-cmp">{cmp}</p>}
+          <ul className="fw-list">
+            <li><span className="fw-k">사진</span>{todayRec?.light ? '조명 색이 평소와 달랐던 사진으로 기록했어요' : '품질 검사(밝기, 각도, 선명도, 조명)를 통과했어요'}</li>
+            <li><span className="fw-k">증상</span>{d.today_checkin ? symptomText(d.today_checkin) : '아직 남기지 않았어요'}</li>
+          </ul>
+          {!d.today_checkin && !draft && <div className="actions left"><button className="btn" onClick={onSymptoms}>증상 남기기</button></div>}
+        </>
+      )}
+      <p className="fw-foot">{left > 0
+        ? `사진 기록을 ${left}일 더 남기면, 그다음 날부터 내 평소 범위와 비교해 얼굴 날씨를 보여 드려요.`
+        : '평소 범위를 만들 사진 기록이 모였어요. 다음 사진부터 얼굴 날씨를 보여 드려요.'}</p>
+    </div>
+  )
+}
+
 // 지난 날 하나: 데모 다이어리와 같은 모양(날씨 카드, 이번 주 줄, 그날의 기록)
 function PastDay({ rec, ver, district, changes }) {
   if (!rec) return <EmptyDay />
@@ -105,7 +166,7 @@ function PastLog({ rec, ver }) {
   )
 }
 
-export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, onConsented, date, setDate }) {
+export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, onConsented, date, setDate, mdc95 }) {
   const q = useLoad(() => api.me(), [])
   const [period, setPeriod] = usePeriod()
   const [draft, setDraft] = useState(null)
@@ -257,8 +318,10 @@ export default function MyDay({ go, onAccount, viewer, policyVersion, onLegal, o
         <PolicyNotice mine={viewer?.consent_version} current={policyVersion} onLegal={onLegal} onConsented={onConsented} />
         <EnvToday district={d.district} env={d.env} today={d.today} onAccount={onAccount} />
         {v && todayHero}
+        {!d.unlocked && <FirstWeekCard d={d} mdc95={mdc95} go={go} draft={draft}
+          onSymptoms={() => { setDraft({}); setTimeout(() => document.getElementById('today-checkin')?.scrollIntoView({ block: 'center' }), 0) }} />}
         {changes}
-        {todayRow}
+        {d.unlocked && todayRow}
         <InstallHint />
         <div className="today-cards">
           <div>
