@@ -143,7 +143,7 @@ python analysis/fullface_redness.py summary                           # → data
 
 ## 4. MDC95 다시 계산 (`analysis/mdc95_check.py`)
 
-앱 판정 기준 MDC95 2.35(95% 신뢰구간 1.85~2.97)는 `natssi_selfie_validation/code/analyze_reliability.py`로 냈다.
+앱 판정 기준 MDC95 2.35(95% 신뢰구간 1.85~2.97)는 `selfie_validation/code/analyze_reliability.py`로 냈다(원래 코드와 문서는 `selfie_validation/`).
 그 식(하루 1장 기준 SEM, 사람 단위 부트스트랩 2000회)을 그대로 옮겨 지금 측정값으로 다시 낸다(원래 코드와 결과 일치 확인). 이미 만든 측정 파일(`private/fullface_redness.csv` 또는 `private/color_robustness.csv`)의
 원본, 품질 통과 사진으로 다시 계산한다. 사진은 다시 읽지 않는다.
 
@@ -158,7 +158,7 @@ python analysis/mdc95_check.py            # → data/mdc95_check.md (요약만)
 
 ## 5. 원래 측정 코드와 비교 (`analysis/measure_compare.py`)
 
-MDC95 2.35를 낸 측정값은 `natssi_selfie_validation/code/measure_redness.py`로 만들었다. 그 코드를 찾지 못해 앱 코드를 바탕으로
+MDC95 2.35를 낸 측정값은 `selfie_validation/code/measure_redness.py`로 만들었다. 한동안 그 코드를 찾지 못해 앱 코드를 바탕으로
 `analysis/color_robustness.py`를 다시 만들었으므로, 같은 사진에서 두 코드의 볼 a*와 품질 판정, MDC95를 나란히 낸다.
 알려진 차이: 사진 읽기(PIL/OpenCV), 얼굴 점을 찾는 해상도(원본/1600px), 볼 영역 좌표(버림/반올림+테두리), 선명도 축소 방식,
 위아래 각도 보정(없음/−3.7°), 여러 얼굴 세는 법. 지금 코드는 모두 앱과 같은 쪽이다.
