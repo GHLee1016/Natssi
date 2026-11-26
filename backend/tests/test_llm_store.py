@@ -146,3 +146,23 @@ def test_ai_call_is_logged_without_content_or_ids():
     assert all(r["event"] == "ai_call" and r["kind"] == "report" and r["who"].startswith("u:") for r in recs)
     text = "\n".join(lines)
     assert uid not in text and "레티놀" not in text and "sentences" not in text
+
+
+def test_client_does_not_ask_for_brotli(monkeypatch):
+    """옛 brotlicffi가 깔린 곳에서 brotli 응답을 풀다 모든 AI 호출이 실패했다. 처음부터 br을 요청하지 않는다."""
+    seen = {}
+
+    def handler(request):
+        seen["ae"] = request.headers.get("accept-encoding")
+        return httpx2.Response(200, json={"id": "m", "type": "message", "role": "assistant", "model": "claude-sonnet-5-5",
+                                          "content": [{"type": "text", "text": "{}"}], "stop_reason": "end_turn",
+                                          "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}})
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    llm._client = None
+    real = anthropic.Anthropic
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kw: real(**kw, http_client=anthropic.DefaultHttpxClient(transport=httpx2.MockTransport(handler))))
+    try:
+        llm._api().messages.create(model="claude-sonnet-5-5", max_tokens=5, messages=[{"role": "user", "content": "hi"}])
+    finally:
+        llm._client = None
+    assert "br" not in seen["ae"].split(", ") and "gzip" in seen["ae"]
