@@ -166,3 +166,56 @@ def test_client_does_not_ask_for_brotli(monkeypatch):
     finally:
         llm._client = None
     assert "br" not in seen["ae"].split(", ") and "gzip" in seen["ae"]
+
+
+def _keyed_client(key, status, seen, body=None):
+    """키마다 정해진 응답을 주는 가짜 Claude. status가 200이면 정상, 아니면 그 오류."""
+    def handler(request):
+        seen.append(key)
+        if status == 200:
+            return httpx2.Response(200, json={"id": "m", "type": "message", "role": "assistant", "model": "claude-sonnet-5-5",
+                                              "content": [{"type": "text", "text": "ok"}], "stop_reason": "end_turn",
+                                              "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}})
+        return httpx2.Response(status, json={"type": "error", "error": {"type": "x", "message": body or "error"}})
+    return anthropic.Anthropic(api_key=key, max_retries=0, http_client=anthropic.DefaultHttpxClient(transport=httpx2.MockTransport(handler)))
+
+
+def _ask(c):
+    return c.messages.create(model="claude-sonnet-5-5", max_tokens=5, messages=[{"role": "user", "content": "hi"}])
+
+
+def test_keys_from_env(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEYS", " k1, k2 ,,k3")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k2")
+    assert llm.api_keys() == ["k1", "k2", "k3"] and llm.enabled()
+    monkeypatch.delenv("ANTHROPIC_API_KEYS")
+    assert llm.api_keys() == ["k2"]
+
+
+@pytest.mark.parametrize("status,body", [(429, "rate limit"), (400, "Your credit balance is too low"), (401, "invalid x-api-key"), (403, "forbidden")])
+def test_used_up_key_moves_to_next_and_stays(status, body):
+    seen = []
+    f = llm._Failover([_keyed_client("k1", status, seen, body), _keyed_client("k2", 200, seen), _keyed_client("k3", 200, seen)])
+    assert _ask(f).content[0].text == "ok" and seen == ["k1", "k2"]      # 같은 요청을 다음 키로 다시 보냄
+    _ask(f)
+    assert seen == ["k1", "k2", "k2"] and f.at == 1                       # 다음 요청부터 k2만
+
+
+@pytest.mark.parametrize("status", [529, 500])
+def test_overload_or_server_error_does_not_switch(status):
+    seen = []
+    f = llm._Failover([_keyed_client("k1", status, seen), _keyed_client("k2", 200, seen)])
+    with pytest.raises(anthropic.APIStatusError):
+        _ask(f)
+    assert seen == ["k1"] and f.at == 0
+
+
+def test_all_keys_used_up_falls_back_to_template():
+    seen = []
+    llm._cache.clear()
+    llm._client = llm._Failover([_keyed_client("k1", 429, seen), _keyed_client("k2", 429, seen)])
+    try:
+        rep = report.build_report_llm(rows, demo_data.VERSIONS)
+    finally:
+        llm._client = None
+    assert rep["source"] == "template" and "429" in rep["llm_error"] and seen == ["k1", "k2"]

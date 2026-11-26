@@ -285,7 +285,7 @@ Vercel 대시보드에서만 다루고, 채팅이나 저장소에 올리지 않�
 | 이름 | 내용 |
 |---|---|
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` | Supabase 주소와 키 |
-| `ANTHROPIC_API_KEY` (선택: `ANTHROPIC_MODEL` 기본 `claude-sonnet-5-5`, `ANTHROPIC_VERIFY_MODEL` 기본 `claude-haiku-5-5`) | AI 문장 다듬기. Anthropic 콘솔에서 월 사용 한도를 걸어 두세요. 키가 없으면 정해진 틀 문장만 써요 |
+| `ANTHROPIC_API_KEY` 또는 키가 여러 개면 `ANTHROPIC_API_KEYS=키1,키2,키3`(한도가 다 된 키는 건너뜀) (선택: `ANTHROPIC_MODEL` 기본 `claude-sonnet-5-5`, `ANTHROPIC_VERIFY_MODEL` 기본 `claude-haiku-5-5`) | AI 문장 다듬기. Anthropic 콘솔에서 월 사용 한도를 걸어 두세요. 키가 없으면 정해진 틀 문장만 써요 |
 | `NATSSI_OCR=1` | 전성분 사진 읽기 켜기. Space 주소를 바꾸면 `vercel.json` CSP의 connect-src도 바꾸기 |
 | `NATSSI_RECOVERY=1` | 비밀번호 찾기 켜기. Supabase 커스텀 SMTP를 설정한 뒤에만 |
 

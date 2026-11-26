@@ -4,7 +4,8 @@
   - LLM에는 판정 기록에서 뽑은 사실(facts)만 줍니다. 사진·이름·원본 기록은 보내지 않습니다.
   - 응답 형식은 구조화 출력(JSON 스키마)으로 고정하고, 내용은 guard()를 통과해야만 씁니다.
     하나라도 걸리거나 호출이 실패·거절되면 정해진 틀(template) 문장으로 돌아갑니다.
-  - ANTHROPIC_API_KEY 가 없으면 호출하지 않습니다.
+  - ANTHROPIC_API_KEY(또는 여러 개면 ANTHROPIC_API_KEYS=키1,키2,키3)가 없으면 호출하지 않습니다.
+    여러 개면 한도가 다 되거나 막힌 키를 건너뛰고 다음 키로 이어 갑니다(_Failover).
 """
 import contextvars
 import hashlib
@@ -23,6 +24,7 @@ _cache: dict[str, dict] = {}
 
 # AI 호출 기록(SEC-08): 시각, 누가(가명), 무엇(kind), 모델, 결과, 토큰 수, 걸린 시간만 남긴다. 질문·답·기록 내용과 키는 남기지 않는다.
 CALLER = contextvars.ContextVar("natssi_ai_caller", default="-")
+KEY_NO = contextvars.ContextVar("natssi_ai_key_no", default=None)      # 몇 번째 키로 불렀는지(키 값은 남기지 않음)
 audit_log = logging.getLogger("natssi.ai")
 if not audit_log.handlers:
     _h = logging.StreamHandler()
@@ -40,7 +42,7 @@ def caller_id(raw: str) -> str:
 def audit(kind: str, status: str, model_name: str | None = None, res=None, started: float | None = None):
     usage = getattr(res, "usage", None)
     audit_log.info(json.dumps({
-        "event": "ai_call", "kind": kind, "who": CALLER.get(), "model": model_name or getattr(res, "model", None),
+        "event": "ai_call", "kind": kind, "who": CALLER.get(), "key": KEY_NO.get(), "model": model_name or getattr(res, "model", None),
         "status": status, "in": getattr(usage, "input_tokens", None), "out": getattr(usage, "output_tokens", None),
         "ms": round((time.monotonic() - started) * 1000) if started else None}, ensure_ascii=False))
 
@@ -76,17 +78,75 @@ def model() -> str:
     return os.environ.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
 
 
+def api_keys() -> list[str]:
+    """쓸 키 목록(순서대로). ANTHROPIC_API_KEYS=키1,키2,키3 과 ANTHROPIC_API_KEY 를 합치고 겹치는 것은 뺀다."""
+    raw = (os.environ.get("ANTHROPIC_API_KEYS") or "").split(",") + [os.environ.get("ANTHROPIC_API_KEY") or ""]
+    out = []
+    for k in (x.strip() for x in raw):
+        if k and k not in out:
+            out.append(k)
+    return out
+
+
 def enabled() -> bool:
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return bool(api_keys())
+
+
+def used_up(e: Exception) -> bool:
+    """이 키로는 더 못 부르는 오류인가(다음 키로 넘어갈 일). 서버가 잠깐 바쁜 것(529)이나 연결 실패는 키를 바꿔도 같아서 제외."""
+    status = getattr(e, "status_code", None)
+    if status in (401, 402, 403, 429):              # 키가 막힘, 결제 필요, 권한 없음, 한도 초과
+        return True
+    if status == 400:                               # 크레딧이 바닥나면 400 + 'credit balance ...'
+        return "credit" in str(e).lower() or "billing" in str(e).lower()
+    return False
+
+
+class _Failover:
+    """키가 여러 개일 때: 지금 키로 부르다 used_up 오류가 나면 그 요청을 다음 키로 다시 보내고, 이후로도 다음 키를 쓴다.
+    client.messages.create / client.beta.messages.create 를 그대로 쓰게 같은 모양을 흉내 낸다."""
+
+    def __init__(self, clients):
+        self.clients, self.at = clients, 0
+        self.messages = _Endpoint(self, lambda c: c.messages)
+        self.beta = type("Beta", (), {})()
+        self.beta.messages = _Endpoint(self, lambda c: c.beta.messages)
+
+
+class _Endpoint:
+    def __init__(self, owner, pick):
+        self.owner, self.pick = owner, pick
+
+    def create(self, **kw):
+        o = self.owner
+        last = None
+        for i in range(o.at, len(o.clients)):
+            KEY_NO.set(i + 1)
+            try:
+                res = self.pick(o.clients[i]).create(**kw)
+                o.at = i
+                return res
+            except anthropic.APIStatusError as e:
+                if not used_up(e):
+                    raise
+                last = e
+                audit("key_switch", f"http_{e.status_code}", kw.get("model"))
+        o.at = len(o.clients) - 1
+        raise last
+
+
+def _new_client(key):
+    # Vercel 함수 제한(30초) 안에 끝나게. 실패하면 틀 문장.
+    # Accept-Encoding에서 br을 뺀다: 옛 brotlicffi(1.1 이하)가 깔린 곳에서는 httpx2가 brotli 응답을 풀다
+    # 'output_buffer_limit' 인자 오류로 모든 호출이 APIConnectionError가 된다(2026-11-26 팀원 맥에서 확인). gzip이면 충분하다.
+    return anthropic.Anthropic(api_key=key, timeout=20.0, max_retries=0, default_headers={"Accept-Encoding": "gzip, deflate"})
 
 
 def _api():
     global _client
     if _client is None:
-        # Vercel 함수 제한(30초) 안에 끝나게. 실패하면 틀 문장.
-        # Accept-Encoding에서 br을 뺀다: 옛 brotlicffi(1.1 이하)가 깔린 곳에서는 httpx2가 brotli 응답을 풀다
-        # 'output_buffer_limit' 인자 오류로 모든 호출이 APIConnectionError가 된다(2026-11-26 팀원 맥에서 확인). gzip이면 충분하다.
-        _client = anthropic.Anthropic(timeout=20.0, max_retries=0, default_headers={"Accept-Encoding": "gzip, deflate"})
+        keys = api_keys()
+        _client = _Failover([_new_client(k) for k in keys]) if len(keys) > 1 else _new_client(keys[0] if keys else None)
     return _client
 
 
@@ -145,7 +205,7 @@ def guard(sentences, facts) -> list[str]:
 def write_report(facts):
     """성공하면 {'sentences': [...], 'model': '...'}, 실패하면 {'error': '...'}."""
     if not enabled():
-        return {"error": "ANTHROPIC_API_KEY 없음"}
+        return {"error": "ANTHROPIC_API_KEY(S) 없음"}
     payload_facts = [{k: f[k] for k in ("version", "phrase", "change", "reason", "signal_ids", "signal_days", "carried_over",
                                          "max_sting", "env_unusual", "calm_ids")} for f in facts]
     digest = hashlib.sha256(json.dumps([payload_facts, model(), SYSTEM], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
