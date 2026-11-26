@@ -98,9 +98,7 @@ export const api = {
   checkin: async (body) => { const r = await req('/api/me/checkin', json('POST', body)); reportStore.clear(); return r },
   capture: (features) => req('/api/capture', json('POST', features)),   // 사진이 아니라 브라우저가 잰 숫자만 보냄
   consent: () => req('/api/account/consent', json('POST', { photo: true })),
-  setOptional: async (key, on) => { const r = await req('/api/account/optional', json('POST', { key, on })); reportStore.clear(); return r },   // 선택 동의: cheeks | ai_report
-  saveCheeks: (parts) => req('/api/me/cheeks', json('POST', parts)),
-  myCheeks: (dates) => req(`/api/me/cheeks?dates=${dates.join(',')}`),
+  setOptional: async (key, on) => { const r = await req('/api/account/optional', json('POST', { key, on })); reportStore.clear(); return r },   // 선택 동의: ai_report | improve
   signup: async (body) => { const r = await req('/api/auth/signup', json('POST', body)); if (r.access_token) session.set(r); return r },
   login: async (body) => { const r = await req('/api/auth/login', json('POST', body)); session.set(r); return r },
   recover: (body) => req('/api/auth/recover', json('POST', body)),

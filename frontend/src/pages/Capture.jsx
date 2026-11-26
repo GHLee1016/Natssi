@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import CheckinSteps from './CheckinSteps.jsx'
-import { loadLandmarker, loadLiveTracker, measurePhoto, takeCheeks, takeFace, trackFrame, userError, forServer, relRedness } from '../measure/browser.js'
+import { loadLandmarker, loadLiveTracker, measurePhoto, takeFace, trackFrame, userError, forServer, relRedness } from '../measure/browser.js'
 import { facesOn, saveFace } from '../faceStore.js'
 import { checkView, viewBox, nextStreak, AUTO_FRAMES } from '../measure/guide.js'
 import KV, { symptomItems } from '../kv.jsx'
@@ -148,7 +148,6 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const [agree, setAgree] = useState(false)
   const [guide, setGuide] = useState(null)   // 실시간 정렬 가이드 {ok, key, hint}. 못 쓰면 null(직접 찍기)
   const [auto, setAuto] = useState(true)     // 정렬이 맞으면 자동으로 찍기
-  const [kept, setKept] = useState(false)    // [선택 동의] 볼 조각을 서버에 보관했는가
   const [symptomsOnly, setSymptomsOnly] = useState(false)   // 사진이 계속 안 될 때 증상만 먼저 남기기
   const [count, setCount] = useState(null)   // 자동 촬영 카운트다운 3, 2, 1
   const desk = useDesk()
@@ -244,14 +243,9 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       lastFeat.current = features
       if (stream.current) { stop(); setCam('idle') }   // 찍은 뒤에는 카메라를 끈다(통과하든 못 하든 결과 화면으로)
       await step(2)
-      const parts = takeCheeks()
       lastFace.current = takeFace()
       await step(3)
       const res = await api.capture(forServer(features))
-      setKept(false)
-      if (res.saved_on && viewer?.cheeks && parts) {   // 볼 부분 사진 보관에 동의한 사람만, 그날 처음 저장된 기록에
-        try { await api.saveCheeks(parts); setKept(true) } catch { /* 조각만 못 남김: 숫자 기록은 그대로 */ }
-      }
       keepFace(res)
       await step(STAGES.length)
       setResult(res)
@@ -414,7 +408,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
             <div className="res-grid">{rest.map(item)}</div>
             <div className="tech">{result.checks.map((c) => <p key={c.name}>{c.name}: {c.tech}</p>)}</div>
           </details>
-          <p className="muted small">{result.note}{kept ? ' 볼 부분 사진(양 볼 네모)도 보관했어요.' : ''}</p>
+          <p className="muted small">{result.note}</p>
           <div className="res-actions">
             <button className="btn dark" onClick={desk ? () => setResult(null) : again}>{desk ? '처음으로' : '다시 찍기'}</button>
             <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>

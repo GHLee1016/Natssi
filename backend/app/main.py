@@ -106,7 +106,8 @@ def meta(v=Depends(viewer)):
             "auth": auth.enabled() or config.OPEN_MODE, "recovery": config.RECOVERY_ENABLED, "env_district": config.DEMO_ENV_DISTRICT, "ocr": config.OCR_ENABLED, "consent_version": config.CONSENT_VERSION, "photo_notice_version": config.PHOTO_NOTICE_VERSION,
             "max_upload_mb": config.MAX_UPLOAD_BYTES // (1024 * 1024),
             "viewer": {"email": v["email"], "consent_version": (v.get("consent") or {}).get("version"),
-                       "cheeks": bool((v.get("consent") or {}).get("cheeks")), "ai_report": _ai_on(v)} if v else None,
+                       "ai_report": _ai_on(v),
+                       "improve": bool((v.get("consent") or {}).get("improve"))} if v else None,
             "ai_available": llm.enabled()}
 
 
@@ -136,8 +137,8 @@ class SignupBody(Credentials):
     consent_privacy: bool = False
     consent_photo: bool = False
     consent_health: bool = False   # 증상 점수 = 건강 정보(민감정보): 개인정보보호법 제23조 별도 동의
-    consent_cheeks: bool = False      # [선택] 볼 부분 사진 보관(서버)
     consent_ai_report: bool = False   # [선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)
+    consent_improve: bool = False     # [선택] 서비스 개선을 위한 얼굴 사진 제공(동의만 받음. 수집은 아직 하지 않음)
 
 
 class RefreshBody(BaseModel):
@@ -165,7 +166,7 @@ def signup(body: SignupBody, request: Request):
     _check_password(body.password)
     try:
         return auth.signup(body.email.strip().lower(), body.password,
-                           {"cheeks": body.consent_cheeks, "ai_report": body.consent_ai_report})
+                           {"ai_report": body.consent_ai_report, "improve": body.consent_improve})
     except auth.AuthError as e:
         raise HTTPException(e.status, e.message)
 
@@ -368,7 +369,7 @@ def _my_env(uid, today):
 
 # 하루 기록 = checkins.symptoms(jsonb) 한 칸. 증상 4개 + 그날 처음 품질을 통과한 사진의 볼 붉은기(a*)·노란기(b*, 조명 확인용).
 # ponytail: 열을 따로 두지 않고 jsonb에 같이 넣어 DB 패치 없이 배포된다. 값이 늘면 열로 옮길 것.
-MEASURES = ("redness", "b", "L", "cheeks")            # L*: 볼 색 칩 밝기 / cheeks: [선택 동의] 양 볼 조각 사진(JPEG base64)
+MEASURES = ("redness", "b", "L", "cheeks")            # L*: 볼 밝기 / cheeks: 없앤 선택 동의(볼 부분 사진 보관, 11-26)로 예전에 남은 조각. 증상으로 읽지 않게만 둔다
 #   '조명 색이 달랐던 날'은 따로 저장하지 않고 저장된 b*로 판정 때 가려낸다(judge.light_off): 처리방침의 '저장하는 볼 색 숫자 3개'를 그대로 두려고.
 
 
@@ -394,7 +395,7 @@ def _my_judged(uid, saved, district, routine_data=None):
         first_of.setdefault(ver, d)                                  # 이 버전의 첫 기록일부터 센다
         recs.append({"id": i + 1, "date": d, "version": ver,
                      "day_in_version": (date.fromisoformat(d) - date.fromisoformat(first_of[ver])).days + 1,
-                     "redness": redness, "b": m.get("b"), "L": m.get("L"), "has_cheeks": "cheeks" in m, "quality_ok": redness is not None,
+                     "redness": redness, "b": m.get("b"), "L": m.get("L"), "quality_ok": redness is not None,
                      "quality_note": None if redness is not None else "이날은 사진 기록이 없어요",
                      "symptoms": symptoms or {}, "env": {}})
     try:
@@ -420,7 +421,6 @@ def _me_payload(uid):
     return {"today": today, "today_checkin": _split(saved.get(today))[0],
             "today_verdict": last["verdict"] if last and last["redness"] is not None else None,
             "today_redness": last["redness"] if last else None,
-            "today_cheeks": {k: "data:image/jpeg;base64," + x for k, x in _split(saved.get(today))[2].get("cheeks", {}).items()} or None,
             "days_recorded": len(judged), "redness_days": sum(1 for r in judged if _counts(r)),
             "unlocked": sum(1 for r in judged if _counts(r)) >= BASELINE_DAYS,
             "needed": BASELINE_DAYS, "recent": recent, "district": district, "env": today_env}
@@ -563,7 +563,7 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
                 L = None if body.L_star is None else round(body.L_star, 2)
                 store.save(v["id"], today, {**entry, "redness": round(float(res["redness"]), 2),
                                             **({"b": b} if b is not None else {}), **({"L": L} if L is not None else {})})
-                res["saved_on"] = today                              # 브라우저가 볼 조각을 이 날짜로 기기에 남길 때 쓴다
+                res["saved_on"] = today                              # 브라우저가 얼굴 사진을 이 날짜로 기기에 남길 때 쓴다(이 기기에 얼굴 사진 보관)
             res["saved"] = True
             res["already"] = _split(entry)[1] is not None and not fix   # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
             res["replaced"] = fix
@@ -735,20 +735,14 @@ class ConsentUpdate(BaseModel):
     photo: bool = False
 
 
-OPTIONAL = ("cheeks", "ai_report")       # 선택 동의: 볼 부분 사진 보관 / AI로 리포트 문장 다듬기
+OPTIONAL = ("ai_report", "improve")     # 선택 동의: AI로 리포트 문장 다듬기 / 서비스 개선용 사진 제공 ('볼 부분 사진 보관'은 11-26에 없앰)
+# improve: 지금은 동의와 시각만 기록한다. 얼굴 사진을 실제로 받기 시작하면(비공개 저장소, 3개월 보관, 끄거나 탈퇴하면 바로 삭제)
+#          처리방침의 '서비스 개선을 위한 얼굴 사진 제공'과 함께 바꾸고, 앱 안에서 먼저 알린다.
 
 
 class OptionalBody(BaseModel):
     key: str = Field(..., max_length=20)
     on: bool
-
-
-def _drop_cheeks(uid):
-    """볼 부분 사진 보관 동의를 끄면 이미 저장한 조각을 모두 지운다(숫자 기록은 남김)."""
-    saved = _mine(uid)
-    for d, entry in saved.items():
-        if isinstance(entry, dict) and "cheeks" in entry:
-            store.save(uid, d, {k: x for k, x in entry.items() if k != "cheeks"})
 
 
 @app.post("/api/account/optional")
@@ -762,18 +756,11 @@ def set_optional(body: OptionalBody, request: Request, authorization: Optional[s
             LOCAL_USER["consent"] = {**(LOCAL_USER.get("consent") or {}), body.key: body.on}
         else:
             auth.set_consent_flag(authorization[7:].strip(), v.get("consent"), body.key, body.on)
-        if body.key == "cheeks" and not body.on:
-            _drop_cheeks(v["id"])
     except auth.AuthError as e:
         raise HTTPException(e.status, e.message)
     except Exception as e:
         raise _store_fail("선택 동의를 바꾸지 못했어요.", e)
     return {body.key: body.on}
-
-
-class CheeksBody(BaseModel):
-    L: str = Field(..., max_length=40_000)
-    R: str = Field(..., max_length=40_000)
 
 
 def _check_jpeg(data_url: str, max_side: int = 128, what: str = "볼 사진") -> str:
@@ -791,41 +778,6 @@ def _check_jpeg(data_url: str, max_side: int = 128, what: str = "볼 사진") ->
     if not ok:
         raise HTTPException(400, f"{what}을 읽지 못했어요. 다시 시도해 주세요.")
     return b64
-
-
-@app.post("/api/me/cheeks")
-def save_cheeks(body: CheeksBody, request: Request, v=Depends(need_user)):
-    """[선택 동의] 오늘 저장된 기록에 양 볼 조각(작은 JPEG)을 붙인다. 하루 1번, 처음 것만(숫자 기록과 같은 규칙)."""
-    limit("capture", request, v)
-    if not (v.get("consent") or {}).get("cheeks"):
-        raise HTTPException(403, "볼 부분 사진 보관에 동의해야 저장돼요.")
-    parts = {"L": _check_jpeg(body.L), "R": _check_jpeg(body.R)}
-    today = config.today_kst().isoformat()
-    try:
-        entry = _mine(v["id"]).get(today)
-        if not entry or entry.get("redness") is None:
-            raise HTTPException(409, "오늘 사진을 먼저 찍어 주세요.")
-        if "cheeks" not in entry:
-            store.save(v["id"], today, {**entry, "cheeks": parts})
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise _store_fail("볼 사진을 저장하지 못했어요.", e)
-    return {"saved": True, "date": today}
-
-
-@app.get("/api/me/cheeks")
-def get_cheeks(request: Request, dates: str = Query(..., max_length=80), v=Depends(need_user)):
-    """비교 화면용: 고른 날짜(쉼표로 최대 4개)의 볼 조각. 없는 날은 빠진다."""
-    limit("read", request, v)
-    want = [d for d in dates.split(",")[:4] if len(d) == 10]
-    saved = _mine(v["id"])
-    out = {}
-    for d in want:
-        c = (saved.get(d) or {}).get("cheeks")
-        if c:
-            out[d] = {k: "data:image/jpeg;base64," + c[k] for k in ("L", "R")}
-    return out
 
 
 @app.post("/api/account/consent")

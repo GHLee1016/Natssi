@@ -16,7 +16,8 @@ const fieldOf = (msg) => (msg.startsWith('이미 가입된') ? 'email' : /^(비�
 // 만 14세 미만은 법정대리인 동의가 필요해 가입을 받지 않는다(개인정보 보호법 제22조의2). 나이 확인은 본인 확인 체크로 받는다.
 const CONSENTS = [['age14', '[필수] 만 14세 이상이에요'], ['terms', '[필수] 이용약관'], ['privacy', '[필수] 개인정보 수집·이용'], ['photo', '[필수] 얼굴 사진 처리 안내'], ['health', '[필수] 건강 정보(증상 점수) 수집·이용']]
 // 선택 동의: 항목마다 따로 고른다. 동의하지 않아도 가입·모든 기본 기능을 쓸 수 있고, 내 계정에서 언제든 바꿀 수 있다.
-const OPTIONALS = [['cheeks', '[선택] 볼 부분 사진 보관', 'photo'], ['ai_report', '[선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)', 'ai']]
+const OPTIONALS = [['ai_report', '[선택] AI로 리포트 문장 다듬기(가명 요약, 국외 이전)', 'ai'],
+  ['improve', '[선택] 서비스 개선을 위한 얼굴 사진 제공', 'improve']]
 
 function Field({ id, label, error, helper, children }) {
   return (
@@ -35,7 +36,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [c, setC] = useState({ age14: false, terms: false, privacy: false, photo: false, health: false })
-  const [opt, setOpt] = useState({ cheeks: false, ai_report: false })
+  const [opt, setOpt] = useState({ ai_report: false, improve: false })
   const [errs, setErrs] = useState({})
   const [consentTried, setConsentTried] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -69,7 +70,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
     setBusy(true)
     try {
       if (mode === 'signup') {
-        const r = await api.signup({ email, password, consent_age14: c.age14, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health, consent_cheeks: opt.cheeks, consent_ai_report: opt.ai_report })
+        const r = await api.signup({ email, password, consent_age14: c.age14, consent_terms: c.terms, consent_privacy: c.privacy, consent_photo: c.photo, consent_health: c.health, consent_ai_report: opt.ai_report, consent_improve: opt.improve })
         if (r.status === 'confirm_email') { setDone('signup'); return }
         onDone()
       } else if (mode === 'login') {
@@ -188,7 +189,7 @@ export default function Auth({ onDone, onLegal, back, resetToken, linkExpired, o
           <li><b>변화</b><span>루틴을 바꾼 날 전후로 볼 붉은기가 평소 범위를 넘었는지 봐요.</span></li>
           <li><b>리포트</b><span>기록에 있는 사실만 글로 정리해요. 진단은 하지 않아요.</span></li>
         </ul>
-        <p className="small muted">김서연(가상 인물)의 예시는 로그인하지 않아도 볼 수 있어요. 가입하면 사진 기록이 7일 쌓인 다음 날부터 내 기록으로 얼굴 날씨를 알려요. 얼굴 사진은 내 기기 안에서 검사하고 서버로 보내지 않아요. 양 볼 조각 사진은 ‘볼 부분 사진 보관’에 동의했을 때만 보관해요.</p>
+        <p className="small muted">김서연(가상 인물)의 예시는 로그인하지 않아도 볼 수 있어요. 가입하면 사진 기록이 7일 쌓인 다음 날부터 내 기록으로 얼굴 날씨를 알려요. 얼굴 사진은 내 기기 안에서 검사하고 서버로 보내지 않아요.</p>
       </aside>
       </div>
     </section>

@@ -124,7 +124,6 @@ function Compare({ records, mine, email }) {
   const [pos, setPos] = useState(50)
   const q = useLoad(() => (mine ? api.myCompare(a, b) : api.compare(a, b)), [a, b])
   const c = q.data
-  const parts = useLoad(() => (mine ? api.myCheeks([a, b]) : Promise.resolve({})), [a, b, mine]).data || {}
   // 내 기록: '이 기기에 얼굴 사진 보관'을 켠 뒤 이 기기에 남은 사진이 두 날 모두 있으면 예시처럼 겹쳐 본다
   const [faces, setFaces] = useState({})
   useEffect(() => { let on = true; if (mine && email) getFaces(email, [a, b]).then((f) => on && setFaces(f)); return () => { on = false } }, [mine, email, a, b])
@@ -162,14 +161,6 @@ function Compare({ records, mine, email }) {
               </p></div>
             <span className="muted small">같은 얼굴을 다시 찍어도 ±{c.mdc95} 정도는 달라져요. 팀원들이 여러 번 찍어서 잰 임시 값이에요.</span>
           </div>
-          {!showFaces && (parts[a] || parts[b]) && <div className="swatches" aria-label="두 날의 볼 부분 사진">
-            {[c.a, c.b].map((r, i) => parts[r.date] && (
-              <figure key={i}>
-                <span className="cheek-pair"><img src={parts[r.date].L} alt={`${fmt.md(r.date)} 왼쪽 볼`} /><img src={parts[r.date].R} alt={`${fmt.md(r.date)} 오른쪽 볼`} /></span>
-                <figcaption><span className="sub-line">{i ? '뒤' : '앞'}</span>{fmt.md(r.date)}</figcaption>
-              </figure>
-            ))}
-          </div>}
           <details className="tech"><summary>기술 정보</summary><p>볼 붉은기는 색을 숫자로 나타내는 방식(Lab 색공간)의 a* 값이에요. 위 차이는 뒤 날짜 값에서 앞 날짜 값을 뺀 Δa*이고, ±값은 MDC95 기준이에요.</p></details>
         </>
       )}

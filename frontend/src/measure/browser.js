@@ -1,6 +1,6 @@
 // 브라우저에서 사진을 측정합니다. 사진은 이 기기 밖으로 나가지 않고, 숫자(측정값)만 서버로 보냅니다.
 // 순서는 검증 파이프라인과 같아요: 사진 방향 반영 → 얼굴 점 검출(긴 변 1600px로 줄여서) → 원본 해상도에서 볼 색 측정.
-import { extractFeatures, eulerFromMatrix, distinctFaces, CHEEK_IMG_LEFT, CHEEK_IMG_RIGHT, FEATURE_VERSION } from './core.js'
+import { extractFeatures, eulerFromMatrix, distinctFaces, FEATURE_VERSION } from './core.js'
 
 const WASM = '/mediapipe/wasm'                          // 빌드할 때 node_modules 에서 복사(scripts/copy-mediapipe.mjs)
 const MODELS = ['/mediapipe/face_landmarker.task',        // 빌드할 때 받아 둔 모델
@@ -117,22 +117,6 @@ async function toCanvas(src) {
   return c
 }
 
-// 볼 조각(선택 기능): 마지막으로 잰 사진의 양 볼 네모를 96px로 잘라 둔다. 서버로 보내는 숫자에는 넣지 않는다.
-let lastCheeks = null
-export const takeCheeks = () => { const p = lastCheeks; lastCheeks = null; return p }
-function cropCheeks(canvas, lm) {
-  const out = {}
-  for (const [side, idx] of [['L', CHEEK_IMG_LEFT], ['R', CHEEK_IMG_RIGHT]]) {
-    const xs = idx.map((i) => lm[i][0]), ys = idx.map((i) => lm[i][1])
-    const x0 = Math.min(...xs), y0 = Math.min(...ys)
-    const size = Math.max(Math.max(...xs) - x0, Math.max(...ys) - y0)
-    const c = canvasOf(96, 96)
-    c.getContext('2d').drawImage(canvas, x0, y0, size, size, 0, 0, 96, 96)
-    out[side] = c.toDataURL('image/jpeg', 0.82)
-  }
-  return out
-}
-
 // 얼굴 사진(이 기기 보관용): 두 눈이 수평이고 같은 자리, 같은 크기에 오게 잘라 둔다. 두 날을 겹쳐 볼 때 얼굴이 맞도록.
 let lastFace = null
 export const takeFace = () => { const p = lastFace; lastFace = null; return p }
@@ -183,7 +167,6 @@ export async function measurePhoto(src) {
   }
   const img = full.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h)
   const feat = extractFeatures(img, face)
-  lastCheeks = face ? cropCheeks(full, face.lm) : null
   lastFace = face ? alignFace(full, face.lm) : null
   // 숫자가 아닌 값(NaN)은 null 로 보냄
   return { ...Object.fromEntries(Object.entries(feat).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v])),
