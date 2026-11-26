@@ -137,6 +137,21 @@ function periodsOf(dated, versions, has) {
   return { label, groups, presets }
 }
 
+// 두 날 각각의 붉은기 수치. 내 기록은 잰 값(a*) 그대로, 예시는 평소 대비 차이로 저장돼 있어 부호를 붙여 보여 준다.
+function Val({ r, label, tag, mine, side, diff }) {
+  if (r?.redness == null) return null
+  const v = mine ? r.redness.toFixed(2) : `${r.redness > 0 ? '+' : ''}${r.redness.toFixed(2)}`
+  return (
+    <div className={'cmp-val ' + side}>
+      <p className="muted small">{label}</p>
+      <p className="cmp-val-date">{tag}</p>
+      <b>{v}</b>
+      <p className="muted small">{mine ? '붉은기 수치' : '붉은기(평소 대비)'}</p>
+      {diff != null && <p className="cmp-val-diff">기준 날짜보다 {diff > 0 ? '+' : ''}{diff}</p>}
+    </div>
+  )
+}
+
 function Compare({ records, versions, mine, email }) {
   const dated = records.filter((r) => r.redness !== null)
   // 기본: 처음 루틴의 마지막 측정일 ↔ 붉은기가 가장 높았던 날. 측정 보류한 날은 고르지 않는다(선택 목록에 없음).
@@ -178,6 +193,8 @@ function Compare({ records, versions, mine, email }) {
       <Status {...q} />
       {c && (
         <>
+          <div className={'cmp-row' + (showFaces ? ' has-photo' : '')}>
+          <Val r={c.a} label="기준 날짜" tag={tagOf(c.a)} mine={mine} side="l" />
           {showFaces && <div className="cmp">
             <img src={photo(c.a)} alt={`${fmt.md(c.a.date)} 사진`} />
             <img src={photo(c.b)} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
@@ -187,6 +204,8 @@ function Compare({ records, versions, mine, email }) {
             <span className="tag ai">{mine ? '이 기기에만 보관한 사진' : c.photo_note}</span>
             <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="두 사진을 가르는 선 옮기기" />
           </div>}
+          <Val r={c.b} label="비교 날짜" tag={tagOf(c.b)} mine={mine} side="r" diff={c.diff} />
+          </div>
           <div className="diff">
             <div><p className="muted small">붉은기 차이</p>
               <b>{c.diff > 0 ? '+' : ''}{c.diff}</b>
