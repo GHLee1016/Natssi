@@ -114,7 +114,30 @@ function Chart({ records, versions, onPick, picked }) {
   )
 }
 
-function Compare({ records, mine, email }) {
+// 비교할 기간 나누기: 첫 루틴 시작일보다 앞선 날은 '루틴 시작 전', 그 뒤는 'N번째 루틴'.
+// 바로가기: 기간이 바뀌는 곳마다 '앞 기간의 마지막 날 ↔ 다음 기간의 마지막 날'(이 기기에 사진이 있는 날을 먼저 고름), 그리고 '처음 ↔ 지금'.
+function periodsOf(dated, versions, has) {
+  const first = versions?.[0]?.start
+  const pre = (r) => first && r.date < first
+  const label = (r) => (pre(r) ? '루틴 시작 전' : `${r.version}번째 루틴`)
+  const groups = []
+  for (const r of dated) {
+    const k = pre(r) ? 0 : r.version
+    let g = groups.find((x) => x.k === k)
+    if (!g) groups.push(g = { k, label: label(r), days: [] })
+    g.days.push(r)
+  }
+  const lastOf = (g) => ([...g.days].reverse().find((r) => has(r.date)) || g.days[g.days.length - 1]).date
+  const short = (g) => (g.k === 0 ? '시작 전' : `${g.k}번째`)
+  const presets = groups.slice(1).map((g, i) => ({ text: `${short(groups[i])} ↔ ${short(g)}`, a: lastOf(groups[i]), b: lastOf(g) }))
+  if (groups.length > 2) {
+    const firstDay = (dated.find((r) => has(r.date)) || dated[0]).date
+    presets.push({ text: '처음 ↔ 지금', a: firstDay, b: lastOf(groups[groups.length - 1]) })
+  }
+  return { label, groups, presets }
+}
+
+function Compare({ records, versions, mine, email }) {
   const dated = records.filter((r) => r.redness !== null)
   // 기본: 처음 루틴의 마지막 측정일 ↔ 붉은기가 가장 높았던 날. 측정 보류한 날은 고르지 않는다(선택 목록에 없음).
   const peak = dated.reduce((m, r) => (r.redness > m.redness ? r : m), dated[0])
@@ -126,20 +149,31 @@ function Compare({ records, mine, email }) {
   const c = q.data
   // 내 기록: '이 기기에 얼굴 사진 보관'을 켠 뒤 이 기기에 남은 사진이 두 날 모두 있으면 예시처럼 겹쳐 본다
   const [faces, setFaces] = useState({})
-  useEffect(() => { let on = true; if (mine && email) getFaces(email, [a, b]).then((f) => on && setFaces(f)); return () => { on = false } }, [mine, email, a, b])
+  const allDays = dated.map((r) => r.date).join(',')
+  useEffect(() => { let on = true; if (mine && email) getFaces(email, allDays.split(',')).then((f) => on && setFaces(f)); return () => { on = false } }, [mine, email, allDays])
+  const { label, groups, presets } = periodsOf(dated, versions, (d) => !mine || !!faces[d])
+  const byDate = Object.fromEntries(dated.map((r) => [r.date, r]))
+  const tagOf = (r) => `${fmt.md(r.date)} (${label(byDate[r.date] || r)})`
   const photo = (r) => (mine ? faces[r.date] : `/faces/${r.photo}.jpg`)
   const showFaces = !mine || (faces[a] && faces[b])
   const keepOn = mine && email && facesOn(email)
-  const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)} ({r.version}번째 루틴)</option>
+  const opt = (r) => <option key={r.date} value={r.date}>{fmt.md(r.date)}{mine && faces[r.date] ? ' (사진)' : ''}</option>
+  const options = groups.map((g) => <optgroup key={g.k} label={g.label}>{g.days.map(opt)}</optgroup>)
   return (
     <div className="card">
       <h2 className="h3">{showFaces ? '두 날 사진 겹쳐 보기' : '두 날 볼 붉은기 비교'}</h2>
       {mine && !showFaces && <p className="muted small">{keepOn
         ? '두 날 중 이 기기에 사진이 없는 날이 있어서, 그날 잰 볼 붉은기 숫자로 비교해요.'
         : '사진 대신 그날 잰 볼 붉은기 숫자로 비교해요. 내 계정에서 ‘이 기기에 얼굴 사진 보관’을 켜면 두 날 얼굴 사진을 겹쳐 볼 수 있어요.'}</p>}
+      {presets.length > 0 && <div className="cmp-presets">
+        <p className="muted small">루틴이 바뀐 때를 골라 보세요. 바뀌기 전 마지막 날과 바뀐 뒤 마지막 날을 비교해요.</p>
+        <div className="chips">{presets.map((x) => (
+          <button key={x.text} type="button" aria-pressed={a === x.a && b === x.b} onClick={() => { setA(x.a); setB(x.b) }}>{x.text}</button>
+        ))}</div>
+      </div>}
       <div className="pickers">
-        <label>앞 날짜<select value={a} onChange={(e) => setA(e.target.value)}>{dated.map(opt)}</select></label>
-        <label>뒤 날짜<select value={b} onChange={(e) => setB(e.target.value)}>{dated.map(opt)}</select></label>
+        <label>앞 날짜<select value={a} onChange={(e) => setA(e.target.value)}>{options}</select></label>
+        <label>뒤 날짜<select value={b} onChange={(e) => setB(e.target.value)}>{options}</select></label>
       </div>
       <Status {...q} />
       {c && (
@@ -148,8 +182,8 @@ function Compare({ records, mine, email }) {
             <img src={photo(c.a)} alt={`${fmt.md(c.a.date)} 사진`} />
             <img src={photo(c.b)} alt={`${fmt.md(c.b.date)} 사진`} style={{ clipPath: `inset(0 0 0 ${pos}%)` }} />
             <div className="bar" style={{ left: pos + '%' }}><span>⇆</span></div>
-            <span className="tag l">{fmt.md(c.a.date)} ({c.a.version}번째 루틴)</span>
-            <span className="tag r">{fmt.md(c.b.date)} ({c.b.version}번째 루틴)</span>
+            <span className="tag l">{tagOf(c.a)}</span>
+            <span className="tag r">{tagOf(c.b)}</span>
             <span className="tag ai">{mine ? '이 기기에만 보관한 사진' : c.photo_note}</span>
             <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(+e.target.value)} aria-label="두 사진을 가르는 선 옮기기" />
           </div>}
@@ -188,7 +222,7 @@ export default function Change({ onOpenDay, mine = false, email }) {
   if (q.data && sub) return (
     <SubPage head={head} tabs={tabs}>
       <AskHead title={ASK[sub]} desc={DESC[sub]} onClose={closeSub} />
-      {sub === 'compare' ? <Compare records={q.data.records} mine={mine} email={email} /> : <RoutineView mine={mine} which="overlap" versions={q.data.versions} />}
+      {sub === 'compare' ? <Compare records={q.data.records} versions={q.data.versions} mine={mine} email={email} /> : <RoutineView mine={mine} which="overlap" versions={q.data.versions} />}
     </SubPage>
   )
   return (
