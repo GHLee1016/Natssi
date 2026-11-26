@@ -143,7 +143,7 @@ python analysis/fullface_redness.py summary                           # → data
 
 ## 4. MDC95 다시 계산 (`analysis/mdc95_check.py`)
 
-앱 판정 기준 MDC95 2.35(95% 신뢰구간 1.85~2.97)는 `natssi_selfie_validation/code/analyze_reliability.py`로 냈다.
+앱 판정 기준 MDC95 2.35(95% 신뢰구간 1.85~2.97)는 `selfie_validation/code/analyze_reliability.py`로 냈다(원래 코드와 문서는 `selfie_validation/`).
 그 식(하루 1장 기준 SEM, 사람 단위 부트스트랩 2000회)을 그대로 옮겨 지금 측정값으로 다시 낸다(원래 코드와 결과 일치 확인). 이미 만든 측정 파일(`private/fullface_redness.csv` 또는 `private/color_robustness.csv`)의
 원본, 품질 통과 사진으로 다시 계산한다. 사진은 다시 읽지 않는다.
 
