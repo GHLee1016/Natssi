@@ -8,7 +8,7 @@ import re
 from . import env, llm
 from .judge import SIGNAL, NO_SIGNAL
 
-DISCLAIMER = "진단이 아니에요. 증상이 계속되면 사용을 멈추고 보건소나 전문의와 상담하세요."
+DISCLAIMER = "이 리포트는 의료 진단이 아니에요. 피부 증상이 계속되면 해당 제품 사용을 중단하고 피부과 전문의와 상담해 주세요."
 
 
 def _span(ids):
@@ -44,6 +44,13 @@ def build_facts(judged, versions):
     return facts
 
 
+def _no_red_text(judged):
+    """흐린 날이 없을 때의 문장. 평소 범위와 비교한 기록이 0일이면 '붉은 날이 없었다'고 하지 않는다."""
+    if any(r["verdict"].get("baseline") for r in judged):
+        return "비교한 기록 중 평소보다 붉은 날은 없었어요."
+    return "아직 비교할 기록이 없어요. 사진 기록을 더 남기면 붉은기 변화를 확인할 수 있어요."
+
+
 def build_report(judged, versions):
     sentences = []
     facts = build_facts(judged, versions)
@@ -51,37 +58,38 @@ def build_report(judged, versions):
         if (f["version"] == 1 or not f["change"]) and f["signal_ids"]:   # 루틴을 바꾸지 않은 기간에 평소 범위를 넘음
             md = lambda iso: f"{int(iso[5:7])}월 {int(iso[8:10])}일"
             ds = [r["date"] for r in judged if r["id"] in f["signal_ids"]]
-            span = f"{md(ds[0])}부터 {md(ds[-1])}까지" if len(ds) > 1 else md(ds[0])
-            sentences.append({"text": f"{span} 양 볼이 평소보다 붉었어요. 이 기간에는 루틴을 바꾸지 않았어요.",
+            span = f"{md(ds[0])}부터 {md(ds[-1])}까지" if len(ds) > 1 else f"{md(ds[0])}에"
+            sentences.append({"text": f"{span} 평소보다 볼이 붉었어요. 이 기간에 루틴 변경은 없었어요.",
                               "cites": f["signal_ids"]})
             continue
         if f["version"] == 1 or not f["change"]:
             continue
         days = f["signal_days"]
         if days and f["carried_over"]:    # 앞 버전의 신호가 바꾼 직후까지 이어진 경우
-            sentences.append({"text": f"{f['phrase']} 뒤 {'첫날은' if len(days) == 1 else f'처음 {len(days)}일은'} 붉은기가 아직 평소보다 높았어요. 이 붉은기는 바꾸기 전부터 이어졌어요.",
+            sentences.append({"text": f"{f['phrase']} 뒤 {'첫날에도' if len(days) == 1 else f'처음 {len(days)}일 동안에도'} 붉은기가 평소보다 높았어요. 루틴을 바꾸기 전부터 이어진 변화예요.",
                               "cites": f["signal_ids"]})
         elif days:
             span = f"{days[0]}일째부터 {days[-1]}일째까지" if len(days) > 1 else f"{days[0]}일째에"
-            text = f"{f['phrase']} 뒤 {span} 양 볼이 평소보다 붉었"
-            text += f"고, 그때 따가움 {f['max_sting']}점도 함께 기록됐어요." if f["max_sting"] else "어요."
+            text = f"{f['phrase']} 뒤 {span} 볼이 평소보다 붉었어요."
+            if f["max_sting"]:
+                text += f" 같은 기간에 따가움 {f['max_sting']}점(최고 점수)도 기록됐어요."
             sentences.append({"text": text, "cites": f["signal_ids"]})
             if not f["env_unusual"]:                 # 환경이 평소와 달랐던 날은 판정이 이미 '구분 불가'라 여기 오지 않는다
                 for t in env.summarize(f["envs"]):   # 실제 측정값에서 나온 사실 문장(없으면 '평소와 비슷했어요')
                     sentences.append({"text": t, "cites": f["signal_ids"]})
         if f["calm_ids"] and any(p["signal_ids"] for p in facts if p["version"] < f["version"]):
-            sentences.append({"text": f"그 뒤 붉은기가 평소 범위로 돌아왔어요." if f["carried_over"] else
-                              f"{f['phrase']} 뒤에는 붉은기가 평소 범위로 돌아왔어요.",
+            sentences.append({"text": "이후 붉은기가 평소 범위 안으로 돌아온 기록이 있었어요." if f["carried_over"] else
+                              f"{f['phrase']} 뒤에는 붉은기가 평소 범위 안으로 돌아온 기록이 있었어요.",
                               "cites": f["calm_ids"]})
     if not sentences:
-        sentences.append({"text": "아직 평소와 달라진 날이 없어요. 볼 붉은기가 평소 범위 안에 있어요.", "cites": [judged[-1]["id"]] if judged else []})
+        sentences.append({"text": _no_red_text(judged), "cites": [judged[-1]["id"]] if judged else []})
     for s in sentences:
-        s["cite_label"] = f"근거: 기록 {_span(s['cites'])}" if s["cites"] else ""
+        s["cite_label"] = f"참고 기록: {_span(s['cites'])}" if s["cites"] else ""
     return {"sentences": sentences, "disclaimer": DISCLAIMER, "source": "template"}
 
 
 def _label(s):
-    s["cite_label"] = f"근거: 기록 {_span(s['cites'])}" if s["cites"] else ""
+    s["cite_label"] = f"참고 기록: {_span(s['cites'])}" if s["cites"] else ""
     return s
 
 
@@ -114,9 +122,9 @@ def build_report_llm(judged, versions, llm_versions=None):
 
 
 QUESTIONS = [
-    {"id": "cause", "q": "바꾼 제품 때문인 거예요?"},
-    {"id": "other", "q": "다른 이유는 없었어요?"},
-    {"id": "next", "q": "빈도를 줄이면 어떻게 비교해요?"},
+    {"id": "cause", "q": "바꾼 제품과 관련이 있을까요?"},
+    {"id": "other", "q": "다른 이유도 있을까요?"},
+    {"id": "next", "q": "사용 횟수를 줄이면 어떻게 비교하나요?"},
 ]
 
 
@@ -125,22 +133,22 @@ def answer(qid, judged, versions):
     sig = next((f for f in facts if f["signal_ids"]), None)
     cites = sig["signal_ids"] if sig else []
     if qid in ("cause", "other") and not sig:                   # 평소 범위를 넘은(흐림) 날이 없음
-        text = "아직 붉은기가 평소 범위를 넘은 날이 없어요. 그래서 따로 짚어 볼 변화도 없어요."
+        text = _no_red_text(judged)
     elif qid == "cause" and not sig["change"]:                   # 루틴을 바꾸지 않은 기간에 넘음
-        text = ("이 기간에는 루틴을 바꾸지 않았어요. 그래서 제품과 관련이 있는지는 말할 수 없어요. "
-                "수면, 생리 주기, 조명처럼 기록에 없는 일이 있었을 수도 있어요.")
+        text = ("이 기간에는 루틴 변경이 없었어요. 기록만으로 제품과 피부 변화의 관계를 알기는 어려워요. "
+                "수면, 생리 주기, 조명처럼 기록하지 않은 요인도 영향을 줄 수 있어요.")
     elif qid == "cause":
-        text = ("기록만으로는 바꾼 제품과 관련이 있는지 알 수 없어요. 바꾼 시기와 붉은기가 오른 시기가 겹쳤어요. "
-                "수면이나 생리 주기처럼 기록에 없는 일이 있었을 수도 있어요.")
+        text = ("제품이 원인인지는 알 수 없어요. 루틴을 바꾼 시기에 붉은기가 높아진 기록이 있었어요. "
+                "수면이나 생리 주기처럼 기록하지 않은 요인도 영향을 줄 수 있어요.")
     elif qid == "other":
-        text = (" ".join(env.summarize(sig["envs"])) + " 기록에 없는 일은 낯씨가 알 수 없어요.") if sig and not sig["env_unusual"] else \
-               "같은 기간에 동네 환경도 평소와 달랐어요. 그래서 루틴과 환경 중 어느 쪽과 겹친 건지 가릴 수 없어요."
+        text = (" ".join(env.summarize(sig["envs"])) + " 수면이나 생리 주기처럼 기록하지 않은 요인도 영향을 줄 수 있어요.") if sig and not sig["env_unusual"] else \
+               "같은 기간에 환경 정보도 평소와 달랐어요. 이 기록만으로는 피부 변화의 원인을 알 수 없어요."
     elif qid == "next":
-        text = "빈도를 바꾸면 루틴을 바꾼 날로 기록돼요. 그 뒤 붉은기가 평소 범위로 돌아오는지 2주 동안 비교해요."
+        text = "사용 횟수를 바꾼 날짜가 기록돼요. 이후 2주 동안 붉은기 변화를 비교할 수 있어요."
         cites = []
     else:
         return None
-    return {"text": text, "cites": cites, "cite_label": f"근거: 기록 {_span(cites)}" if cites else ""}
+    return {"text": text, "cites": cites, "cite_label": f"참고 기록: {_span(cites)}" if cites else ""}
 
 
 def verify(sentences, judged):

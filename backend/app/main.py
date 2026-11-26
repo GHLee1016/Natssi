@@ -89,7 +89,7 @@ def _store_fail(what: str, e: Exception) -> HTTPException:
     ref = secrets.token_hex(3)
     log.warning("저장소 오류 %s: %s", ref, store.why(e))
     extra = f" [{store.why(e)}]" if config.OPEN_MODE else ""
-    return HTTPException(503, f"{what} 잠시 뒤 다시 시도해 주세요. (오류 번호 {ref}){extra}")
+    return HTTPException(503, f"{what} 잠시 후 다시 시도해 주세요. (오류 번호 {ref}){extra}")
 
 
 def routine_payload(v):
@@ -147,7 +147,7 @@ class RefreshBody(BaseModel):
 
 def _check_password(pw: str):
     if pw.isdigit() or pw.isalpha():
-        raise HTTPException(400, "비밀번호에 글자와 숫자를 섞어 주세요.")
+        raise HTTPException(400, "비밀번호는 문자와 숫자를 포함해 8자 이상 입력해 주세요.")
 
 
 def _auth_on():
@@ -232,7 +232,7 @@ def export_account(request: Request, v=Depends(need_user)):
             "checkins": [{"day": d, "symptoms": _split(s)[0], **_split(s)[2]} for d, s in sorted(saved.items())],
             "routine": my_routine.get("versions", []),
             "district": profile.get("district"),
-            "note": "얼굴 사진은 서버에 저장하지 않아서 내려받을 사진이 없어요."}
+            "note": "얼굴 전체 사진은 서버에 저장하지 않아 다운로드할 사진이 없어요."}
 
 
 @app.delete("/api/account")
@@ -448,7 +448,7 @@ def save_my_profile(body: ProfileBody, request: Request, v=Depends(need_user)):
     try:
         store.save_profile(v["id"], body.district or None)
     except Exception as e:
-        raise _store_fail("사는 구를 저장하지 못했어요.", e)
+        raise _store_fail("거주 지역을 저장하지 못했어요.", e)
     return {"district": body.district or None}
 
 
@@ -567,9 +567,9 @@ def capture(body: quality.Features, request: Request, v=Depends(viewer)):
             res["saved"] = True
             res["already"] = _split(entry)[1] is not None and not fix   # 오늘은 앞서 통과한 사진의 값이 이미 기록돼 있음
             res["replaced"] = fix
-            res["note"] = ("오늘은 이미 기록했어요. 하루에 한 번, 처음 잘 찍힌 사진 값만 남겨요." if res["already"] else
-                           "조명 색이 달랐던 아까 기록을 이 사진 값으로 바꿨어요." if fix else
-                           "사진은 남기지 않고 볼 색 숫자만 오늘 기록에 남겼어요. 하루에 한 번, 처음 잘 찍힌 사진 값만 남겨요.")
+            res["note"] = ("오늘은 이미 기록했어요. 하루에 한 번, 처음 촬영 조건을 충족한 사진의 측정값만 저장해요." if res["already"] else
+                           "조명 색이 달랐던 이전 기록을 이 사진의 측정값으로 바꿨어요." if fix else
+                           "얼굴 전체 사진은 서버에 저장하지 않고, 볼 색상 측정값만 오늘 기록에 저장했어요. 하루에 한 번, 처음 촬영 조건을 충족한 사진의 측정값만 저장해요.")
         except Exception as e:
             raise _store_fail("볼 붉은기를 저장하지 못했어요.", e)
     return res

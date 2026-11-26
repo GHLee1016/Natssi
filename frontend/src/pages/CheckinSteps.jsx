@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBackDepth } from '../nav.js'
+import { symptomLabel } from '../kv.jsx'
 
 // 증상 체크인을 한 화면에 한 문항씩 묻는다. 진행 막대, 큰 질문, 라디오 목록, 이전/다음 버튼.
 // 점수(0~3)와 저장 형식은 그대로다.
 const STEPS = [
-  ['따가움', '오늘 얼굴이 따끔거렸나요?'],
-  ['화끈', '오늘 얼굴이 화끈거리거나 달아올랐나요?'],
-  ['가려움', '오늘 얼굴이 가려웠나요?'],
-  ['당김', '오늘 피부가 당기거나 불편했나요?'],
+  ['따가움', '오늘 피부가 따가웠나요?'],
+  ['화끈', '오늘 피부가 화끈거렸나요?'],
+  ['가려움', '오늘 피부가 가려웠나요?'],
+  ['당김', '오늘 피부가 당겼나요?'],
 ]
-const OPTIONS = ['전혀 없어요', '약간 있어요', '꽤 있어요', '심해요']
+const OPTIONS = ['전혀 없었어요', '조금 있었어요', '꽤 있었어요', '심했어요']
 
 export default function CheckinSteps({ initial, saving, error, onSave, onCancel }) {
   const [i, setI] = useState(0)
@@ -38,7 +39,7 @@ export default function CheckinSteps({ initial, saving, error, onSave, onCancel 
       </div>
       <span className="step-chip" aria-hidden="true">{i + 1}</span>
       <h3 className="step-q" tabIndex={-1} ref={head}>{q}</h3>
-      <div role="radiogroup" aria-labelledby={undefined} aria-label={name} className="opts">
+      <div role="radiogroup" aria-labelledby={undefined} aria-label={symptomLabel(name)} className="opts">
         {OPTIONS.map((label, n) => (
           <label className={'opt' + (picked === n ? ' on' : '')} key={n}>
             <input type="radio" name={'sym-' + name} checked={picked === n} onChange={() => setV({ ...v, [name]: n })} />
@@ -49,7 +50,7 @@ export default function CheckinSteps({ initial, saving, error, onSave, onCancel 
       {error && <p className="err" role="alert">{error}</p>}
       <div className="step-actions">
         <button className="btn ghost" onClick={i ? () => setI(i - 1) : onCancel}>{i ? '이전' : '취소'}</button>
-        <button className="btn" onClick={next} disabled={picked === undefined || saving}>{saving ? '저장하는 중…' : last ? '저장하기' : '다음'}</button>
+        <button className="btn" onClick={next} disabled={picked === undefined || saving}>{saving ? '저장하는 중…' : last ? '증상 기록 저장' : '다음'}</button>
       </div>
     </div>
   )

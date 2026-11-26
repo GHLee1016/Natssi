@@ -48,10 +48,10 @@ MESSAGES = {
     "invalid_credentials": "이메일 또는 비밀번호가 맞지 않아요.",
     "user_already_exists": "이미 가입된 이메일이에요. 로그인해 주세요.",
     "email_exists": "이미 가입된 이메일이에요. 로그인해 주세요.",
-    "weak_password": "비밀번호가 너무 쉬워요. 8자 이상으로 글자와 숫자를 섞어 주세요.",
+    "weak_password": "비밀번호가 너무 쉬워요. 문자와 숫자를 포함해 8자 이상 입력해 주세요.",
     "email_not_confirmed": "가입 때 받은 메일의 링크를 먼저 눌러 주세요.",
-    "over_email_send_rate_limit": "메일을 너무 여러 번 요청했어요. 잠시 뒤 다시 시도해 주세요.",
-    "over_request_rate_limit": "짧은 시간에 너무 여러 번 시도했어요. 잠시 뒤 다시 해 주세요.",
+    "over_email_send_rate_limit": "메일을 너무 여러 번 요청했어요. 잠시 후 다시 시도해 주세요.",
+    "over_request_rate_limit": "짧은 시간에 너무 여러 번 시도했어요. 잠시 후 다시 시도해 주세요.",
     "validation_failed": "입력한 내용을 확인해 주세요.",
     "signup_disabled": "지금은 가입을 받지 않아요.",
     "same_password": "이전과 다른 비밀번호를 써 주세요.",
@@ -76,7 +76,7 @@ def _fail(r: httpx.Response) -> AuthError:
         ref = secrets.token_hex(3)
         log.warning("인증 오류 %s: status=%s code=%s msg=%s", ref, r.status_code, code or "-",
                     str(body.get("msg") or body.get("message") or body.get("error_description") or "")[:200])
-        msg = f"요청을 마치지 못했어요. 잠시 뒤 다시 시도해 주세요. (오류 번호 {ref})"
+        msg = f"문제가 발생했어요. 잠시 후 다시 시도해 주세요. (오류 번호 {ref})"
     return AuthError(400 if r.status_code < 500 else 503, msg)
 
 
@@ -93,7 +93,7 @@ def _call(method, path, *, key, json=None, params=None, token=None):
     try:
         return _http().request(method, f"{url}{path}", json=json, params=params, headers=headers)
     except httpx.HTTPError:
-        raise AuthError(503, "로그인 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+        raise AuthError(503, "로그인 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.")
 
 
 def signup(email: str, password: str, optional: dict | None = None) -> dict:
@@ -134,7 +134,7 @@ def reset_password(token: str, password: str) -> dict:
     _, anon, _ = _env()
     r = _call("PUT", "/auth/v1/user", key=anon, token=token, json={"password": password})
     if r.status_code in (401, 403):
-        raise AuthError(401, "재설정 링크가 만료됐어요. 메일을 다시 받아 주세요.")
+        raise AuthError(401, "재설정 링크가 만료됐거나 이미 사용된 링크예요. 비밀번호 재설정 메일을 다시 받아 주세요.")
     if r.status_code >= 400:
         raise _fail(r)
     _cache.clear()
@@ -161,7 +161,7 @@ def user_from_token(token: str) -> dict:
     if r.status_code in (401, 403):
         raise AuthError(401, "로그인이 필요해요.")
     if r.status_code >= 400:
-        raise AuthError(503, "로그인 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+        raise AuthError(503, "로그인 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.")
     u = r.json()
     try:
         uid = str(uuid.UUID(u["id"]))                        # 형식 검증(저장소 필터에 들어가는 값)
@@ -182,7 +182,7 @@ def set_consent_flag(token: str, old: dict | None, key: str, on: bool) -> dict:
     if r.status_code in (401, 403):
         raise AuthError(401, "로그인이 필요해요.")
     if r.status_code >= 400:
-        raise AuthError(503, "선택 동의를 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+        raise AuthError(503, "선택 동의를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
     _cache.pop(token, None)
     return consent
 
@@ -196,7 +196,7 @@ def update_consent(token: str, old: dict | None) -> dict:
     if r.status_code in (401, 403):
         raise AuthError(401, "로그인이 필요해요.")
     if r.status_code >= 400:
-        raise AuthError(503, "동의 기록을 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+        raise AuthError(503, "동의 기록을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
     _cache.pop(token, None)                # 다음 요청부터 새 동의 버전을 보게
     return consent
 
@@ -205,5 +205,5 @@ def delete_user(uid: str) -> None:
     _, _, svc = _env()
     r = _call("DELETE", f"/auth/v1/admin/users/{uid}", key=svc)
     if r.status_code >= 400 and r.status_code != 404:
-        raise AuthError(503, "계정을 지우지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+        raise AuthError(503, "계정을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.")
     _cache.clear()

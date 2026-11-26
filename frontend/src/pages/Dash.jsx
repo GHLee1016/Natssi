@@ -44,13 +44,13 @@ function MonthKpis({ records, date }) {
   return (
     <div className="kpis">
       <Kpi label={`${m}월 사진 기록`} value={`${photos.length}일`} empty={!photos.length}
-        sub={photos.length ? '볼 색을 잰 날' : '이달 사진 기록이 아직 없어요'} />
-      <Kpi label="평소보다 볼이 더 붉었던 날" value={judged.length ? `${judged.filter(over).length}일` : '아직 없어요'} empty={!judged.length}
-        sub={judged.length ? `평소 범위와 비교한 ${judged.length}일 중` : '사진이 7일 모이면 평소와 비교해요'} />
+        sub={photos.length ? '사진으로 피부를 기록한 날' : '이달 사진 기록이 아직 없어요'} />
+      <Kpi label="평소보다 붉었던 날" value={judged.length ? `${judged.filter(over).length}일` : '아직 없어요'} empty={!judged.length}
+        sub={judged.length ? `비교할 수 있었던 ${judged.length}일 중` : '사진 기록이 7일 쌓이면 평소와 비교할 수 있어요'} />
       <Kpi label="가장 붉었던 날" value={top ? fmt.md(top.date) : '아직 없어요'} empty={!top}
-        sub={top ? `볼 붉은기 ${sgn(top.redness)}` : '사진을 찍으면 보여요'} />
+        sub={top ? `붉은기 수치 ${sgn(top.redness)}` : '사진을 찍으면 보여요'} />
       <Kpi label={`${m}월 맑은 날`} value={judged.length ? `${sunny}일` : '아직 없어요'} empty={!judged.length}
-        sub={judged.length ? `얼굴 날씨가 정해진 ${judged.length}일 중` : '평소 범위가 생기면 맑은 날 수가 보여요'} />
+        sub={judged.length ? `얼굴 날씨를 확인한 ${judged.length}일 중` : '붉은기 범위가 만들어지면 얼굴 날씨를 확인할 수 있어요'} />
     </div>
   )
 }
@@ -62,8 +62,8 @@ function Trend({ records, versions, date, onPick }) {
   if (pts.length < 2) {
     return (
       <div className="card db-card db-empty">
-        <h2 className="db-h">최근 4주 볼 붉은기</h2>
-        <p>사진 기록이 이틀 이상 모이면 그래프가 그려져요.</p>
+        <h2 className="db-h">최근 4주 붉은기 변화</h2>
+        <p>사진을 이틀 이상 기록하면 붉은기 변화를 그래프로 볼 수 있어요.</p>
       </div>
     )
   }
@@ -89,23 +89,23 @@ function Trend({ records, versions, date, onPick }) {
   return (
     <div className="card db-card">
       <div className="db-row">
-        <h2 className="db-h">최근 4주 볼 붉은기</h2>
+        <h2 className="db-h">최근 4주 붉은기 변화</h2>
         <ul className="db-legend" aria-hidden="true">
           <li><i className="dt-dot-l ok" />맑음</li><li><i className="dt-dot-l watch" />구름 조금</li><li><i className="dt-dot-l signal" />흐림</li>
           {pts.some((p) => p.verdict?.level === '구분 불가' || !p.verdict) && <li><i className="dt-dot-l unknown" />비교하지 않은 날</li>}
-          {band && <li><i className="dt-band-l" />평소 범위</li>}
+          {band && <li><i className="dt-band-l" />붉은기 범위</li>}
           {marks.length > 0 && <li><i className="dt-mark-l" />루틴을 바꾼 날</li>}
         </ul>
       </div>
       <svg className="db-trend" viewBox={`0 0 ${W} ${H}`} role="group"
-        aria-label={`${fmt.md(pts[0].date)}부터 ${fmt.md(pts[pts.length - 1].date)}까지 사진 기록 ${pts.length}일의 볼 붉은기`}>
+        aria-label={`${fmt.md(pts[0].date)}부터 ${fmt.md(pts[pts.length - 1].date)}까지 사진 기록 ${pts.length}일의 붉은기 변화`}>
         {ticks.map((t) => <g key={t} aria-hidden="true"><line x1={L} x2={W - R} y1={y(t)} y2={y(t)} className="dt-grid" /><text x={L - 8} y={y(t) + 5} className="dt-tick" textAnchor="end">{sgn(t)}</text></g>)}
         {band && <rect x={L} width={W - L - R} y={y(band.high)} height={Math.max(2, y(band.low) - y(band.high))} className="dt-band" aria-hidden="true" />}
         <polyline points={pts.map((p) => `${x(p.date)},${y(p.redness)}`).join(' ')} className="dt-line" aria-hidden="true" />
         {pts.map((p) => (
           <circle key={p.date} cx={x(p.date)} cy={y(p.redness)} r={p.date === date ? 7 : 5}
             className={'dt-dot ' + (WEATHER[p.verdict?.level]?.cls || 'unknown') + (p.date === date ? ' sel' : '')} onClick={() => onPick(p.date)}>
-            <title>{fmt.md(p.date)} {WEATHER[p.verdict?.level]?.name || ''} 볼 붉은기 {sgn(p.redness)}</title>
+            <title>{fmt.md(p.date)} {WEATHER[p.verdict?.level]?.name || ''} 붉은기 수치 {sgn(p.redness)}</title>
           </circle>
         ))}
         {/* 루틴을 바꾼 날: 세로선과 이름표. 누르거나(Enter, Space) 그날로 간다 */}
@@ -124,9 +124,9 @@ function Trend({ records, versions, date, onPick }) {
         <text x={W - R} y={H - 8} className="dt-tick" textAnchor="end" aria-hidden="true">{fmt.md(pts[pts.length - 1].date)}</text>
       </svg>
       <p className="db-cap">
-        {marks.length ? '주황 점선은 루틴을 바꾼 날이에요. 누르면 그날 기록이 열려요. 점선 뒤로 점이 띠보다 높으면 루틴을 바꾼 시기와 볼이 붉어진 시기가 겹친 거예요. 제품이 원인인지는 이것만으로 알 수 없어요.'
+        {marks.length ? '주황색 점선은 루틴을 바꾼 날이에요. 누르면 해당 날짜의 기록을 볼 수 있어요. 점선 이후 붉은기 변화를 확인해 보세요. 제품이 변화의 원인인지는 알 수 없어요.'
           : changes.length ? '최근 4주에는 루틴을 바꾼 날이 없어요.'
-            : '아직 루틴을 바꾼 적이 없어요. 바꾸면 그날이 점선으로 표시돼요.'}
+            : '루틴을 바꾸면 그래프에 점선으로 표시돼요. 바꾸기 전후의 붉은기를 비교할 수 있어요.'}
       </p>
     </div>
   )

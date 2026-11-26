@@ -27,7 +27,7 @@ export function InstallHint() {
       <img src="/icon-192.png" alt="" width="44" height="44" />
       <div>
         <b>홈 화면에 낯씨를 추가해 두세요</b>
-        <p className="muted small">{deferred ? '추가하면 홈 화면 아이콘으로 바로 열려요.'
+        <p className="muted small">{deferred ? '홈 화면에서 낯씨를 바로 열어 피부를 기록할 수 있어요.'
           : ios() ? '사파리 아래쪽 공유 버튼(□↑)을 누르고 ‘홈 화면에 추가’를 고르면 앱처럼 열려요.'
             : samsung() ? '아래쪽 메뉴(≡)를 누르고 ‘현재 페이지 추가’ → ‘홈 화면’을 고르면 앱처럼 열려요.'
               : android() ? '오른쪽 위 메뉴(⋮)를 누르고 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 고르면 앱처럼 열려요.'
@@ -52,7 +52,7 @@ export function InAppBanner() {
   const close = () => { try { sessionStorage.setItem('natssi.inapp', 'closed') } catch { /* 무시 */ } setHide(true) }
   return (
     <div className="inapp-banner" role="note">
-      <p><b>{kakao ? '카카오톡' : '앱'} 안의 브라우저로 열렸어요.</b> 카메라와 홈 화면 추가가 잘 안 될 수 있어요.{' '}
+      <p><b>{kakao ? '카카오톡' : '앱'} 내 브라우저에서는 카메라나 홈 화면 추가 기능이 작동하지 않을 수 있어요.</b> 기본 브라우저로 열어 주세요.{' '}
         {android() ? '' : ios() ? (kakao ? '오른쪽 아래 공유(⋯) → ‘Safari로 열기’를 눌러 주세요.' : '메뉴에서 ‘Safari로 열기’를 눌러 주세요.') : ''}</p>
       <div className="actions left">
         {android() && kakao && <a className="btn" href={'kakaotalk://web/openExternal?url=' + encodeURIComponent(url)}>기본 브라우저로 열기</a>}

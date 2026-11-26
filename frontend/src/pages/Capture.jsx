@@ -21,7 +21,7 @@ export function useDesk() {
 }
 
 // 이 주소를 폰으로 여는 QR(그리기만 한다. 주소는 바깥으로 보내지 않음)
-export function QR({ text, label = '폰 카메라로 비추면 낯씨 기록 화면이 열리는 QR 코드' }) {
+export function QR({ text, label = '스마트폰 카메라로 스캔하면 기록 화면이 열리는 QR 코드' }) {
   const q = qrcode(0, 'M'); q.addData(text); q.make()
   const n = q.getModuleCount(); let d = ''
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`
@@ -29,7 +29,7 @@ export function QR({ text, label = '폰 카메라로 비추면 낯씨 기록 화
 }
 
 // 분석하는 동안 보여 줄 단계(실제로 하는 일 순서). 각 단계는 끝난 뒤에 ✓가 붙는다.
-const STAGES = ['얼굴 인식 준비', '얼굴과 고개 각도 찾기', '양 볼 색 재기', '잘 찍혔는지 확인']
+const STAGES = ['촬영 사진 분석 준비', '얼굴 위치와 각도 확인', '볼의 붉은기 측정', '촬영 상태 확인']
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms))
 // 주소에 ?camdebug=1 을 붙이면 촬영 화면 위에 가이드 판정 숫자를 보여 준다(실기기에서 원인 확인용)
 const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('camdebug')
@@ -37,7 +37,7 @@ const NOTICE_KEY = 'natssi.photoNotice'   // 로그인 없이 쓰는 경우, 바
 
 // 촬영 전 안내: 좋은 사진 한 장과 피해야 할 사진들(캐릭터 동작은 Face, 끝 자세가 그 모습)
 const BAD = [
-  ['tilt', '고개는 기울이지 말고', '정면을 봐요'],
+  ['tilt', '고개를 기울이지 말고', '정면을 바라봐 주세요'],
   ['hair', '앞머리나 머리카락으로', '볼이 드러나게 해요'],
   ['mask', '마스크는 벗고', '얼굴이 다 보이게 찍어요'],
 ]
@@ -113,20 +113,20 @@ function TodaySymptoms({ photoDone, go }) {
   const done = today && !editing
   return (
     <div className="card today-step" aria-live="polite">
-      <p className="eyebrow">{done ? '오늘 기록 완료' : '2단계: 오늘 증상'}</p>
+      <p className="eyebrow">{done ? '오늘의 피부 기록 완료' : '2단계: 피부 증상 기록'}</p>
       {done ? (
         <>
-          <h2 className="h3">{photoDone ? '오늘 기록을 마쳤어요' : '오늘 증상을 남겼어요'}</h2>
-          <KV className="small" items={[['사진', photoDone && '남김 ✓'], ...symptomItems(today)]} />
+          <h2 className="h3">{photoDone ? '오늘의 피부 기록을 저장했어요.' : '오늘의 피부 증상을 저장했어요.'}</h2>
+          <KV className="small" items={[['사진', photoDone && '기록 완료'], ...symptomItems(today)]} />
           <div className="actions left">
             <button className="btn" onClick={() => go('diary')}>오늘의 얼굴 날씨 보기</button>
-            <button className="btn ghost" onClick={() => setEditing(true)}>증상 고치기</button>
+            <button className="btn ghost" onClick={() => setEditing(true)}>증상 수정</button>
           </div>
         </>
       ) : (
         <>
-          <h2 className="h3">오늘 얼굴은 어땠나요?</h2>
-          <p className="muted small">네 가지만 물어요. 사진 기록과 같이 보면 붉은기와 증상이 겹친 날이 보여요.</p>
+          <h2 className="h3">오늘 피부는 어땠나요?</h2>
+          <p className="muted small">오늘 느낀 피부 증상을 기록해 주세요. 사진과 함께 피부 변화를 확인할 수 있어요.</p>
           <CheckinSteps initial={today || {}} saving={saving} error={err} onSave={save}
             onCancel={() => (today ? setEditing(false) : go('diary'))} />
         </>
@@ -139,7 +139,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const video = useRef(null)
   const stream = useRef(null)
   const [cam, setCam] = useState('idle')   // idle | on | blocked
-  const [busy, setBusy] = useState(null)   // null | '얼굴 모델 불러오는 중…' | '검사하는 중…'
+  const [busy, setBusy] = useState(null)   // null | '사진 분석 준비 중…' | '사진 확인 중…'
   const [result, setResult] = useState(null)
   const lastFeat = useRef(null)                     // 마지막으로 잰 숫자('그래도 이 사진으로 기록하기'에 다시 보냄)
   const lastFace = useRef(null)                     // 마지막 사진의 얼굴(이 기기 보관용, 켠 사람만 저장)
@@ -235,10 +235,10 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     // 단계가 너무 빨리 지나가 안 보이지 않게, 단계마다 잠깐(0.2초) 머문다. 순서와 내용은 실제로 하는 일 그대로.
     const step = async (n) => { setStage(n); await wait(200) }
     try {
-      setBusy('얼굴 인식 준비 중…'); await step(0)
+      setBusy('사진 분석 준비 중…'); await step(0)
       await Promise.race([loadLandmarker(), new Promise((_, no) => setTimeout(() => no(userError(
-        '얼굴 인식에 필요한 파일을 받지 못했어요. 처음 한 번은 약 10MB를 받아요. 와이파이에서 다시 해 주세요.')), 90000))])
-      setBusy('검사하는 중…'); await step(1)
+        '사진 분석에 필요한 파일을 불러오지 못했어요. Wi-Fi에 연결한 뒤 다시 시도해 주세요.')), 90000))])
+      setBusy('사진 확인 중…'); await step(1)
       const features = await measurePhoto(src)
       lastFeat.current = features
       if (stream.current) { stop(); setCam('idle') }   // 찍은 뒤에는 카메라를 끈다(통과하든 못 하든 결과 화면으로)
@@ -251,7 +251,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       setResult(res)
     } catch (e) {
       if (stream.current) { stop(); setCam('idle') }
-      setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진을 고르거나 카메라로 찍어 주세요.'))
+      setError(e?.userMessage || (e?.status ? e.message : '사진을 분석하지 못했어요. 다른 사진을 선택하거나 다시 촬영해 주세요.'))
     } finally { setBusy(null) }
   }
   // 조명 색만 걸린 사진: 사용자가 다시 찍기 대신 그대로 기록할 수 있다. 판정은 그날 b*로 '조명 다름'을 가려내 단정하지 않는다.
@@ -280,7 +280,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   const rest = result ? result.checks.filter((c) => c.ok !== false) : []
   const item = (c) => (
     <div className={'res-item ' + (c.ok === null ? 'na' : c.ok ? 'ok' : 'no')} key={c.name}>
-      <span className="res-chip">{c.ok === null ? '확인 못 함' : c.ok ? '좋아요' : '아쉬워요'}</span>
+      <span className="res-chip">{c.ok === null ? '확인 불가' : c.ok ? '적합' : '다시 확인'}</span>
       <b>{c.name}</b>
       <p className="small">{c.detail}</p>
     </div>
@@ -289,16 +289,16 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
   if (needConsent) {
     return (
       <section className="capture">
-        <header className="page-head"><div><h1>오늘의 얼굴 날씨 찍기</h1></div></header>
+        <header className="page-head"><div><h1>오늘의 피부 기록하기</h1></div></header>
         <div className="card">
           <h2 className="h3">{firstTime ? '촬영 전에 확인해 주세요' : '사진 처리 방식이 바뀌었어요'}</h2>
           <ul className="sentences">
-            <li>사진은 <b>내 기기 안에서만</b> 분석하고 서버로 보내지 않아요.</li>
-            <li>고개 각도, 표정, 선명도, 밝기를 확인한 뒤 양 볼 색(볼 붉은기)을 재요.</li>
-            <li>서버에는 잰 숫자만 보내고, 그 숫자로 사진이 잘 찍혔는지 확인해요. 로그인했다면 확인을 통과한 사진의 <b>볼 색 숫자 3개(붉은기, 조명 확인용 노란기, 밝기)</b>만 오늘 기록에 남겨요.</li>
+            <li><b>얼굴 전체 사진</b>은 기기에서 분석하고 서버로 보내지 않아요.</li>
+            <li>얼굴 각도, 표정, 선명도, 밝기를 확인한 뒤 양쪽 볼의 색을 측정해요.</li>
+            <li>촬영 상태를 확인하기 위해 측정값을 서버에 보내요. 로그인한 경우 촬영 조건을 충족한 사진의 <b>볼 색상 측정값 3개(붉은기, 조명 확인용 노란기, 밝기)</b>를 기록해요.</li>
           </ul>
           <button className="link" onClick={() => onLegal('photo')}>얼굴 사진 처리 안내 전체 보기</button>
-          <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})를 읽고 동의해요</label>
+          <label className="row-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> {firstTime ? '' : '바뀐 '}얼굴 사진 처리 안내({photoVersion})에 동의해요</label>
           <div className="actions left"><button className="btn" disabled={!agree} onClick={acceptNotice}>동의하고 촬영하기</button></div>
           {error && <p className="err" role="alert">{error}</p>}
         </div>
@@ -306,20 +306,20 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
     )
   }
 
-  const title = guideMode ? <>얼굴이 잘 보이는 사진을<br />찍거나 골라 주세요</>
-    : result ? (result.passed ? (result.lighting_off ? '조명이 달랐던 사진으로 기록했어요' : '사진이 잘 찍혔어요') : '한 번 더 찍어 볼까요?') : viewer ? '오늘 기록하기' : '오늘의 얼굴 날씨 찍기'
+  const title = guideMode ? <>얼굴이 잘 보이는 사진을<br />찍거나 선택해 주세요</>
+    : result ? (result.passed ? (result.lighting_off ? '사진을 기록했어요. 다만 조명이 평소와 달라 비교하지 않았어요.' : '사진이 잘 찍혔어요') : '사진을 다시 찍어 주세요.') : '오늘의 피부 기록하기'
   return (
     <section className="capture">
       <header className="page-head"><div><h1>{title}</h1></div></header>
       {guideMode && (
         <div className="cap-guide">
-          <p className="muted cap-lead">사진은 이 기기 안에서 확인하고, 서버에는 볼 피부색 숫자만 보내요.</p>
+          <p className="muted cap-lead">얼굴 전체 사진은 기기에서 분석해요. 촬영 상태와 볼 색상을 확인하기 위한 측정값을 서버에 보내요.</p>
           <div className="cap-cols">
           <section className="cap-col">
           <h2 className="cap-sec ok"><i aria-hidden="true">✓</i>이런 사진이 좋아요</h2>
           <figure className="cap-good">
             <div className="cap-frame"><Face kind="front" /></div>
-            <figcaption>밝은 곳에서 정면을 보고<br />매번 같은 자리에서 찍어 주세요</figcaption>
+            <figcaption>밝은 곳에서 정면을 보고,<br />매일 비슷한 환경에서 찍어 주세요.</figcaption>
           </figure>
           </section>
           <section className="cap-col">
@@ -331,22 +331,22 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           </div>
           </section>
           </div>
-          {cam === 'blocked' && <p className="err" role="alert">카메라를 쓸 수 없어요. 브라우저에서 카메라를 허용하거나 사진을 골라 주세요.</p>}
+          {cam === 'blocked' && <p className="err" role="alert">카메라를 사용할 수 없어요. 브라우저에서 카메라 사용을 허용하거나 저장된 사진을 선택해 주세요.</p>}
           {error && <p className="err" role="alert">{error}</p>}
           {desk ? (
             <div className="cap-qr">
               <QR text={`${window.location.origin}/?tab=capture`} />
               <div>
-                <h2>폰으로 찍어 주세요</h2>
-                <p>폰 카메라로 QR을 비추면 낯씨 기록 화면이 열려요.{viewer ? ' 폰에서도 같은 계정으로 로그인해 주세요.' : ''}</p>
-                <p className="muted small">컴퓨터 카메라와 폰 카메라는 색이 다르게 찍혀요. 날마다 붉은기를 비교하려면 늘 같은 폰으로 찍어 주세요.</p>
-                <label className="link file">이 컴퓨터에 있는 사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+                <h2>스마트폰으로 촬영해 주세요</h2>
+                <p>{viewer ? '스마트폰으로 QR 코드를 스캔한 뒤 같은 계정으로 로그인해 주세요.' : '스마트폰 카메라로 QR 코드를 스캔하면 기록 화면이 열려요.'}</p>
+                <p className="muted small">카메라마다 피부색이 다르게 찍힐 수 있어요. 매일 같은 스마트폰으로 촬영해 주세요.</p>
+                <label className="link file">컴퓨터에서 사진 선택<input type="file" accept="image/*" onChange={pick} /></label>
               </div>
             </div>
           ) : (
             <div className="cap-actions">
-              <button className="btn dark" onClick={start}>카메라로 촬영하기</button>
-              <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+              <button className="btn dark" onClick={start}>사진 찍기</button>
+              <label className="btn ghost file">사진 선택<input type="file" accept="image/*" onChange={pick} /></label>
             </div>
           )}
         </div>
@@ -360,7 +360,7 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
           <button className="cam-pill" onClick={close}>찍는 법</button>
           {guide && <label className="cam-pill"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (!e.target.checked) cancelAuto() }} />자동 촬영</label>}
         </div>
-        {!count && <p className={'cam-hint' + (guide?.ok ? ' ok' : '')} role="status">{guide?.ok && <i aria-hidden="true">✓</i>}{guide ? guide.hint : '얼굴이 타원 안에 들어오게 정면을 봐 주세요'}</p>}
+        {!count && <p className={'cam-hint' + (guide?.ok ? ' ok' : '')} role="status">{guide?.ok && <i aria-hidden="true">✓</i>}{guide ? guide.hint : '얼굴을 타원에 맞추고 정면을 바라봐 주세요'}</p>}
         {count && (
           <div className="countdown" role="status" aria-label={`${count}초 뒤에 찍어요`}>
             <b>{count}</b>
@@ -376,8 +376,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       {busy && (
         <div className="analyze" role="status" aria-live="polite">
           <div className="an-orb" aria-hidden="true" />
-          <h2>볼 색을 재고 있어요</h2>
-          <p className="muted small">사진은 이 기기 안에서만 분석해요.</p>
+          <h2>볼의 붉은기를 확인하고 있어요</h2>
+          <p className="muted small">얼굴 전체 사진은 기기에서 분석해요.</p>
           <ul>
             {STAGES.map((t, n) => <li key={t} className={n < stage ? 'done' : n === stage ? 'now' : ''}><i aria-hidden="true" />{t}{n < stage && <span className="sr-only"> 완료</span>}</li>)}
           </ul>
@@ -387,34 +387,34 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
         <div className="res">
           {result.passed && result.redness !== null && (
             <div className="res-hero">
-              <p>오늘 볼 붉은기{result.lighting_off ? ' (조명이 달라 참고만)' : ''}</p>
+              <p>오늘의 볼 붉은기{result.lighting_off ? '(참고용)' : ''}</p>
               <b>{result.redness.toFixed(1)}</b>
-              <p className="small">같은 얼굴을 다시 찍어도 ±{mdc95} 정도는 달라질 수 있어요. 같은 폰으로 같은 자리에서 찍은 날끼리 비교해요.</p>
+              <p className="small">예비 측정 오차는 ±{mdc95}예요. 같은 스마트폰과 비슷한 촬영 환경에서 기록한 사진끼리 비교해요.</p>
               {relRedness(lastFeat.current) !== null && (           /* 이 기기에서만 계산한 참고값(서버로 보내지 않음) */
-                <p className="small">조명 영향을 덜 받는 값(볼에서 콧등을 뺀 값) {relRedness(lastFeat.current).toFixed(1)}</p>
+                <p className="small">조명 영향을 줄인 참고 수치(볼과 콧등의 색 차이) {relRedness(lastFeat.current).toFixed(1)}</p>
               )}
             </div>
           )}
-          <p className="res-msg">{result.passed || result.overridable ? result.message : '아쉬운 항목을 고쳐 다시 찍어 주세요.'}</p>
+          <p className="res-msg">{result.passed || result.overridable ? result.message : '아래 촬영 조건을 확인한 뒤 다시 찍어 주세요.'}</p>
           {!result.passed && result.overridable && (
             <div className="next-box">
-              <p className="small">다시 찍기 어려우면 이 사진으로 기록해도 돼요. 조명 탓에 붉은기 값이 틀어졌을 수 있어서, 이날 얼굴 날씨는 안개로 두고 평소 범위를 만들 때도 이날은 빼요.</p>
-              <button className="btn ghost" onClick={keepAnyway} disabled={keeping}>{keeping ? '기록하는 중…' : '그래도 이 사진으로 기록하기'}</button>
+              <p className="small">다시 찍기 어렵다면 이 사진으로 기록할 수 있어요. 얼굴 날씨는 안개로 표시하고, 붉은기 범위 계산에서는 제외해요.</p>
+              <button className="btn ghost" onClick={keepAnyway} disabled={keeping}>{keeping ? '기록하는 중…' : '이 사진으로 기록하기'}</button>
             </div>
           )}
-          {bad.length > 0 && <><h2 className="res-sec">고칠 항목</h2><div className="res-grid">{bad.map(item)}</div></>}
+          {bad.length > 0 && <><h2 className="res-sec">다시 확인할 촬영 조건</h2><div className="res-grid">{bad.map(item)}</div></>}
           <details className="res-more">
-            <summary>{bad.length ? `통과한 항목 ${rest.length}개` : `확인한 항목 ${rest.length}개 모두 좋아요`}</summary>
+            <summary>{bad.length ? `적합한 항목 ${rest.length}개` : `촬영 조건 ${rest.length}개를 모두 충족했어요.`}</summary>
             <div className="res-grid">{rest.map(item)}</div>
             <div className="tech">{result.checks.map((c) => <p key={c.name}>{c.name}: {c.tech}</p>)}</div>
           </details>
           <p className="muted small">{result.note}</p>
           <div className="res-actions">
             <button className="btn dark" onClick={desk ? () => setResult(null) : again}>{desk ? '처음으로' : '다시 찍기'}</button>
-            <label className="btn ghost file">사진 고르기<input type="file" accept="image/*" onChange={pick} /></label>
+            <label className="btn ghost file">사진 선택<input type="file" accept="image/*" onChange={pick} /></label>
           </div>
           {!result.passed && viewer && !symptomsOnly && (
-            <button className="link" onClick={() => setSymptomsOnly(true)}>사진은 나중에 하고 증상만 먼저 남기기</button>
+            <button className="link" onClick={() => setSymptomsOnly(true)}>증상만 먼저 기록하기</button>
           )}
         </div>
       )}
@@ -422,8 +422,8 @@ export default function Capture({ onLegal, viewer, photoVersion, mdc95, onConsen
       {viewer && go && ((result?.passed && result.saved) || symptomsOnly) && <TodaySymptoms photoDone={!!result?.saved} go={go} />}
       {guideMode && (
   <div className="notice sentences wide">
-      <p>사진은 이 기기 안에서만 분석하고 서버로 보내지 않아요.</p>
-      <p>로그인했다면 통과한 사진의 볼 색 숫자(붉은기, 노란기, 밝기)만 오늘 기록에 남겨요.</p>
+      <p>얼굴 전체 사진은 기기에서 분석하고 서버로 보내지 않아요.</p>
+      <p>로그인한 경우 촬영 조건을 충족한 사진의 볼 색상 측정값(붉은기, 노란기, 밝기)을 기록해요.</p>
       <button className="link" onClick={() => onLegal('photo')}>사진 처리 안내</button>
     </div>
       )}

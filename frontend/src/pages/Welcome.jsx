@@ -5,35 +5,35 @@ const WEATHER_NAME = Object.fromEntries(Object.entries(WEATHER).map(([k, v]) => 
 
 // 로그인한 사람: 처음 7일부터 루틴을 바꿔 보기까지, 실제 탭과 버튼 이름으로 안내한다.
 const MINE = [
-  ['지금 쓰는 제품부터 등록해요', '지금 쓰는 제품을 모두 넣으면 그게 첫 루틴이에요. 전성분은 사진으로 찍거나 글자를 붙여 넣으면 레티노이드, 향료 같은 성분 계열로 묶여요.',
-    '루틴 관리 탭 → 첫 제품 등록하기'],
-  ['매일 셀카 한 장과 증상 네 가지를 남겨요', '밝은 곳에서 정면을 보고 얼굴을 타원에 맞추면 자동으로 찍혀요. 따가움, 화끈, 가려움, 당김을 0~3점으로 고르면 끝이에요. 1분이면 돼요.',
-    '기록 탭(폰은 아래 가운데 카메라 버튼)'],
-  ['첫 7일은 내 평소 볼 색을 모으는 기간이에요', '그동안은 다이어리 맨 위 \'오늘의 기록\'에서 볼 붉은기 숫자와 전날보다 얼마나 달라졌는지 보여요. 사진 기록이 7일 모이면 그다음 날부터 얼굴 날씨를 알려요.',
+  ['지금 쓰는 제품부터 등록해요', '사용 중인 제품을 등록하면 첫 번째 루틴이 만들어져요. 성분표를 찍거나 성분 목록을 붙여 넣으면 성분 종류(레티노이드, 향료 등)를 정리해 줘요.',
+    '내 루틴 → 첫 제품 등록하기'],
+  ['매일 사진과 피부 증상을 기록해요', '밝은 곳에서 얼굴을 화면의 타원에 맞추면 자동으로 촬영돼요. 따가움, 화끈거림, 가려움, 당김도 함께 기록해 주세요.',
+    '기록 탭(모바일은 하단 카메라 버튼)'],
+  ['첫 7일은 붉은기 범위를 만드는 기간이에요', '다이어리에서 오늘의 붉은기와 이전 기록의 차이를 확인할 수 있어요. 사진 기록이 7일 쌓이면 다음 사진부터 얼굴 날씨를 확인할 수 있어요.',
     '다이어리 탭'],
   ['얼굴 날씨는 이렇게 확인해요', null, null, 'weather'],
-  ['루틴은 한 번에 하나만 바꿔요', '새 제품은 \'제품 추가\', 덜 쓰면 \'사용 횟수 바꾸기\', 그만 쓰면 \'사용 중단\'을 눌러요. 바꾼 날은 붉은기 그래프에 함께 표시돼요. 한 번에 하나만 바꿔야 어떤 변화와 시기가 겹쳤는지 알 수 있어요.',
-    '루틴 관리 탭'],
-  ['쌓인 기록으로 돌아봐요', '변화 탭 4주 그래프에서 점선이 루틴을 바꾼 날이에요. 두 날을 나란히 비교하거나 흐린 날만 모아 봐요. 리포트 탭에서는 내 기록을 근거로 쓴 글을 읽고, 다이어리의 Recap에서는 한 달을 카드로 돌아봐요.',
-    '변화 탭, 리포트 탭, 다이어리 → Recap'],
+  ['루틴은 한 번에 하나만 바꿔요', '‘제품 추가’, ‘사용 횟수 변경’, ‘사용 중단’으로 루틴을 기록해요. 한 번에 하나씩 바꾸면 변경 전후의 붉은기 변화를 비교하기 쉬워요.',
+    '내 루틴'],
+  ['피부 변화를 확인해요', '변화 탭에서 루틴 변경 전후의 붉은기를 비교할 수 있어요. 피부 리포트에서는 기록을 요약해서 볼 수 있고, Monthly Skin Recap에서는 한 달간의 피부 기록을 돌아볼 수 있어요.',
+    '변화, 피부 리포트, 다이어리 → Monthly Skin Recap'],
 ]
 // 로그인 전: 가상 인물의 4주 예시에서 무엇을 보면 되는지 안내한다.
 const DEMO = [
-  ['다이어리에서 4주를 따라가 봐요', '레티놀 세럼을 새로 쓴 뒤 흐린 날이 이어지다가, 쓰는 횟수를 줄인 뒤 다시 맑아진 4주예요. 주간, 월간으로 보기를 바꾸고 날짜를 누르면 그날 기록이 열려요.',
+  ['4주간의 피부 기록을 살펴보세요', '레티놀 세럼을 추가한 뒤 흐린 날이 이어지고, 사용 횟수를 줄인 뒤 맑은 날이 나타난 예시예요. 달력에서 날짜별 기록을 확인해 보세요.',
     '다이어리 탭'],
-  ['변화 탭에서 시기가 겹쳤는지 봐요', '그래프의 점선이 루틴을 바꾼 날이에요. 점선 뒤로 붉은기가 평소 범위 위로 올라갔는지 봐요. ‘두 날 비교하기’, ‘흐린 날 살펴보기’ 버튼도 눌러 보세요.',
+  ['루틴 변경 전후의 피부 변화를 확인해요', '그래프의 점선은 루틴을 바꾼 날짜예요. 변경 전후의 붉은기를 확인하고, ‘날짜별 비교’와 ‘흐린 날 보기’도 이용해 보세요.',
     '변화 탭'],
-  ['리포트에서 기록을 근거로 쓴 글을 읽어요', '문장마다 어느 날 기록을 보고 썼는지 함께 적혀 있어요. 아래 질문을 누르면 답이 이어서 나와요.',
-    '리포트 탭'],
-  ['내 얼굴로도 찍어 봐요', '로그인하지 않아도 사진이 잘 찍혔는지와 볼 붉은기 숫자를 볼 수 있어요. 사진은 폰 안에서만 분석하고, 결과는 저장하지 않아요. PC에서는 기록 탭의 QR을 폰 카메라로 비춰 열어요.',
-    '기록 탭(폰은 아래 가운데 카메라 버튼)'],
+  ['피부 리포트에서 기록을 확인해요', '리포트의 각 문장에서 참고한 날짜와 기록을 확인할 수 있어요. 아래 질문을 선택하면 자세한 설명을 볼 수 있어요.',
+    '피부 리포트'],
+  ['로그인 없이 피부 기록을 체험해 보세요', '로그인 없이 촬영 상태와 볼 붉은기를 확인할 수 있어요. 체험 결과는 저장하지 않아요. PC에서는 기록 탭의 QR 코드를 스마트폰으로 스캔해 주세요.',
+    '기록 탭(모바일은 하단 카메라 버튼)'],
   ['얼굴 날씨는 이렇게 확인해요', null, null, 'weather'],
 ]
 const LEGEND = [
-  ['신호 없음', '평소 볼 색 범위 안이에요'],
-  ['관찰 중', '평소 범위 끝자락이에요'],
-  ['신호 있음', '평소보다 붉어요'],
-  ['구분 불가', '조명이 달라 비교하지 않았어요'],
+  ['신호 없음', '평소와 비슷한 붉은기예요.'],
+  ['관찰 중', '붉은기나 피부 증상을 조금 더 살펴봐 주세요.'],
+  ['신호 있음', '평소보다 붉은기가 높아요.'],
+  ['구분 불가', '사진 조건이나 기록 부족 등으로 평소와 비교하기 어려워요.'],
 ]
 
 // 사용법 시트. 처음 들어온 사람에게 한 번 보여 주고, 위쪽 '?' 버튼으로 다시 연다.
@@ -74,7 +74,7 @@ export default function Welcome({ onClose, onStart, onExplore, onRecord, mine = 
         onTouchStart={(e) => { touch.current = e.touches[0].clientX }}
         onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? e.changedTouches[0].clientX); if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); touch.current = null }}>
         <div className="welcome-top">
-          <p className="eyebrow">{mine ? '낯씨 사용법' : '4주 예시 둘러보기'}</p>
+          <p className="eyebrow">{mine ? '낯씨 사용법' : '4주간의 피부 기록 둘러보기'}</p>
           <span className="welcome-count" aria-hidden="true">{i + 1} / {steps.length}</span>
         </div>
         <div className="welcome-dots" role="img" aria-label={`${steps.length}단계 중 ${i + 1}단계`}>
@@ -83,7 +83,7 @@ export default function Welcome({ onClose, onStart, onExplore, onRecord, mine = 
         <div className="welcome-page" key={i} aria-live="polite">
           <span className="welcome-num" aria-hidden="true">{i + 1}</span>
           <h2 id="welcome-title">{title}</h2>
-          {i === 0 && !mine && <p className="muted small welcome-note">지금 화면은 김서연(가상 인물)의 예시 기록이에요. 가입하면 내 기록으로 바뀌어요.</p>}
+          {i === 0 && !mine && <p className="muted small welcome-note">현재 화면은 가상 인물 김서연의 예시 기록이에요. 가입하면 내 피부를 기록할 수 있어요.</p>}
           {kind === 'weather' ? (
             <ul className="welcome-legend">
               {LEGEND.map(([lv, t]) => <li key={lv}><WeatherIcon level={lv} size={22} /><span><b>{WEATHER_NAME[lv]}</b> {t}</span></li>)}
@@ -92,9 +92,9 @@ export default function Welcome({ onClose, onStart, onExplore, onRecord, mine = 
           {where && <span className="welcome-where">{where}</span>}
           {last && (
             <div className="welcome-tips muted small">
-              {mine && <p>같은 폰, 같은 장소, 같은 시간대에 찍어야 비교가 정확해요. 내 계정에서 사는 구를 고르면 그 구의 미세먼지, 습도, 기온도 기록 옆에 보여요.</p>}
-              <p>얼굴 날씨는 진단이 아니라 내 평소와 비교한 결과예요. 따가움이 계속되면 사용을 멈추고 전문의와 상담해 주세요.</p>
-              <p>위쪽 사용법(?) 버튼을 누르면 이 안내를 다시 볼 수 있어요.</p>
+              {mine && <p>같은 스마트폰으로 비슷한 장소와 시간대에 찍으면 비교하기 쉬워요. 내 계정에서 지역을 선택하면 초미세먼지, 습도, 기온도 볼 수 있어요.</p>}
+              <p>얼굴 날씨는 평소 붉은기와 비교한 참고 정보예요. 피부 증상이 계속되면 해당 제품 사용을 중단하고 피부과 전문의와 상담해 주세요.</p>
+              <p>상단의 사용법(?)에서 이 안내를 다시 확인할 수 있어요.</p>
             </div>
           )}
         </div>
@@ -103,7 +103,7 @@ export default function Welcome({ onClose, onStart, onExplore, onRecord, mine = 
             ? <button className="btn ghost" onClick={() => go(-1)}>이전</button>
             : <button className="btn ghost" onClick={mine ? onClose : onExplore}>건너뛰기</button>}
           {!last ? <button className="btn" ref={nextRef} onClick={() => go(1)}>다음</button>
-            : mine ? <><button className="btn ghost" onClick={onClose}>닫기</button><button className="btn" ref={nextRef} onClick={onRecord}>오늘 기록하기</button></>
+            : mine ? <><button className="btn ghost" onClick={onClose}>닫기</button><button className="btn" ref={nextRef} onClick={onRecord}>오늘의 피부 기록하기</button></>
               : (
                 <>
                   {onStart && <button className="btn ghost" onClick={onStart}>내 기록 시작하기</button>}

@@ -23,9 +23,9 @@ export default function Routine() {
         <div className="routine-now">
           <div>
             <div className="card dark">
-              <p className="small">지금 루틴</p>
+              <p className="small">현재 루틴</p>
               <h2>{r.current.id}번째 루틴<span className="sub-line">{fmt.md(r.current.start)}부터</span></h2>
-              {r.current.change && <p className="small">최근 바꾼 것: {fmt.plain(r.current.change)} (이유: {r.current.reason})</p>}
+              {r.current.change && <p className="small">최근 변경 내역: {fmt.plain(r.current.change)} (변경 이유: {r.current.reason})</p>}
             </div>
             <div className="card prod-list">
               {r.current.items.map((it) => (

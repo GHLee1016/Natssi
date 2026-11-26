@@ -4,19 +4,19 @@ import { useState } from 'react'
 import { fmt, LEVEL_CLASS } from '../api.js'
 import { WEATHER, WeatherIcon, HeroSky } from '../weather.jsx'
 import Gauge from '../gauge.jsx'
-import KV from '../kv.jsx'
+import KV, { symptomLabel } from '../kv.jsx'
 
 export const SYMPTOMS = ['따가움', '화끈', '가려움', '당김']
 
 // 환경 줄. district가 있으면 어느 구의 실측값인지 밝힌다.
 export function EnvLine({ e, district, day }) {
-  const src = district ? `동네 환경(${district})` : '동네 환경'
+  const src = district ? `${district} 환경 정보` : '환경 정보'
   const has = e && (e.pm25 != null || e.humidity != null || e.temp != null)
-  if (!has) return <span className="env-line"><b>{src}</b> <span className="muted">이날 측정값은 아직 없어요</span></span>
+  if (!has) return <span className="env-line"><b>{src}</b> <span className="muted">이날의 환경 정보가 아직 없어요.</span></span>
   const when = e.measured_on && e.measured_on !== day ? `${+e.measured_on.slice(5, 7)}/${+e.measured_on.slice(8)} 측정값` : ''
   return (
     <span className="env-line">
-      <b>{src}</b> <span className="muted">{e.unusual ? '평소와 달라요' : '평소와 비슷해요'}</span>
+      <b>{src}</b> <span className="muted">{e.unusual ? '평소와 다른 환경이에요.' : '평소와 비슷해요.'}</span>
       <KV className="small" items={[['초미세먼지', e.pm25 != null && e.pm25], ['습도', e.humidity != null && `${e.humidity}%`], ['기온', e.temp != null && `${e.temp}℃`]]} />
       {when && <span className="sub-line">{when}</span>}
     </span>
@@ -29,7 +29,7 @@ export function DayHero({ record, version, district, isToday, mine, showEnv = tr
   return (
     <div className={'hero ' + LEVEL_CLASS[v.level]}>
       <HeroSky level={v.level} />
-      <p className="hero-label">{isToday ? (mine ? '오늘의 내 얼굴 날씨' : '오늘의 얼굴 날씨') : '이날의 얼굴 날씨'}</p>
+      <p className="hero-label">{isToday ? '오늘의 얼굴 날씨' : '이날의 얼굴 날씨'}</p>
       <h2 className="hero-name"><WeatherIcon level={v.level} size={48} />{WEATHER[v.level].name}</h2>
       <p className="hero-msg">{v.message}</p>
       {v.reasons.length > 0 && <ul className="hero-reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
@@ -37,7 +37,7 @@ export function DayHero({ record, version, district, isToday, mine, showEnv = tr
         <Gauge value={record.redness} low={v.baseline.low} high={v.baseline.high} base={v.baseline_version} />
       )}
       <div className="hero-meta">
-        {version && <><b>{version.id}번째 루틴</b> {fmt.plain(version.label)}<span className="sub-line">이 루틴으로 {record.day_in_version}일째</span></>}
+        {version && <><b>{version.id}번째 루틴</b> {fmt.plain(version.label)}<span className="sub-line">{isToday ? `현재 루틴 ${record.day_in_version}일째` : `이 루틴 사용 ${record.day_in_version}일째`}</span></>}
         {showEnv && <EnvLine e={record.env} district={district} day={record.date} />}
         {showEnv && record.env?.facts?.length > 0 && <><br />{record.env.facts.join(' ')}</>}
       </div>
@@ -76,15 +76,15 @@ export function WeekStrip({ date, week, first, today, setDate }) {
   )
 }
 
-// 증상 한 줄: '따가움 2점, 당김 1점' 또는 '증상 없음'
-export const symptomText = (s) => SYMPTOMS.filter((k) => s?.[k] > 0).map((k) => `${k} ${s[k]}점`).join(', ') || '증상 없음'
+// 증상 한 줄: '따가움 2점, 당김 1점' 또는 '증상 없음'(저장 키 '화끈'은 '화끈거림'으로 보여 준다)
+export const symptomText = (s) => SYMPTOMS.filter((k) => s?.[k] > 0).map((k) => `${symptomLabel(k)} ${s[k]}점`).join(', ') || '증상 없음'
 
 // 루틴을 바꾼 날로 바로 가는 줄. 데모는 '흐림 시작'도 함께 보여 준다.
 export function ChangeDays({ records, versions, date, setDate, title, withSignal }) {
   const firstSignal = withSignal && records.find((r) => r.verdict.level === '신호 있음')
   const steps = [
     ...versions.slice(1).filter((v) => v.change).map((v) => ({ date: v.start, text: fmt.plain(v.change) })),
-    firstSignal && { date: firstSignal.date, text: '흐림 시작' },
+    firstSignal && { date: firstSignal.date, text: '흐린 날 시작' },
   ].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))
   if (!steps.length) return null
   return (
@@ -121,7 +121,7 @@ export function EmptyDay({ isToday, action }) {
     <div className="empty-day" role="status">
       <img src="/logo.svg" alt="" className="empty-face" />
       <p className="empty-title">{isToday ? '오늘은 아직 기록이 없어요' : '이날은 기록이 없어요'}</p>
-      <p className="muted small">{isToday ? '사진 한 장 찍고 증상 네 가지만 고르면 돼요.' : '다른 날을 골라 보세요.'}</p>
+      <p className="muted small">{isToday ? '사진 한 장과 피부 증상을 기록해 보세요.' : '다른 날짜를 선택해 주세요.'}</p>
       {action}
     </div>
   )

@@ -35,7 +35,7 @@ function DeviceFaces({ email }) {
     <div className="card">
       <h2 className="h3">이 기기에 얼굴 사진 보관 <span className="muted small">(선택)</span></h2>
       <div className="row">
-        <div><p className="muted small">켜면 그날 처음 기록된 얼굴 사진을 이 폰(브라우저)에만 보관해요. 변화 탭의 ‘두 날 비교하기’에서 두 날 얼굴을 겹쳐 볼 수 있어요. 서버로는 보내지 않아서, 다른 기기에서는 보이지 않아요. 끄면 이 기기에 보관한 사진을 바로 모두 지워요.</p></div>
+        <div><p className="muted small">켜면 그날 처음 기록된 얼굴 사진을 이 기기(브라우저)에만 보관해요. 변화 탭의 ‘날짜별 비교’에서 두 날짜의 얼굴을 겹쳐 볼 수 있어요. 서버로는 보내지 않아서, 다른 기기에서는 보이지 않아요. 끄면 이 기기에 보관한 사진을 바로 모두 지워요.</p></div>
         <label className="switch"><input type="checkbox" checked={on} disabled={!!busy} onChange={(e) => flip(e.target.checked)} aria-label="이 기기에 얼굴 사진 보관" /><span aria-hidden="true" /></label>
       </div>
       {on && <div className="row"><div><b>지난 사진 넣기</b><p className="muted small">앱 밖에서 찍어 둔 사진을 이 기기에 넣어요. 파일 이름에 날짜(예: 2026-11-04)가 있어야 해요. 지금 {count}일 치가 있어요.</p></div>
@@ -56,7 +56,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
   const [districts, setDistricts] = useState([])
   useEffect(() => { api.myProfile().then((p) => { setDistricts(p.districts); setDistrict(p.district || ''); setSaved(p.district || '') }).catch(() => {}) }, [])
   const saveDistrict = () => run('district', async () => { await api.saveProfile(district); setSaved(district) },
-    district ? `사는 구를 ${district}로 저장했어요.` : '사는 구를 지웠어요.')
+    district ? `거주 지역을 저장했어요: ${district}` : '거주 지역을 지웠어요.')
 
   const run = async (name, fn, okMsg) => {
     setBusy(name); setError(null); setMsg(null)
@@ -68,9 +68,9 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
     const a = document.createElement('a'); a.href = url; a.download = 'natssi-my-data.json'; a.click()
     URL.revokeObjectURL(url)
-  }, '내 기록을 파일로 내려받았어요.')
+  }, '내 기록을 다운로드했어요.')
 
-  const reset = () => run('reset', async () => { await api.resetMine(); onChanged() }, '내 증상 기록을 모두 지웠어요.')
+  const reset = () => run('reset', async () => { await api.resetMine(); onChanged() }, '증상 기록을 모두 삭제했어요.')
   const remove = () => run('delete', async () => { await api.deleteAccount(); await clearFaces(meta.viewer.email); onLoggedOut() })
   const flip = (key, on, done) => run('opt-' + key, async () => { await api.setOptional(key, on); onChanged() }, done)
 
@@ -81,18 +81,18 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
 
       <div className="grid2">
       <div className="card">
-        <h2 className="h3">내 기록</h2>
-        <div className="row"><div><b>내려받기</b><p className="muted small">저장된 증상 기록, 루틴, 사는 구, 동의 기록을 파일로 받아요.</p></div>
-          <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '내려받기'}</button></div>
-        <div className="row"><div><b>증상 기록 모두 지우기</b><p className="muted small">계정은 남기고 내 증상 기록만 지워요.</p></div>
-          <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '지우는 중…' : '지우기'}</button></div>
-        <div className="row"><div><b>사진</b><p className="muted small">얼굴 사진은 서버에 보내지 않아요. 아래 ‘이 기기에 얼굴 사진 보관’을 켜면 이 폰에만 남겨요.</p></div><span className="done">서버 저장 안 함</span></div>
+        <h2 className="h3">내 기록 관리</h2>
+        <div className="row"><div><b>내 기록 다운로드</b><p className="muted small">저장된 증상 기록, 루틴, 거주 지역 및 동의 기록을 파일로 다운로드할 수 있어요.</p></div>
+          <button className="btn ghost" onClick={download} disabled={!!busy}>{busy === 'export' ? '준비 중…' : '다운로드'}</button></div>
+        <div className="row"><div><b>증상 기록 전체 삭제</b><p className="muted small">계정은 유지하고 증상 기록만 삭제해요.</p></div>
+          <button className="btn ghost" onClick={reset} disabled={!!busy}>{busy === 'reset' ? '삭제하는 중…' : '삭제'}</button></div>
+        <div className="row"><div><b>사진</b><p className="muted small">얼굴 전체 사진은 서버로 보내지 않아요. 아래 ‘이 기기에 얼굴 사진 보관’을 켠 경우에만 이 기기에 남겨요.</p></div><span className="done">서버 저장 안 함</span></div>
       </div>
 
       <div className="card">
         <h2 className="h3">선택 동의</h2>
-        <p className="muted small">동의하지 않아도 기본 기능은 모두 쓸 수 있어요. 아래 스위치로 바로 켜고 꺼요.</p>
-        {[['ai_report', 'AI로 리포트 문장 다듬기', '이름, 이메일, 날짜, 제품 이름을 뺀 요약만 미국의 AI 서비스(Anthropic의 Claude)로 보내 리포트 문장을 다듬어요. 끄면 정해진 틀에 맞춘 문장으로 보여요.', 'AI 문장 다듬기를 껐어요.', 'AI 문장 다듬기를 켰어요.', 'ai'],
+        <p className="muted small">동의하지 않아도 기본 기능을 이용할 수 있어요. 언제든 변경할 수 있어요.</p>
+        {[['ai_report', 'AI로 피부 리포트 문장 다듬기', '동의하면 이름, 이메일, 날짜, 제품명을 제외한 가명 처리된 기록 요약을 미국의 AI 서비스(Anthropic Claude)에 보내 문장을 다듬어요. 동의하지 않으면 기본 문구로 피부 리포트를 제공해요.', 'AI 문장 다듬기 동의를 취소했어요.', 'AI 문장 다듬기에 동의했어요.', 'ai'],
           ['improve', '서비스 개선을 위한 얼굴 사진 제공', '켜면 낯씨가 얼굴 찾기, 사진 검사, 볼 붉은기 재는 방법을 더 정확하게 고칠 때 내 얼굴 사진을 쓸 수 있어요. 지금은 동의만 받고, 사진을 실제로 받기 시작하면 먼저 알려 드릴게요. 받은 사진은 3개월 뒤 지우고, 끄면 바로 지워요.', '서비스 개선용 사진 제공을 껐어요.', '서비스 개선용 사진 제공에 동의했어요.', 'improve']].map(([k, label, help, offMsg, onMsg, doc]) => (
           <div className="row" key={k}>
             <div><b>{label}</b><p className="muted small">{help} <button className="link" onClick={() => onLegal(doc)}>자세히</button></p></div>
@@ -105,13 +105,13 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       <DeviceFaces email={meta.viewer.email} />
 
       <div className="card">
-        <h2 className="h3">사는 구 <span className="muted small">(선택)</span></h2>
-        <p className="muted small">고르면 그 구의 미세먼지, 습도, 기온이 기록 옆에 함께 보여요. 에어코리아와 기상청이 잰 값이에요.</p>
-        <p className="muted small">구 단위만 저장하고 정확한 위치는 받지 않아요. 지금은 서울만 돼요.</p>
+        <h2 className="h3">거주 지역 <span className="muted small">(선택)</span></h2>
+        <p className="muted small">거주 지역을 선택하면 해당 지역의 미세먼지, 습도, 기온(에어코리아, 기상청 실측)을 피부 기록과 함께 확인할 수 있어요.</p>
+        <p className="muted small">서울의 구 단위 지역만 저장해요. 정확한 주소나 GPS 위치는 수집하지 않아요.</p>
         <div className="district-row">
-          <label className="sr-only" htmlFor="district">사는 구</label>
+          <label className="sr-only" htmlFor="district">거주 지역</label>
           <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!districts.length}>
-            <option value="">고르지 않음</option>
+            <option value="">선택 안 함</option>
             {districts.map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <button className="btn ghost" onClick={saveDistrict} disabled={!!busy || district === saved}>{busy === 'district' ? '저장 중…' : '저장'}</button>
@@ -119,17 +119,17 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       </div>
 
       <div className="card danger">
-        <h2 className="h3">탈퇴</h2>
-        <p className="muted small">계정과 함께 증상 기록, 볼 색 기록, 루틴, 사는 구가 모두 지워져요. 되돌릴 수 없어요.</p>
+        <h2 className="h3">회원 탈퇴</h2>
+        <p className="muted small">회원 탈퇴 시 계정, 증상 기록, 볼 색상 측정값, 루틴, 거주 지역 정보가 삭제돼요. 삭제한 기록은 복구할 수 없어요.</p>
         {!confirmDelete ? (
           <div className="actions left"><button className="btn ghost warn" onClick={() => setConfirmDelete(true)}>탈퇴하기</button></div>
         ) : (
           <div>
-            <label className="field"><span>확인하려면 ‘탈퇴’를 입력해 주세요</span>
+            <label className="field"><span>회원 탈퇴를 확인하려면 ‘탈퇴’를 입력해 주세요.</span>
               <input value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" /></label>
             <div className="actions left">
               <button className="btn ghost" onClick={() => { setConfirmDelete(false); setWord('') }}>취소</button>
-              <button className="btn warn" onClick={remove} disabled={word.trim() !== '탈퇴' || !!busy}>{busy === 'delete' ? '지우는 중…' : '모두 지우고 탈퇴'}</button>
+              <button className="btn warn" onClick={remove} disabled={word.trim() !== '탈퇴' || !!busy}>{busy === 'delete' ? '삭제하는 중…' : '회원 탈퇴 및 기록 삭제'}</button>
             </div>
           </div>
         )}
@@ -137,7 +137,7 @@ export default function Account({ meta, onLegal, onLoggedOut, onChanged }) {
       </div>
       {msg && <p className="ok-msg" role="status">{msg}</p>}
       {error && <p className="err" role="alert">{error}</p>}
-      <p className="muted small">약관 기준일 {meta.consent_version}</p>
+      <p className="muted small">약관 시행일 {meta.consent_version}</p>
         <p className="muted small"><button className="link" onClick={() => onLegal('privacy')}>개인정보 처리방침 보기</button></p>
     </section>
   )

@@ -80,7 +80,7 @@ function canvasOf(w, h) {
 const HEIF = /image\/hei[cf]|\.hei[cf]$/i
 async function decodePhoto(file) {
   if (HEIF.test(file.type || '') || HEIF.test(file.name || '')) {
-    throw userError("이 사진 형식(HEIF)은 브라우저에서 열리지 않아요. 카메라 설정에서 '고효율 사진'을 끄고 찍거나, 이 화면의 카메라로 바로 찍어 주세요.")
+    throw userError('HEIF 형식의 사진을 열 수 없어요. 카메라 설정에서 ‘고효율 사진’을 끄거나 낯씨에서 직접 찍어 주세요.')
   }
   const opt = { imageOrientation: 'from-image', colorSpaceConversion: 'none' }
   try {
@@ -93,7 +93,7 @@ async function decodePhoto(file) {
     const w = ratio >= 1 ? MEASURE_MAX_SIDE : Math.round(MEASURE_MAX_SIDE * ratio)
     return await createImageBitmap(file, { ...opt, resizeWidth: w, resizeQuality: 'high' })
   } catch {
-    throw userError('사진을 열 수 없어요. JPG나 PNG 사진으로 골라 주세요.')
+    throw userError('사진을 열 수 없어요. JPG나 PNG 사진을 선택해 주세요.')
   }
 }
 
@@ -120,7 +120,7 @@ async function toCanvas(src) {
 // 얼굴 사진(이 기기 보관용): 두 눈이 수평이고 같은 자리, 같은 크기에 오게 잘라 둔다. 두 날을 겹쳐 볼 때 얼굴이 맞도록.
 let lastFace = null
 export const takeFace = () => { const p = lastFace; lastFace = null; return p }
-const FACE_W = 360, FACE_H = 450
+const FACE_W = 360, FACE_H = 480                        // 두 날 비교 화면(3:4)과 같은 비율
 function alignFace(canvas, lm) {
   const mid = (ids) => ids.reduce((a, i) => [a[0] + lm[i][0] / ids.length, a[1] + lm[i][1] / ids.length], [0, 0])
   const [r, l] = [mid([33, 133]), mid([362, 263])]                   // 사진 왼쪽 눈, 오른쪽 눈 가운데
@@ -130,9 +130,9 @@ function alignFace(canvas, lm) {
   const c = canvasOf(FACE_W, FACE_H), g = c.getContext('2d')
   g.fillStyle = '#ece7e1'; g.fillRect(0, 0, FACE_W, FACE_H)
   g.imageSmoothingQuality = 'high'
-  g.translate(FACE_W / 2, FACE_H * 0.4)                             // 두 눈 가운데를 같은 자리에
+  g.translate(FACE_W / 2, FACE_H * 0.42)                            // 두 눈 가운데를 같은 자리에
   g.rotate(-Math.atan2(dy, dx))                                      // 눈을 수평으로
-  g.scale((FACE_W * 0.36) / dist, (FACE_W * 0.36) / dist)            // 눈 사이를 같은 길이로
+  g.scale((FACE_W * 0.2) / dist, (FACE_W * 0.2) / dist)              // 눈 사이를 같은 길이로(폭의 20%: 머리와 턱까지 얼굴 전체가 들어오게)
   g.translate(-(r[0] + l[0]) / 2, -(r[1] + l[1]) / 2)
   g.drawImage(canvas, 0, 0)
   return c.toDataURL('image/jpeg', 0.85)
