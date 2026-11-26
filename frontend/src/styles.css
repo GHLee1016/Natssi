@@ -1061,3 +1061,33 @@ button.fm-box:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .first-week .fw-what{margin-top:8px;font-size:14px;color:var(--sub)}
 .first-week .fw-what summary{cursor:pointer;color:var(--accent-ink);font-weight:600;min-height:32px;display:flex;align-items:center}
 .first-week .fw-what p{margin:6px 0 0;line-height:1.55}
+
+/* 사용법 시트: 어디서 하는지, 날씨 읽는 법, 버튼은 아래에 붙여 둔다 */
+.welcome-sheet .welcome-note{margin:-8px 0 14px}
+.welcome-sheet .welcome-where{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--accent-ink)}
+.welcome-sheet .welcome-legend{list-style:none;padding:0;margin:6px 0 0;display:grid;gap:6px}
+.welcome-sheet .welcome-legend li{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--sub)}
+.welcome-sheet .welcome-legend li b{display:inline;font-size:14px;color:var(--ink);margin-right:2px}
+.welcome-sheet .welcome-tips{display:grid;gap:6px;padding:12px;border-radius:14px;background:var(--bg);line-height:1.5}
+.welcome-sheet .welcome-tips p{margin:0}
+.welcome-sheet .welcome-legend .wi{margin:0}
+/* 사용법: 한 장씩 넘기기 */
+.welcome-sheet.paged{display:flex;flex-direction:column;overflow:hidden}
+.welcome-top{display:flex;justify-content:space-between;align-items:center}
+.welcome-top .eyebrow{margin:0}
+.welcome-count{font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+.welcome-dots{display:flex;gap:6px;margin:10px 0 18px}
+.welcome-dots i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.welcome-dots i.done{background:#f3c2a8}.welcome-dots i.on{background:var(--accent)}
+.welcome-page{min-height:250px;animation:wp-in .25s ease-out}
+@keyframes wp-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.welcome-page{animation:none}}
+.welcome-num{display:inline-flex;width:34px;height:34px;border-radius:50%;background:var(--tint);color:var(--accent-ink);font-weight:800;align-items:center;justify-content:center;font-size:15px}
+.welcome-sheet.paged h2{font-size:21px;line-height:1.35;margin:12px 0 10px}
+.welcome-body{font-size:16px;line-height:1.6;color:var(--ink);margin:0}
+.welcome-sheet.paged .welcome-where{margin-top:12px;font-size:13px;padding:5px 12px}
+.welcome-sheet.paged .welcome-tips{margin-top:14px}
+.welcome-sheet.paged .welcome-legend{gap:10px;margin-top:4px}
+.welcome-sheet.paged .welcome-legend li{font-size:15px}
+.welcome-sheet.paged .welcome-legend li b{font-size:15px}
+.welcome-sheet.paged .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
