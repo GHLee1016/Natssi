@@ -16,7 +16,9 @@ function DeviceFaces({ email }) {
     setNote(v ? '이제 사진을 찍으면 그날 처음 기록된 얼굴 사진을 이 기기에 남겨요.' : '이 기기에 보관한 얼굴 사진을 모두 지웠어요.')
   }
   const add = async (e) => {
-    const files = [...e.target.files]; e.target.value = ''
+    const files = [...(e.target.files || [])]
+    if (!files.length || busy) return                     // 같은 고르기에 input, change가 두 번 오기도 해서 빈 목록은 넘긴다
+    e.target.value = ''
     const byDay = {}
     for (const f of files.sort((x, y) => x.name.localeCompare(y.name))) { const d = dayFromName(f.name); if (d && !byDay[d]) byDay[d] = f }
     const days = Object.keys(byDay).sort()
