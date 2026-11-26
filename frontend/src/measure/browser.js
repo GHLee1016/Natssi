@@ -80,7 +80,7 @@ function canvasOf(w, h) {
 const HEIF = /image\/hei[cf]|\.hei[cf]$/i
 async function decodePhoto(file) {
   if (HEIF.test(file.type || '') || HEIF.test(file.name || '')) {
-    throw userError("이 사진 형식(HEIF)은 브라우저에서 열리지 않아요. 카메라 설정에서 '고효율 사진'을 끄고 찍거나, 이 화면의 카메라로 바로 찍어 주세요.")
+    throw userError('HEIF 형식의 사진을 열 수 없어요. 카메라 설정에서 ‘고효율 사진’을 끄거나 낯씨에서 직접 찍어 주세요.')
   }
   const opt = { imageOrientation: 'from-image', colorSpaceConversion: 'none' }
   try {
@@ -93,7 +93,7 @@ async function decodePhoto(file) {
     const w = ratio >= 1 ? MEASURE_MAX_SIDE : Math.round(MEASURE_MAX_SIDE * ratio)
     return await createImageBitmap(file, { ...opt, resizeWidth: w, resizeQuality: 'high' })
   } catch {
-    throw userError('사진을 열 수 없어요. JPG나 PNG 사진으로 골라 주세요.')
+    throw userError('사진을 열 수 없어요. JPG나 PNG 사진을 선택해 주세요.')
   }
 }
 

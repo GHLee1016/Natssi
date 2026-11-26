@@ -12,5 +12,8 @@ export default function KV({ items, className = '' }) {
 }
 
 // 증상 네 가지 → KV 항목
+// 저장 키('화끈')는 그대로 두고 화면에 보이는 이름만 바꾼다.
 export const SYMPTOM_KEYS = ['따가움', '화끈', '가려움', '당김']
-export const symptomItems = (s) => SYMPTOM_KEYS.map((k) => [k, s?.[k] ?? 0])
+const SYMPTOM_LABEL = { 화끈: '화끈거림' }
+export const symptomLabel = (k) => SYMPTOM_LABEL[k] || k
+export const symptomItems = (s) => SYMPTOM_KEYS.map((k) => [symptomLabel(k), s?.[k] ?? 0])

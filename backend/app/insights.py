@@ -73,22 +73,24 @@ def recap(records, versions, month=None):
     if signal:
         after = [r for r in photo if r["date"] > signal[-1] and r["verdict"]["level"] == judge.NO_SIGNAL]
         back = after[0]["date"] if after else None
-    lines = [f"{int(month[5:])}월에 {len(rows)}일 기록했어요. 그중 사진을 찍은 날은 {len(photo)}일이에요."]
-    if judged:
+    lines = [f"{int(month[5:])}월에 {len(rows)}일 기록했어요. 그중 사진을 기록한 날은 {len(photo)}일이에요."]
+    if not judged:                    # 평소 범위와 비교한 날이 0일: '흐린 날이 없었다'고 하지 않는다
+        lines.append("아직 비교할 기록이 없어요. 사진 기록을 더 남기면 붉은기 변화를 확인할 수 있어요.")
+    else:
         n = len(judged)
-        lines.append(f"평소와 비교한 {n}일 모두 볼 붉은기가 평소 범위 안이었어요." if inside == n else
-                     f"평소와 비교한 {n}일 모두 볼 붉은기가 평소 범위 밖이었어요." if inside == 0 else
-                     f"평소와 비교한 {n}일 중 {inside}일은 볼 붉은기가 평소 범위 안이었어요.")
+        lines.append(f"평소와 비교한 {n}일 모두 붉은기가 평소 범위 안에 있었어요." if inside == n else
+                     f"평소와 비교한 {n}일 모두 붉은기가 평소 범위 밖에 있었어요." if inside == 0 else
+                     f"평소와 비교한 {n}일 중 {inside}일은 붉은기가 평소 범위 안에 있었어요.")
     for c in changes:
         lines.append(f"{_md(str(c['date']))}에 루틴을 바꿨어요: {c['change']}.")
     if signal:
-        lines.append(f"{', '.join(_spans(signal))}에 붉은기가 평소 범위를 넘었어요(흐림 {len(signal)}일).")
+        lines.append(f"{', '.join(_spans(signal))}에 평소보다 볼이 붉었어요(흐림 {len(signal)}일).")
     if back:
-        lines.append(f"{_md(back)}부터 다시 평소 범위로 돌아왔어요.")
+        lines.append(f"{_md(back)}에 다시 맑음으로 기록됐어요.")
     if symptom:
-        lines.append(f"증상을 적은 날은 {len(symptom)}일이에요.")
+        lines.append(f"피부 증상을 기록한 날은 {len(symptom)}일이에요.")
     if env_diff:
-        lines.append(f"동네 환경(미세먼지, 습도, 기온)이 평소와 달랐던 날은 {env_diff}일이에요.")
+        lines.append(f"환경 정보(미세먼지, 습도, 기온)가 평소와 달랐던 날은 {env_diff}일이에요.")
     return {"month": month, "months": months, "empty": False, "days": len(rows), "photo_days": len(photo),
             "weather": count, "signal_spans": _spans(signal), "back_on": back, "changes": changes,
             "symptom_days": len(symptom), "env_diff_days": env_diff, "inside": inside, "judged": len(judged), "lines": lines,
