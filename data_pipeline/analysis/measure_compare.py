@@ -159,6 +159,9 @@ def run(folder):
         r = rows[-1]
         print(f"{ph['path'].name}: 원래 {r['a_orig']:.3f}({'통과' if r['ok_orig'] else r['flags_orig']}), "
               f"지금 {r['a_now']:.3f}({'통과' if r['ok_now'] else r['flags_now']})", flush=True)
+    if not rows:
+        raise SystemExit(f"사진을 찾지 못했어요: {folder}\n"
+                         "폴더 경로에 띄어쓰기가 있으면 따옴표로 감싸 주세요. 폴더 안은 '이름/2026-11-08_1.jpg' 구조여야 해요.")
     d = pd.DataFrame(rows)
     out = ROOT / "private" / "measure_compare.csv"
     out.parent.mkdir(exist_ok=True)

@@ -45,3 +45,8 @@ def test_summary_runs(tmp_path, monkeypatch):
     mcmp.summary(pd.DataFrame(rows))
     text = (tmp_path / "data" / "measure_compare.md").read_text(encoding="utf-8")
     assert "원래만 통과 3장" in text and "head_pose 3장" in text
+
+
+def test_run_empty_folder_message(tmp_path):
+    with pytest.raises(SystemExit, match="사진을 찾지 못했어요"):
+        mcmp.run(tmp_path)
