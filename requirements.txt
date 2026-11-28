@@ -3,5 +3,5 @@ fastapi>=0.110
 pillow>=10
 python-multipart>=0.0.9
 httpx>=0.28.1
-rapidfuzz>=3.0
+rapidfuzz>=3.14.6
 anthropic>=2.14,<3
