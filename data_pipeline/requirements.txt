@@ -1,5 +1,5 @@
 requests>=2.31
-pandas>=2.0
+pandas>=3.1.1
 # ingredient OCR (RapidOCR on onnxruntime, no torch). Keep this file ASCII-only: pip on Korean Windows reads it as cp949.
 rapidocr>=3.0
 onnxruntime>=1.32.0
